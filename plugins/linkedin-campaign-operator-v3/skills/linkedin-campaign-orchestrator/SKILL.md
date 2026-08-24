@@ -4,7 +4,7 @@ description: Run Sunny Chandel's persistent organic LinkedIn 10k/10k operating s
 compatibility: Requires Chrome control, code execution, internet access, and a writable campaign-data directory. Asset cycles require Claude Design and file-upload capabilities.
 metadata:
   author: sunny
-  version: "0.3.1"
+  version: "0.3.2"
 ---
 
 # LinkedIn campaign orchestrator
@@ -71,7 +71,7 @@ Run once before every daily cycle, in this order:
 8. Load or initialize campaign configuration, consent, current state, unresolved failures, runtime learning, active experiments, strategy weights, and the Working Algorithm Model.
 9. Recalculate target progress. If achieved, save final evidence and mark `completed`; otherwise continue immediately from the next valid pipeline stage.
 
-Any pre-flight failure stops the cycle at that point with no partial run. Do not replace a failed Chrome check with a generic questionnaire.
+Any hard-blocking pre-flight failure stops the cycle at that point with no partial run. Recoverable or optional pre-flight gaps use the automatic fallback rules, are recorded as `unknown` when necessary, and do not stop the cycle. Do not replace a failed Chrome check with a generic questionnaire.
 
 Do not reopen a locked target during pre-flight. A missing optional goal-tracking feature is not a blocker.
 
@@ -91,6 +91,10 @@ Automated mode is execution, not a planning conversation. Never ask whether to r
 
 If a required publication package is missing, incomplete, stale, or invalid, automatically run its missing prerequisites in dependency order: `linkedin-content-research` → `linkedin-content-production` → publication-package validation. The research and production backfill may run outside Block 0 because it does not touch LinkedIn. It must not move publishing or engagement outside their fixed windows, increase action counts, or create more than the next required India and US-Central pair. If the package becomes valid while its publishing window is still open, continue directly to publication without requesting approval. If the window closes first, record the missed publish and prepare the next valid package; do not compensate outside the schedule.
 
+Every supporting skill inherits the active consent and automation state from this parent. A subskill must never create an onboarding step, request routine approval, ask the owner to invoke another skill, or return a “what should I do next?” choice. Resolve missing non-sensitive inputs in this order: read persistent state, inspect the connected account or existing artifacts, derive from verified evidence, then use the fixed campaign default or record `unknown`. Regenerate missing or invalid artifacts from the nearest valid upstream artifact. Use a documented base-flow fallback when an optional tool, metric, source, or premium feature is unavailable. Return a structured result to this orchestrator after every stage, including partial results and recovery notes, so the pipeline always advances or enters an explicit lifecycle state.
+
+For recoverable failures, save state, verify the last observable outcome, retry safely up to the configured limit, select the best valid fallback, and continue without asking. Never terminate merely because a preferred source, candidate, metric, asset format, or premium feature is unavailable. Only `hard-blocked`, `completed`, or `user-stopped` may halt execution. When waiting for the next fixed window, use an available scheduling or wait mechanism and continue from stored state; do not ask the owner to restart the pipeline.
+
 ## Daily pipeline
 
 All times are IST.
@@ -109,7 +113,7 @@ Prioritize replies to the campaign owner, then hub-account content, adjacency si
 
 ### Window 2: 9:00-10:30 AM
 
-Publish the India package, verify it is live, perform 10 engagement actions, handle fast replies through approximately 11:00 AM, and log results.
+Ensure the India package exists using the automatic missing-package recovery rule above. Publish it, verify it is live, perform 10 engagement actions, handle fast replies through approximately 11:00 AM, and log results.
 
 ### Midday pass: 11:00 AM-1:30 PM
 

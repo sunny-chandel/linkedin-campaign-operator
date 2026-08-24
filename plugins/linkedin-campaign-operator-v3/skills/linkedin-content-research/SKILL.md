@@ -4,12 +4,16 @@ description: Research fresh LinkedIn campaign topics, primary sources, platform 
 compatibility: Requires internet access. Use current direct sources and respect site access rules.
 metadata:
   author: sunny
-  version: "0.2.0"
+  version: "0.3.2"
 ---
 
 # LinkedIn content research
 
 Produce evidence-ranked research briefs for the campaign. Do not draft the final post until the brief is complete.
+
+## Automated execution
+
+In automated mode, start immediately when routed by the parent orchestrator. Never ask the owner to choose a topic, niche, audience, region, source, or angle. Read them from campaign state and the connected profile; if an optional value is unavailable, infer it from verified recent evidence or record it as `unknown` and continue. If a preferred source is unavailable, try another primary source and then the strongest credible alternative. Return the best fact-checked brief possible with uncertainty clearly marked. Escalate only when no usable evidence can be obtained after safe recovery and a truthful publication package cannot be produced.
 
 ## Workflow
 

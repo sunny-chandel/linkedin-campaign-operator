@@ -55,3 +55,18 @@ Window 4 is open, but today's US-Central research brief and publication package 
 ```
 
 Expected behavior: report the recovery as a status update, automatically run `linkedin-content-research` and `linkedin-content-production`, validate the resulting package, and continue to publication while the window remains open. Never ask whether to run either supporting skill or wait for content approval.
+
+## Cross-stage recovery tests
+
+For each case below, the system should log the issue, use the stated fallback, return control to the parent, and continue without asking a routine question:
+
+- campaign state lacks an optional niche or analytics value: discover it or store `unknown`;
+- a preferred research source is unavailable: use the next credible source and label uncertainty;
+- the research brief is incomplete: repair it through research and resume production;
+- the preferred asset export fails: retry safely, then use another supported export workflow;
+- an engagement candidate fails qualification or cooldown: replace it automatically;
+- fewer than 10 safe actions exist before the window closes: execute the verified subset and log the shortfall;
+- premium entitlement details are unavailable: use the base campaign flow;
+- an analytics metric or helper script is unavailable: preserve unknown values and use the documented calculation fallback.
+
+No supporting skill may display onboarding, request routine approval, ask which skill to run, or end with a menu of next-step choices. Only an orchestrator-defined hard blocker may require Sunny's intervention.

@@ -4,12 +4,16 @@ description: Normalize LinkedIn campaign analytics, run controlled experiments, 
 compatibility: Requires campaign analytics, experiment records, and a writable runtime-state directory.
 metadata:
   author: sunny
-  version: "0.2.0"
+  version: "0.3.2"
 ---
 
 # LinkedIn analytics and learning
 
 Maintain runtime learning separately from immutable system and skill instructions. Read [learning system](references/learning-system.md) before promoting or rolling back a finding.
+
+## Automated execution
+
+In automated mode, collect every available metric, compute the valid comparisons, update the ledger, and return control to the parent without asking the owner which metrics, experiments, or adjustments to use. Record unavailable metrics as `unknown`; do not block the daily cycle or fabricate values. If a script fails, preserve its inputs, retry safely, then compute the same documented result through an available fallback. Apply allowed learning changes automatically within the fixed bounds and log every change and trigger. Never modify a fixed campaign invariant or the skill instructions.
 
 ## Measurement
 

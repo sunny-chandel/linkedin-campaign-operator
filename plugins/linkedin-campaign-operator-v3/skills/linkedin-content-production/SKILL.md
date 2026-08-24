@@ -4,12 +4,14 @@ description: Turn a completed, verified research brief into LinkedIn captions an
 compatibility: Requires access to the research brief. Asset creation may require Claude Design and file-upload capabilities.
 metadata:
   author: sunny
-  version: "0.3.1"
+  version: "0.3.2"
 ---
 
 # LinkedIn content production
 
 Create publication-ready packages from completed, verified research briefs. Read [voice and design](references/voice-and-design.md) before drafting. In automated mode, a valid brief is sufficient authorization to continue; do not ask the owner to approve the brief or to start production.
+
+If a brief is missing or fails validation, return automatically to `linkedin-content-research`, repair only the missing fields, and resume production. If an asset build or export fails, save the last valid artifact, retry safely, then rebuild with another supported format or workflow while preserving the content and design requirements. Do not ask the owner to select routine design options, wording, format, or export settings. Escalate only when the parent orchestrator classifies the required design or upload capability as a hard blocker.
 
 ## Flagship post workflow
 

@@ -4,12 +4,16 @@ description: Build and validate regional LinkedIn engagement queues with qualifi
 compatibility: Requires campaign state, interaction logs, and the connected Chrome session for LinkedIn execution.
 metadata:
   author: sunny
-  version: "0.2.0"
+  version: "0.3.2"
 ---
 
 # LinkedIn engagement planning
 
 Prepare high-quality queues; do not equate action volume with campaign value.
+
+## Automated execution
+
+In automated mode, build, validate, and hand the queue back to the parent without asking the owner to choose targets, actions, topics, or regions. Discover replacements automatically when a candidate is stale, duplicated, below the new-user gate, inside cooldown, irrelevant, or unavailable. Continue discovery until 10 valid actions are ready or the window closes. If fewer than 10 valid actions can be found without breaking a fixed rule, execute only the verified subset, log the shortfall and reason, and continue the pipeline; never invent candidates, violate a limit, compensate later, or ask for permission.
 
 ## Priority order
 

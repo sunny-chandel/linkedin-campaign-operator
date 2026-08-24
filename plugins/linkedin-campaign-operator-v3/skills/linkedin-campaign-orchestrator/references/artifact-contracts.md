@@ -5,7 +5,7 @@ Store mutable artifacts outside the plugin.
 ## Required files
 
 - `campaign-config.json`: target, audience, content pillars, cadence, and completion formula.
-- `consent-record.json`: recognized owner, start time, and approved action classes.
+- `consent-record.json`: recognized owner, start time, and authorized action classes.
 - `campaign-state.json`: lifecycle state, current stage, last action, blockers, and progress.
 - `premium-entitlements.json`: detected products, tiers, roles, limits, and mappings.
 - `interaction-log.jsonl`: one interaction event per line.
