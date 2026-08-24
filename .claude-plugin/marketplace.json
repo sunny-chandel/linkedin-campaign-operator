@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "linkedin-campaign-operator",
-      "source": "./",
+      "source": "./plugins/linkedin-campaign-operator",
       "description": "Run Sunny Chandel's automated LinkedIn 10k/10k operating system with persistent state and auditable learning.",
       "author": {
         "name": "Sunny Chandel"
