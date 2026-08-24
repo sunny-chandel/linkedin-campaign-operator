@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "replace-me",
+  "timezone": "Asia/Kolkata",
+  "target": {
+    "name": "10k-10k",
+    "metric_a": {"name": "followers", "baseline": null, "goal": 10000},
+    "metric_b": {"name": "connections", "baseline": null, "goal": 10000},
+    "deadline": null,
+    "completion_formula": "metric_a >= 10000 and metric_b >= 10000",
+    "required_evidence": [
+      "verified LinkedIn follower count",
+      "verified LinkedIn connection count"
+    ]
+  },
+  "audience": {
+    "niche": "",
+    "roles": [],
+    "industries": [],
+    "regions": ["india", "us-central", "uk-eu"],
+    "exclusions": []
+  },
+  "content_pillars": [],
+  "fixed_rules": {
+    "posts_per_day": 2,
+    "windows_per_day": 4,
+    "max_actions_per_window": 10,
+    "new_target_min_followers": 3000,
+    "cooldown_hours": 72,
+    "max_proactive_actions_per_person_per_7d": 2
+  }
+}

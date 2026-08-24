@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "replace-me",
+  "lifecycle_state": "ready",
+  "current_stage": "preflight",
+  "last_confirmed_action": null,
+  "recoverable_failures": [],
+  "hard_blocker": null,
+  "progress": {},
+  "updated_at": null
+}

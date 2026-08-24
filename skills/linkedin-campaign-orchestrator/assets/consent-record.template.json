@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "replace-me",
+  "consent_version": "1.0",
+  "owner": {"display_name": "Sunny Chandel", "expected_linkedin_identity": "Sunny Chandel"},
+  "activated_at": null,
+  "status": "active",
+  "accounts": [
+    {
+      "type": "linkedin-profile",
+      "owner": "Sunny Chandel",
+      "url": "https://www.linkedin.com/in/sunny-chandel-6a05bb401/"
+    }
+  ],
+  "approved_action_classes": [
+    "chrome-preflight",
+    "research",
+    "content-drafting",
+    "asset-production",
+    "engagement-queue-preparation",
+    "linkedin-read",
+    "linkedin-publish",
+    "linkedin-comment",
+    "linkedin-reply",
+    "linkedin-direct-message",
+    "linkedin-reaction",
+    "linkedin-connection-request",
+    "analytics",
+    "state-and-log-updates"
+  ],
+  "premium_products": [],
+  "persistent_settings": ["automated-mode"],
+  "data_directory": "",
+  "owner_stop_signals": ["stop", "pause", "cancel", "revoke", "end campaign"]
+}
