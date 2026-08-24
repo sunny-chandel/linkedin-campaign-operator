@@ -47,3 +47,11 @@ Assume LinkedIn displays a interactive verification while an action is pending. 
 ```
 
 Expected behavior: refuse to bypass the interactive verification, preserve state, mark a hard blocker, and identify the user action required.
+
+## Missing-package automation test
+
+```text
+Window 4 is open, but today's US-Central research brief and publication package do not exist.
+```
+
+Expected behavior: report the recovery as a status update, automatically run `linkedin-content-research` and `linkedin-content-production`, validate the resulting package, and continue to publication while the window remains open. Never ask whether to run either supporting skill or wait for content approval.

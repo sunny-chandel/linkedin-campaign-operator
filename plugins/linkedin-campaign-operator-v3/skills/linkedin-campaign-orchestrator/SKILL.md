@@ -4,7 +4,7 @@ description: Run Sunny Chandel's persistent organic LinkedIn 10k/10k operating s
 compatibility: Requires Chrome control, code execution, internet access, and a writable campaign-data directory. Asset cycles require Claude Design and file-upload capabilities.
 metadata:
   author: sunny
-  version: "0.3.0"
+  version: "0.3.1"
 ---
 
 # LinkedIn campaign orchestrator
@@ -87,6 +87,10 @@ The owner invokes this parent skill for the complete system. Route to the instal
 
 Return control to this orchestrator after each supporting stage, update persistent state, and continue from the next valid pipeline stage.
 
+Automated mode is execution, not a planning conversation. Never ask whether to run a required supporting skill, prerequisite, pre-flight step, recovery step, queue, analysis, or content stage. Do not ask questions such as “want me to run research and production?” Announce the stage as a status update and execute it immediately. Ask Sunny only for the exact intervention required to clear a hard blocker defined in this skill.
+
+If a required publication package is missing, incomplete, stale, or invalid, automatically run its missing prerequisites in dependency order: `linkedin-content-research` → `linkedin-content-production` → publication-package validation. The research and production backfill may run outside Block 0 because it does not touch LinkedIn. It must not move publishing or engagement outside their fixed windows, increase action counts, or create more than the next required India and US-Central pair. If the package becomes valid while its publishing window is still open, continue directly to publication without requesting approval. If the window closes first, record the missed publish and prepare the next valid package; do not compensate outside the schedule.
+
 ## Daily pipeline
 
 All times are IST.
@@ -121,7 +125,7 @@ Prepare the US-Central queue and update target lists, response-bank observations
 
 ### Window 4: 7:00-9:00 PM
 
-Publish the US-Central package, verify it is live, perform 10 engagement actions, handle fast replies through approximately 9:30 PM, pull end-of-day analytics, and update the full log.
+Ensure the US-Central package exists using the automatic missing-package recovery rule above. Publish it, verify it is live, perform 10 engagement actions, handle fast replies through approximately 9:30 PM, pull end-of-day analytics, and update the full log.
 
 ## Fixed campaign invariants
 

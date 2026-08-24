@@ -1,15 +1,15 @@
 ---
 name: linkedin-content-production
-description: Turn an approved research brief into LinkedIn captions and Claude Design assets using the campaign's three voice tiers. Use for daily post packages and response drafts.
+description: Turn a completed, verified research brief into LinkedIn captions and Claude Design assets using the campaign's three voice tiers. Use for daily post packages and response drafts.
 compatibility: Requires access to the research brief. Asset creation may require Claude Design and file-upload capabilities.
 metadata:
   author: sunny
-  version: "0.2.0"
+  version: "0.3.1"
 ---
 
 # LinkedIn content production
 
-Create publication-ready packages from completed research briefs. Read [voice and design](references/voice-and-design.md) before drafting.
+Create publication-ready packages from completed, verified research briefs. Read [voice and design](references/voice-and-design.md) before drafting. In automated mode, a valid brief is sufficient authorization to continue; do not ask the owner to approve the brief or to start production.
 
 ## Flagship post workflow
 
@@ -42,4 +42,4 @@ Include:
 
 Comments, DMs, and replies are one to four short lines and can be one word. Use deliberately imperfect loose grammar and inconsistent capitalization. Always be adversarial by challenging the other person's view or a common assumption. Use no em dash or en dash. Fact-check every claim regardless of length.
 
-In automated mode, sending a preview to chat is informational. Publish through the connected Chrome session in the assigned window and verify the live result.
+In automated mode, sending a preview to chat is informational, not an approval gate. Continue automatically through production and publish through the connected Chrome session in the assigned window, then verify the live result. Ask the owner only when the parent orchestrator classifies a hard blocker.
