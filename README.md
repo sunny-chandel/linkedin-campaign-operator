@@ -1,8 +1,8 @@
 # LinkedIn Campaign Operator for Claude
 
-A Claude plugin for running Sunny Chandel's automated organic LinkedIn 10k/10k system.
+A Claude plugin for running Sunny Chandel's adaptive organic LinkedIn 10k/10k system.
 
-The plugin contains six composable Agent Skills:
+The plugin contains eight composable Agent Skills:
 
 - `linkedin-campaign-orchestrator`
 - `linkedin-content-research`
@@ -10,8 +10,10 @@ The plugin contains six composable Agent Skills:
 - `linkedin-engagement-planning`
 - `linkedin-premium-router`
 - `linkedin-analytics-learning`
+- `linkedin-brand-system`
+- `linkedin-gif-creative-intelligence`
 
-It separates immutable skill instructions from mutable campaign state, validates target and consent configuration, enforces qualification and cooldown rules, automatically optimizes already-active LinkedIn subscriptions, and maintains a versioned runtime-learning ledger.
+It separates versioned skill instructions from mutable campaign state, refreshes running-session instructions when the installed plugin changes, validates target and consent configuration, enforces adaptive engagement limits and cooldown rules, generates profile-derived watermark assets, learns GIF construction from current creator references, optimizes already-active LinkedIn subscriptions, and maintains runtime learning.
 
 ## Install from the marketplace
 
@@ -34,7 +36,9 @@ Invoke the parent skill with:
 /linkedin-campaign-operator-v3:linkedin-campaign-orchestrator
 ```
 
-The parent starts Sunny Chandel's preconfigured organic LinkedIn system for 10,000 followers and 10,000 connections. It checks connected Chrome first, verifies the fixed LinkedIn identity, checks Claude Design and file upload, discovers account and subscription state, calculates the best use of verified included features, and routes automatically through the five supporting skills. It does not open a generic campaign-setup form.
+The parent starts Sunny Chandel's preconfigured organic LinkedIn system for 10,000 followers and 10,000 connections. It checks connected Chrome first, verifies the fixed LinkedIn identity, checks Claude Design and file upload, refreshes the profile-derived watermark kit, discovers account and subscription state, calculates the best use of verified included features, and routes automatically through the seven supporting skills. It does not open a generic campaign-setup form.
+
+When an installed update becomes available to an already-running Claude session, use `/reload-plugins` to apply it without restarting. The orchestrator also resolves and directly loads newer installed skill instructions at every stage boundary as a skill-only fallback.
 
 ## Install for development
 

@@ -102,11 +102,18 @@ class SubscriptionOptimizerTests(unittest.TestCase):
             migrated = json.loads(config_path.read_text(encoding="utf-8"))
             self.assertEqual(migrated["audience"]["niche"], "preserve-me")
             self.assertTrue(migrated["subscription_optimization"]["enabled"])
+            consent = json.loads((state_dir / "consent-record.json").read_text(encoding="utf-8"))
+            self.assertEqual(consent["consent_version"], "1.1")
+            self.assertIn("adaptive-80-action-ceiling", consent["persistent_settings"])
             migrated_state = json.loads(state_path.read_text(encoding="utf-8"))
             self.assertEqual(migrated_state["subscription_optimization"]["active_features"], [])
             self.assertTrue((state_dir / "subscription-inventory.json").is_file())
             self.assertTrue((state_dir / "subscription-utilization-plan.json").is_file())
             self.assertTrue((state_dir / "subscription-results.jsonl").is_file())
+            self.assertTrue((state_dir / "watermark-manifest.json").is_file())
+            self.assertTrue((state_dir / "creator-registry.json").is_file())
+            self.assertTrue((state_dir / "creative-pattern-library.json").is_file())
+            self.assertTrue((state_dir / "gif-reference-captures").is_dir())
             validated = subprocess.run(
                 ["python3", str(ORCHESTRATOR_SCRIPTS / "validate_campaign.py"), str(state_dir)],
                 check=True,

@@ -22,15 +22,16 @@ Each queue item contains:
 
 ## Scoring
 
-Rank by:
+Apply qualification, cooldown, availability, and capacity as hard gates. Score eligible action candidates with:
 
-1. direct inbound relevance;
-2. professional and topic fit;
-3. freshness and timing;
-4. existing relationship quality;
-5. likelihood of a substantive conversation;
-6. regional fit;
-7. risk of repetition.
+- 35 percent predicted qualified profile, follower, or connection growth;
+- 20 percent expected audience spillover;
+- 15 percent probability of substantive conversation;
+- 15 percent professional and target relevance;
+- 10 percent freshness and regional timing;
+- 5 percent historical performance for the action, target layer, region, and cluster.
+
+Select only candidates scoring at least 65. Use observed campaign outcomes to update inputs without changing the fixed weights outside the weekly learning rules.
 
 Follower count is a qualification gate for new additions, not a substitute for relevance.
 

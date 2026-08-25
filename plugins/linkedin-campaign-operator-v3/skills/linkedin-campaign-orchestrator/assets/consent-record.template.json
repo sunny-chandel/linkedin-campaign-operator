@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "campaign_id": "replace-me",
-  "consent_version": "1.0",
+  "consent_version": "1.1",
   "owner": {"display_name": "Sunny Chandel", "expected_linkedin_identity": "Sunny Chandel"},
   "activated_at": null,
   "status": "active",
@@ -29,7 +29,12 @@
     "state-and-log-updates"
   ],
   "premium_products": [],
-  "persistent_settings": ["automated-mode"],
+  "persistent_settings": [
+    "automated-mode",
+    "adaptive-80-action-ceiling",
+    "automatic-profile-watermark",
+    "permanent-dominant-gif-learning-deletion"
+  ],
   "data_directory": "",
   "owner_stop_signals": ["stop", "pause", "cancel", "revoke", "end campaign"]
 }

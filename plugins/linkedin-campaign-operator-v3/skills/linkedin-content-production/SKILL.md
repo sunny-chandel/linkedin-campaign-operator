@@ -1,10 +1,10 @@
 ---
 name: linkedin-content-production
-description: Turn a completed, verified research brief into LinkedIn captions and Claude Design assets using the campaign's three voice tiers. Use for daily post packages and response drafts.
+description: Turn a completed, verified research brief into LinkedIn captions and Claude Design assets using the campaign's voices, active watermark kit, and per-post GIF creative specification. Use for daily post packages and response drafts.
 compatibility: Requires access to the research brief. Asset creation may require Claude Design and file-upload capabilities.
 metadata:
   author: sunny
-  version: "0.3.2"
+  version: "0.4.0"
 ---
 
 # LinkedIn content production
@@ -23,8 +23,10 @@ If a brief is missing or fails validation, return automatically to `linkedin-con
 6. End with one direct question and use zero to three relevant hashtags.
 7. Check that the India and US-Central posts cover different topics.
 8. Create an asset brief with hierarchy, copy limits, dimensions, accessibility requirements, and source attribution.
-9. Build and iterate in Claude Design using the current supported workflow.
-10. Export, verify legibility and content accuracy, then produce a publication package.
+9. When the asset is a GIF, run `linkedin-gif-creative-intelligence` and require a valid `gif-creative-spec.json` before build.
+10. Load the current `watermark-manifest.json` and route the correct validated watermark variant.
+11. Build and iterate in Claude Design using the current supported workflow.
+12. Export, verify legibility, content accuracy, GIF specification compliance, and watermark presence on every frame, then produce a publication package.
 
 ## Publication package contract
 
@@ -39,6 +41,8 @@ Include:
 - experiment ID, if applicable;
 - duplicate check result;
 - final validation status.
+- watermark variant and manifest identity hash;
+- GIF reference, pattern, metrics, and creative-spec validation when applicable.
 
 ## Tier 3 responses
 

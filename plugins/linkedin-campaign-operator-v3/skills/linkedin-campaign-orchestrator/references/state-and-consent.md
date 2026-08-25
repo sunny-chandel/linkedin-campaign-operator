@@ -12,7 +12,9 @@ Invoking the parent skill or explicitly telling it to start activates and stores
 - target formula and completion evidence;
 - accounts and Pages;
 - action classes;
-- fixed windows and counts;
+- four primary windows, four gap clusters, an adaptive 80-action daily ceiling, and 60-minute proactive-cluster spacing;
+- automatic profile-derived watermark creation and application;
+- per-post GIF-pattern promotion and permanent dominant-pattern deletion;
 - premium products and persistent settings;
 - data storage;
 - owner stop signals;

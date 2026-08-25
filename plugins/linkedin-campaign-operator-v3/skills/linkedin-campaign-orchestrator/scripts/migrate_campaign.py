@@ -79,8 +79,69 @@ def main() -> int:
         if state_updated:
             atomic_write_json(state_path, merged_state)
 
+    consent_path = state_dir / "consent-record.json"
+    consent_updated = False
+    if consent_path.is_file():
+        consent = load_object(consent_path)
+        if consent.get("owner", {}).get("display_name") == "Sunny Chandel":
+            required_settings = [
+                "automated-mode",
+                "adaptive-80-action-ceiling",
+                "automatic-profile-watermark",
+                "permanent-dominant-gif-learning-deletion",
+            ]
+            current_settings = consent.get("persistent_settings", [])
+            if not isinstance(current_settings, list):
+                current_settings = []
+            merged_settings = list(dict.fromkeys([*current_settings, *required_settings]))
+            if consent.get("consent_version") != "1.1" or merged_settings != current_settings:
+                consent["consent_version"] = "1.1"
+                consent["persistent_settings"] = merged_settings
+                atomic_write_json(consent_path, consent)
+                consent_updated = True
+
     created: list[str] = []
     artifacts = {
+        "brand-profile.json": {
+            "schema_version": "1.0",
+            "campaign_id": campaign_id,
+            "profile": {},
+            "custom_overrides": {},
+            "identity_hash": None,
+            "generated_at": None,
+        },
+        "watermark-manifest.json": {
+            "schema_version": "1.0",
+            "campaign_id": campaign_id,
+            "identity_hash": None,
+            "claude_design_project": None,
+            "variants": [],
+            "last_verified_at": None,
+        },
+        "creator-registry.json": {
+            "schema_version": "1.0",
+            "campaign_id": campaign_id,
+            "core": [],
+            "rotating": [],
+            "last_observed_at": None,
+        },
+        "gif-reference-index.json": {
+            "schema_version": "1.0",
+            "campaign_id": campaign_id,
+            "references": [],
+        },
+        "creative-pattern-library.json": {
+            "schema_version": "1.0",
+            "campaign_id": campaign_id,
+            "patterns": [],
+        },
+        "gif-creative-spec.json": {
+            "schema_version": "1.0",
+            "campaign_id": campaign_id,
+            "selected_reference_id": None,
+            "selected_pattern_id": None,
+            "validation_status": "not-generated",
+        },
         "subscription-inventory.json": {
             "schema_version": "1.0",
             "campaign_id": campaign_id,
@@ -105,6 +166,10 @@ def main() -> int:
     if not results.exists():
         results.touch()
         created.append(results.name)
+    for directory in (state_dir / "brand" / "watermarks", state_dir / "gif-reference-captures"):
+        if not directory.exists():
+            directory.mkdir(parents=True)
+            created.append(str(directory.relative_to(state_dir)) + "/")
 
     print(
         json.dumps(
@@ -112,6 +177,7 @@ def main() -> int:
                 "migrated": str(state_dir),
                 "config_updated": changed,
                 "state_updated": state_updated,
+                "consent_updated": consent_updated,
                 "created": created,
             }
         )

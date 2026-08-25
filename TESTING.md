@@ -17,6 +17,8 @@ Expected behavior:
 - No setup visualization, generic campaign form, B2B questionnaire, or request for locked values is produced.
 - Consent is stored as active when the recognized owner invokes the system.
 - Current profile, baseline, niche, analytics, and premium information are discovered from Chrome before any question.
+- The profile-derived watermark kit is validated or created automatically during pre-flight.
+- The running-session instruction version is compared with the newest installed plugin version.
 
 ## Skill trigger tests
 
@@ -83,3 +85,26 @@ Expected behavior:
 - the output is deterministic apart from its generation timestamp;
 - paid actions remain inside existing windows and action totals;
 - no purchase, paid-plan upgrade, billing change, contract acceptance, or paid-trial start is attempted.
+
+## Adaptive engagement tests
+
+- Eight fixed proactive clusters are available with at least 60 minutes between completed clusters.
+- Each cluster selects no more than 10 eligible actions scoring at least 65.
+- The combined daily total, including inbound replies, never exceeds 80.
+- The action type is selected by qualified-growth score rather than a fixed mix.
+- Unqualified, cooling, unavailable, capacity-blocked, and below-threshold candidates are rejected.
+- A smaller safe queue is executed without compensating later.
+
+## Brand and GIF tests
+
+- A transparent profile-derived watermark kit is created once, reused while its identity hash matches, and regenerated when the identity changes.
+- Light, dark, horizontal, and compact PNG exports pass dimensions and alpha validation.
+- A valid GIF returns deterministic dimensions, frame count, duration, loop, transparency, and LinkedIn-limit checks.
+- Twenty creator slots are represented as 12 core and eight rotating records.
+- Reference scoring selects the strongest per-post pattern using the fixed 30/25/20/15/10 weights.
+- One candidate scoring at least 85 and 15 points above a contradictory old pattern permanently removes that pattern and its capture.
+- The final GIF creative specification includes the selected reference and the active watermark on every frame.
+
+## Running-session refresh test
+
+Install a newer plugin version while an older campaign session remains open. Run `/reload-plugins` in that session and verify the reported skill count has no load errors. Independently run `resolve_latest_plugin.py` with the older session version and verify it returns the latest validated install path and skill files. Resume from the last confirmed campaign stage without repeating an external action.

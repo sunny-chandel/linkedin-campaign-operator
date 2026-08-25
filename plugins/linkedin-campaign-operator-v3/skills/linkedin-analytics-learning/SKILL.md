@@ -4,7 +4,7 @@ description: Normalize LinkedIn campaign analytics, run controlled experiments, 
 compatibility: Requires campaign analytics, experiment records, and a writable runtime-state directory.
 metadata:
   author: sunny
-  version: "0.3.2"
+  version: "0.4.0"
 ---
 
 # LinkedIn analytics and learning
@@ -21,7 +21,7 @@ In automated mode, collect every available metric, compute the valid comparisons
 2. Compare posts only at equal elapsed ages: 24 hours primary, seven days follow-up.
 3. Match content pillar, format, region, and audience conditions when possible.
 4. Label unmatched comparisons as directional.
-5. Track impressions, members reached, in-network and out-of-network distribution, reactions, comments, saves, sends, reposts, clicks when available, follows, profile activity, qualified followers, negative feedback, and campaign conversions.
+5. Track impressions, members reached, in-network and out-of-network distribution, reactions, comments, saves, sends, reposts, clicks when available, follows, profile activity, qualified followers, connections, substantive conversation depth, action-cluster source, selected GIF pattern, and campaign conversions.
 6. Run `python scripts/compute_metrics.py` for structured records.
 
 ## Learning loop
@@ -36,6 +36,6 @@ In automated mode, collect every available metric, compute the valid comparisons
 
 ## Adjustable variables
 
-Runtime learning may change topic weighting, content-pillar weighting, asset format, hook style, information density, post length within voice rules, question style, target type, regional priority, queue ordering, Tier 3 tone within bounds, approved premium-feature priority, and research-source priority.
+Runtime learning may change topic weighting, content-pillar weighting, hook style, GIF information density, post length within voice rules, question style, target type, regional priority, queue ordering, action-score inputs, Tier 3 tone within bounds, approved premium-feature priority, and research-source priority.
 
 It may not change consent, identities, action counts, windows, spacing, the new-user gate, cooldowns, hard-blocker definitions, or the skill instructions.

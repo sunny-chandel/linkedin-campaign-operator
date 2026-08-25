@@ -1,19 +1,19 @@
 ---
 name: linkedin-engagement-planning
-description: Build and validate regional LinkedIn engagement queues with qualification, cooldown, deduplication, and relevance scoring. Use before any engagement window.
+description: Build and validate adaptive LinkedIn action queues with qualified-growth scoring, qualification, cooldown, deduplication, and regional relevance. Use before any proactive action cluster.
 compatibility: Requires campaign state, interaction logs, and the connected Chrome session for LinkedIn execution.
 metadata:
   author: sunny
-  version: "0.3.2"
+  version: "0.4.0"
 ---
 
 # LinkedIn engagement planning
 
-Prepare high-quality queues; do not equate action volume with campaign value.
+Prepare high-quality queues; 80 actions is a ceiling and never a requirement.
 
 ## Automated execution
 
-In automated mode, build, validate, and hand the queue back to the parent without asking the owner to choose targets, actions, topics, or regions. Discover replacements automatically when a candidate is stale, duplicated, below the new-user gate, inside cooldown, irrelevant, or unavailable. Continue discovery until 10 valid actions are ready or the window closes. If fewer than 10 valid actions can be found without breaking a fixed rule, execute only the verified subset, log the shortfall and reason, and continue the pipeline; never invent candidates, violate a limit, compensate later, or ask for permission.
+In automated mode, build, score, validate, and hand the queue back to the parent without asking the owner to choose targets, action types, topics, or regions. Evaluate every eligible comment, reply, reaction, DM, and connection request, then choose the action with the strongest predicted qualified-growth value. Discover replacements automatically when a candidate is stale, duplicated, below the new-user gate, inside cooldown, irrelevant, unavailable, or below the 65-point action threshold. Execute only the verified subset and reduce the remaining daily capacity; never invent candidates, force a mix, violate a limit, compensate later, or ask for permission.
 
 ## Priority order
 
@@ -39,5 +39,7 @@ Read [queue rules](references/queue-rules.md) for scoring and output fields.
 - A reaction, comment, reply, or DM each counts as one action.
 - Avoid repetitive response-bank text and repeated targeting.
 - Every response must be relevant to the specific post or conversation.
+- Run `python scripts/rank_actions.py <candidates> --threshold 65 --limit 10` for structured candidate sets.
+- A proactive cluster contains at most 10 actions. All actions, including genuine inbound replies, count toward the 80-action daily ceiling.
 
-Return 10 planned actions for each window, each with rationale, evidence, last-interaction check, and intended outcome. Stop early only for a hard blocker.
+Return up to 10 planned actions for each cluster, each with score components, rationale, evidence, last-interaction check, and intended qualified-growth outcome. Stop early only for a hard blocker.

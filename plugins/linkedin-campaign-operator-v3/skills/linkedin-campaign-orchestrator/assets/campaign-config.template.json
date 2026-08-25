@@ -25,9 +25,53 @@
     "posts_per_day": 2,
     "windows_per_day": 4,
     "max_actions_per_window": 10,
+    "gap_clusters_per_day": 4,
+    "max_action_clusters_per_day": 8,
+    "max_actions_per_cluster": 10,
+    "max_actions_per_day": 80,
+    "min_proactive_cluster_gap_minutes": 60,
     "new_target_min_followers": 3000,
     "cooldown_hours": 72,
     "max_proactive_actions_per_person_per_7d": 2
+  },
+  "engagement_optimization": {
+    "adaptive_fill": true,
+    "minimum_action_score": 65,
+    "weights": {
+      "qualified_growth": 0.35,
+      "audience_spillover": 0.2,
+      "conversation_probability": 0.15,
+      "target_relevance": 0.15,
+      "freshness_timing": 0.1,
+      "historical_performance": 0.05
+    },
+    "clusters": [
+      {"id": "cluster-1", "start": "05:00", "end": "05:45"},
+      {"id": "cluster-2", "start": "07:00", "end": "07:30"},
+      {"id": "cluster-3", "start": "09:10", "end": "10:00"},
+      {"id": "cluster-4", "start": "11:30", "end": "12:00"},
+      {"id": "cluster-5", "start": "13:30", "end": "14:20"},
+      {"id": "cluster-6", "start": "16:00", "end": "16:30"},
+      {"id": "cluster-7", "start": "17:30", "end": "18:00"},
+      {"id": "cluster-8", "start": "19:45", "end": "20:30"}
+    ]
+  },
+  "brand_system": {
+    "auto_create": true,
+    "auto_apply": true,
+    "watermark_height_ratio": 0.06,
+    "watermark_opacity": 0.85,
+    "safe_area_inset_ratio": 0.04
+  },
+  "gif_creative_intelligence": {
+    "enabled": true,
+    "formats": ["gif"],
+    "core_creator_count": 12,
+    "rotating_creator_count": 8,
+    "references_per_creator": 2,
+    "dominant_score": 85,
+    "dominant_margin": 15,
+    "permanent_deletion": true
   },
   "subscription_optimization": {
     "enabled": true,

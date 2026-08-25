@@ -7,6 +7,32 @@
   "recoverable_failures": [],
   "hard_blocker": null,
   "progress": {},
+  "runtime_instructions": {
+    "session_version": "0.4.0",
+    "active_version": "0.4.0",
+    "install_path": null,
+    "last_checked_at": null,
+    "refresh_mode": "session-loaded"
+  },
+  "engagement_scaling": {
+    "daily_ceiling": 80,
+    "actions_executed_today": 0,
+    "last_proactive_cluster_ended_at": null,
+    "completed_clusters": [],
+    "gap_clusters_enabled": true,
+    "recovery_level": "adaptive"
+  },
+  "brand_system": {
+    "identity_hash": null,
+    "manifest_path": null,
+    "last_verified_at": null
+  },
+  "gif_creative_intelligence": {
+    "selected_reference_id": null,
+    "selected_pattern_id": null,
+    "last_observation_at": null,
+    "last_spec_path": null
+  },
   "subscription_optimization": {
     "last_inventory_at": null,
     "last_plan_at": null,

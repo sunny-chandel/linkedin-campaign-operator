@@ -54,6 +54,46 @@ def main() -> int:
         )
 
     for name, initial in {
+        "brand-profile.json": {
+            "schema_version": "1.0",
+            "campaign_id": args.campaign_id,
+            "profile": {},
+            "custom_overrides": {},
+            "identity_hash": None,
+            "generated_at": None,
+        },
+        "watermark-manifest.json": {
+            "schema_version": "1.0",
+            "campaign_id": args.campaign_id,
+            "identity_hash": None,
+            "claude_design_project": None,
+            "variants": [],
+            "last_verified_at": None,
+        },
+        "creator-registry.json": {
+            "schema_version": "1.0",
+            "campaign_id": args.campaign_id,
+            "core": [],
+            "rotating": [],
+            "last_observed_at": None,
+        },
+        "gif-reference-index.json": {
+            "schema_version": "1.0",
+            "campaign_id": args.campaign_id,
+            "references": [],
+        },
+        "creative-pattern-library.json": {
+            "schema_version": "1.0",
+            "campaign_id": args.campaign_id,
+            "patterns": [],
+        },
+        "gif-creative-spec.json": {
+            "schema_version": "1.0",
+            "campaign_id": args.campaign_id,
+            "selected_reference_id": None,
+            "selected_pattern_id": None,
+            "validation_status": "not-generated",
+        },
         "premium-entitlements.json": {"schema_version": "1.0", "campaign_id": args.campaign_id, "products": []},
         "subscription-inventory.json": {
             "schema_version": "1.0",
@@ -90,6 +130,8 @@ def main() -> int:
     ):
         (state_dir / name).touch()
     (state_dir / "logs").mkdir()
+    (state_dir / "brand" / "watermarks").mkdir(parents=True)
+    (state_dir / "gif-reference-captures").mkdir()
 
     print(json.dumps({"initialized": str(state_dir), "campaign_id": args.campaign_id}))
     return 0

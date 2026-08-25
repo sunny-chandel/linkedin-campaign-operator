@@ -13,6 +13,8 @@ Before export, verify:
 - sources and required attribution are present;
 - factual and visual accuracy;
 - accurate alt text can be written.
+- the current validated watermark is present and inside the safe area;
+- GIF outputs match the active per-post creative specification when applicable.
 
 ## Tier 2: flagship captions
 
