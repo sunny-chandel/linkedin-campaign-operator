@@ -4,24 +4,24 @@ Claude installs every marketplace plugin version in a separate cache directory. 
 
 ## Stage-boundary check
 
-At pre-flight and before every scheduled stage, run:
+At pre-flight, every scheduled wake, and before every stage, read `runtime_instructions.active_version` and `runtime_instructions.install_path` from `campaign-state.json`. Run the resolver under the recorded install path. Only when no recorded path exists, use the currently loaded skill directory:
 
 ```text
-python ${CLAUDE_SKILL_DIR}/scripts/resolve_latest_plugin.py --session-version 0.4.0
+python <active-install-path>/skills/linkedin-campaign-orchestrator/scripts/resolve_latest_plugin.py --session-version <active-version> --state-dir <state-dir>
 ```
 
-Use the version of this command contained in the active orchestrator. The resolver validates the installed registry, selected cache path, plugin manifest, and current skill files.
+The resolver validates the installed registry, selected cache path, plugin manifest, and current skill files. It also writes the detected version and path to campaign state atomically. Persisting the newest path prevents removal of an older cache directory from breaking later refresh checks.
 
 ## Applying a newer installed version
 
 1. If `update_available` is false, continue normally.
-2. If `/reload-plugins` is available as a session command, run it in the active session. It is Claude's supported no-restart reload path.
-3. If the command cannot be invoked programmatically, read the returned latest `orchestrator_skill` completely, then read the latest `SKILL.md` for each supporting stage before that stage executes. Treat those files as the active operating instructions for the remainder of the session.
-4. Record the installed version, direct-loaded instruction version, install path, detection time, and refresh mode in `campaign-state.json`.
-5. Revalidate mutable state and resume from the last confirmed stage. Never repeat an external action merely because instructions changed.
+2. In Claude Desktop, directly read the returned `orchestrator_skill` completely, then read every returned supporting `SKILL.md`. Treat those files as the active operating instructions for the remainder of the session.
+3. After all files load, rerun the returned resolver with the same arguments plus `--activate`. This records the installed version, active instruction version, newest install path, detection time, activation time, and `direct-loaded` refresh mode.
+4. Use scripts, references, and assets only from that newest returned install path. Revalidate mutable state and resume from the last confirmed stage. Never repeat an external action merely because instructions changed.
+5. If the active client explicitly lists `/reload-plugins` as an available command, it may be used before direct verification. Never assume the command exists; Claude Desktop Code sessions may not expose it.
 
-Direct loading covers this plugin's skills, references, scripts, and assets. If a future release adds or changes MCP servers, hooks, agents, or other session-initialized components, `/reload-plugins` is required before those components can be used.
+Direct loading covers this plugin's skills, references, scripts, and assets, which are all components in this plugin. If a future release adds or changes MCP servers, hooks, agents, or other session-initialized components, a client-supported plugin reload or a new session is required before those components can be used.
 
 ## Release workflow
 
-After publishing and installing a new version, submit `/reload-plugins` to every active campaign session, verify the reported component counts and absence of load errors, then verify the active plugin version. Do not terminate or replace campaign state during reload.
+After publishing and installing a new version, notify each active campaign session with the fixed instruction to run its stage-boundary resolver immediately. In Claude Desktop, verify that the session directly loads the newest orchestrator and all returned child skills, records `refresh_mode: direct-loaded`, migrates and validates state, and resumes the stored stage. If a client advertises `/reload-plugins`, use it and verify its component counts and load errors before performing the same state/version check. Do not terminate or replace campaign state during refresh.

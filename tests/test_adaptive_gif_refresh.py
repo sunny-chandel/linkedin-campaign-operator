@@ -197,11 +197,11 @@ class AdaptiveGifRefreshTests(unittest.TestCase):
     def test_resolver_finds_newer_installed_instructions(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            install = root / "cache" / "0.4.0"
+            install = root / "cache" / "0.4.1"
             (install / ".claude-plugin").mkdir(parents=True)
             (install / "skills" / "linkedin-campaign-orchestrator").mkdir(parents=True)
             (install / ".claude-plugin" / "plugin.json").write_text(
-                json.dumps({"name": "linkedin-campaign-operator-v3", "version": "0.4.0"}),
+                json.dumps({"name": "linkedin-campaign-operator-v3", "version": "0.4.1"}),
                 encoding="utf-8",
             )
             (install / "skills" / "linkedin-campaign-orchestrator" / "SKILL.md").write_text(
@@ -214,26 +214,60 @@ class AdaptiveGifRefreshTests(unittest.TestCase):
                     {
                         "plugins": {
                             PLUGIN_ID: [
-                                {"scope": "user", "installPath": str(install), "version": "0.4.0"}
+                                {"scope": "user", "installPath": str(install), "version": "0.4.1"}
                             ]
                         }
                     }
                 ),
                 encoding="utf-8",
             )
+            state_dir = root / "campaign-data"
+            state_dir.mkdir()
+            state_path = state_dir / "campaign-state.json"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "campaign_id": "test",
+                        "runtime_instructions": {
+                            "session_version": "0.3.3",
+                            "active_version": "0.3.3",
+                            "install_path": None,
+                            "refresh_mode": "session-loaded",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            base_arguments = [
+                "python3",
+                str(ORCHESTRATOR_SCRIPTS / "resolve_latest_plugin.py"),
+                "--session-version",
+                "0.3.3",
+                "--installed-plugins",
+                str(registry),
+                "--state-dir",
+                str(state_dir),
+            ]
             resolved = run_json(
                 [
-                    "python3",
-                    str(ORCHESTRATOR_SCRIPTS / "resolve_latest_plugin.py"),
-                    "--session-version",
-                    "0.3.3",
-                    "--installed-plugins",
-                    str(registry),
+                    *base_arguments,
                 ]
             )
             self.assertTrue(resolved["update_available"])
-            self.assertEqual(resolved["installed_version"], "0.4.0")
+            self.assertEqual(resolved["installed_version"], "0.4.1")
             self.assertEqual(resolved["reload_command"], "/reload-plugins")
+            self.assertEqual(resolved["desktop_refresh_mode"], "direct-load")
+            pending = json.loads(state_path.read_text(encoding="utf-8"))["runtime_instructions"]
+            self.assertEqual(pending["active_version"], "0.3.3")
+            self.assertEqual(pending["detected_version"], "0.4.1")
+            self.assertEqual(pending["refresh_mode"], "pending-direct-load")
+
+            activated = run_json([*base_arguments, "--activate"])
+            self.assertEqual(activated["runtime_state"]["active_version"], "0.4.1")
+            active = json.loads(state_path.read_text(encoding="utf-8"))["runtime_instructions"]
+            self.assertEqual(active["active_version"], "0.4.1")
+            self.assertEqual(active["install_path"], str(install.resolve()))
+            self.assertEqual(active["refresh_mode"], "direct-loaded")
 
 
 if __name__ == "__main__":

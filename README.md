@@ -38,7 +38,7 @@ Invoke the parent skill with:
 
 The parent starts Sunny Chandel's preconfigured organic LinkedIn system for 10,000 followers and 10,000 connections. It checks connected Chrome first, verifies the fixed LinkedIn identity, checks Claude Design and file upload, refreshes the profile-derived watermark kit, discovers account and subscription state, calculates the best use of verified included features, and routes automatically through the seven supporting skills. It does not open a generic campaign-setup form.
 
-When an installed update becomes available to an already-running Claude session, use `/reload-plugins` to apply it without restarting. The orchestrator also resolves and directly loads newer installed skill instructions at every stage boundary as a skill-only fallback.
+When an installed update becomes available to an already-running Claude Desktop session, the orchestrator resolves and directly loads the newest installed skill instructions at its next scheduled wake or stage boundary, records the newest cache path, migrates state, and continues without restarting. `/reload-plugins` is used only in clients that explicitly expose that command.
 
 ## Install for development
 

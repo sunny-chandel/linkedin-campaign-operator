@@ -5,8 +5,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
+import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +32,51 @@ def load_object(path: Path) -> dict[str, Any]:
     return value
 
 
+def atomic_write_json(path: Path, value: dict[str, Any]) -> None:
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(value, handle, indent=2, ensure_ascii=False)
+            handle.write("\n")
+        os.replace(temporary_name, path)
+    except BaseException:
+        try:
+            os.unlink(temporary_name)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def update_runtime_state(
+    state_dir: Path,
+    *,
+    session_version: str,
+    installed_version: str,
+    install_path: Path,
+    update_available: bool,
+    activate: bool,
+) -> dict[str, Any]:
+    state_path = state_dir.expanduser().resolve() / "campaign-state.json"
+    state = load_object(state_path)
+    runtime = state.setdefault("runtime_instructions", {})
+    if not isinstance(runtime, dict):
+        raise ValueError("campaign-state.json runtime_instructions must be an object")
+    now = datetime.now(timezone.utc).isoformat()
+    runtime["session_version"] = session_version
+    runtime["detected_version"] = installed_version
+    runtime["install_path"] = str(install_path)
+    runtime["last_checked_at"] = now
+    if activate:
+        runtime["active_version"] = installed_version
+        runtime["refresh_mode"] = "direct-loaded"
+        runtime["activated_at"] = now
+    elif update_available:
+        runtime["refresh_mode"] = "pending-direct-load"
+    state["updated_at"] = now
+    atomic_write_json(state_path, state)
+    return runtime
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--session-version", required=True)
@@ -36,6 +84,16 @@ def main() -> int:
         "--installed-plugins",
         type=Path,
         default=Path.home() / ".claude" / "plugins" / "installed_plugins.json",
+    )
+    parser.add_argument(
+        "--state-dir",
+        type=Path,
+        help="Optional campaign directory whose runtime refresh record should be updated atomically.",
+    )
+    parser.add_argument(
+        "--activate",
+        action="store_true",
+        help="Record the resolved version as active after all returned skill files were read.",
     )
     args = parser.parse_args()
 
@@ -58,6 +116,16 @@ def main() -> int:
         if not orchestrator.is_file():
             raise ValueError("latest orchestrator SKILL.md is missing")
         update_available = version_key(installed_version) > version_key(args.session_version)
+        runtime_state = None
+        if args.state_dir:
+            runtime_state = update_runtime_state(
+                args.state_dir,
+                session_version=args.session_version,
+                installed_version=installed_version,
+                install_path=install_path,
+                update_available=update_available,
+                activate=args.activate,
+            )
         print(
             json.dumps(
                 {
@@ -69,7 +137,10 @@ def main() -> int:
                     "orchestrator_skill": str(orchestrator),
                     "skill_files": skill_files,
                     "reload_command": "/reload-plugins",
+                    "reload_command_is_optional": True,
+                    "desktop_refresh_mode": "direct-load",
                     "direct_load_supported": True,
+                    "runtime_state": runtime_state,
                 },
                 indent=2,
             )

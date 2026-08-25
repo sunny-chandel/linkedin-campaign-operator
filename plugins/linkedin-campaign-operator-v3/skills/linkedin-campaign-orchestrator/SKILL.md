@@ -4,7 +4,7 @@ description: Run Sunny Chandel's persistent organic LinkedIn 10k/10k operating s
 compatibility: Requires Chrome control, code execution, internet access, and a writable campaign-data directory. Asset cycles require Claude Design and file-upload capabilities.
 metadata:
   author: sunny
-  version: "0.4.0"
+  version: "0.4.1"
 ---
 
 # LinkedIn campaign orchestrator
@@ -59,7 +59,7 @@ Completing Window 4 ends the daily cycle, not the campaign.
 
 ## Live instruction refresh
 
-At pre-flight and before every scheduled stage, run `python ${CLAUDE_SKILL_DIR}/scripts/resolve_latest_plugin.py --session-version 0.4.0`. If a newer installed version exists, use `/reload-plugins` in the active session when callable. Otherwise read the returned latest orchestrator and required supporting skill files completely, record the direct-loaded version in campaign state, revalidate state, and continue from the last confirmed stage without repeating external actions.
+At pre-flight, every scheduled wake, and before every stage, run the runtime resolver from `runtime_instructions.install_path` when that path is present; otherwise use the resolver under the currently loaded `${CLAUDE_SKILL_DIR}`. Pass `runtime_instructions.active_version` as `--session-version` and the campaign directory as `--state-dir`. If the resolver reports a newer installed version, directly read the returned orchestrator and all returned supporting `SKILL.md` files completely, rerun the resolver with `--activate`, use scripts and assets only from the returned install path, revalidate mutable state, and continue from the last confirmed stage without repeating external actions. This direct-load route is the automatic Claude Desktop path and requires no question, restart, or new session. Use `/reload-plugins` only when the active client explicitly advertises that command.
 
 Read [runtime plugin refresh](references/runtime-refresh.md) for the exact version-resolution, reload, direct-load, and component-boundary behavior.
 

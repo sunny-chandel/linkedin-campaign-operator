@@ -107,4 +107,4 @@ Expected behavior:
 
 ## Running-session refresh test
 
-Install a newer plugin version while an older campaign session remains open. Run `/reload-plugins` in that session and verify the reported skill count has no load errors. Independently run `resolve_latest_plugin.py` with the older session version and verify it returns the latest validated install path and skill files. Resume from the last confirmed campaign stage without repeating an external action.
+Install a newer plugin version while an older campaign session remains open. At its next wake or stage boundary, run `resolve_latest_plugin.py` with the active version and state directory; verify it returns the latest validated install path and every skill file. Directly load those files, rerun with `--activate`, and verify campaign state records the newest path, version, and `direct-loaded` mode. Resume from the last confirmed campaign stage without repeating an external action. If the client explicitly exposes `/reload-plugins`, also verify its component counts and absence of load errors.
