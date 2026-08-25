@@ -326,7 +326,14 @@ class AdaptiveDispatchTests(unittest.TestCase):
             state["dispatcher"]["next_wake_reason"] = "predicted qualified inbound check"
             write_json(state_dir / "campaign-state.json", state)
             waited = run_json(
-                ["python3", str(ORCHESTRATOR / "dispatch_next_work.py"), str(state_dir), "--record"]
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "dispatch_next_work.py"),
+                    str(state_dir),
+                    "--record",
+                    "--now",
+                    "2026-08-25T11:00:00+05:30",
+                ]
             )
             self.assertEqual(waited["decision"], "wait")
             self.assertEqual(waited["unfinished_work_count"], 0)

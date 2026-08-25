@@ -3,7 +3,8 @@ import { Footer, Header, PageHero } from '../components/Shell';
 
 export const metadata: Metadata = {
   title: 'Install the LinkedIn Agent Skill for Claude Code and Codex',
-  description: 'Install LinkedIn Campaign Operator in Claude Code or Codex and start a stateful LinkedIn content and engagement campaign.',
+  description: 'Install Claude LinkedIn in Claude Code or Codex and start a stateful LinkedIn content and engagement campaign.',
+  alternates: { canonical: '/install' },
 };
 
 export default function InstallPage() {

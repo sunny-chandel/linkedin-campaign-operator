@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Footer, Header, PageHero } from '../components/Shell';
 
-export const metadata: Metadata = { title: 'LinkedIn Agent Examples and Prompts', description: 'Copy practical LinkedIn agent prompts for founders, technical professionals, consultants, content creation, engagement, and analytics.' };
+export const metadata: Metadata = { title: 'Claude LinkedIn Examples and Prompts', description: 'Copy practical LinkedIn agent prompts for founders, technical professionals, consultants, content creation, engagement, and analytics.', alternates: { canonical: '/examples' } };
 const examples = [
   ['Solo founder', 'Research two current topics at the intersection of AI agents and developer tools. Prepare one practical post and one opinionated post.'],
   ['Technical professional', 'Review my recent posts, identify the strongest content pillar at equal post age, and update the next two publication packages.'],

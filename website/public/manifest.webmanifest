@@ -1,9 +1,9 @@
 {
-  "name": "LinkedIn Campaign Operator",
-  "short_name": "LCO",
-  "description": "Your LinkedIn operating system. Inside your AI agent.",
+  "name": "Claude LinkedIn",
+  "short_name": "Claude LI",
+  "description": "Your LinkedIn team in Claude.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f6f3ec",
-  "theme_color": "#1557ff"
+  "background_color": "#0a0a0a",
+  "theme_color": "#e07850"
 }

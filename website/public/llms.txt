@@ -1,6 +1,6 @@
-# LinkedIn Campaign Operator
+# Claude LinkedIn
 
-LinkedIn Campaign Operator is a free, open-source collection of eight Agent Skills for running a stateful organic LinkedIn content and engagement campaign in Claude Code and Codex.
+Claude LinkedIn is a free, open-source collection of eight Agent Skills for running a stateful organic LinkedIn content and engagement campaign in Claude Code and Codex. Its technical repository and plugin identifier remain LinkedIn Campaign Operator.
 
 Primary documentation:
 - /install — Claude Code and Codex installation

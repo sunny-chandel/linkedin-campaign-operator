@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Footer, Header, PageHero } from '../components/Shell';
 
-export const metadata: Metadata = { title: 'Eight LinkedIn Agent Skills', description: 'Explore eight composable LinkedIn skills for campaign orchestration, research, writing, engagement, analytics, branding, GIFs, and feature routing.' };
+export const metadata: Metadata = { title: 'Eight Claude LinkedIn Agent Skills', description: 'Explore eight composable LinkedIn skills for campaign orchestration, research, writing, engagement, analytics, branding, GIFs, and feature routing.', alternates: { canonical: '/skills' } };
 const entries = [
   ['Campaign orchestrator', 'The governing layer for identity, state, routing, recovery, dispatch, and campaign completion.'],
   ['Content research', 'Finds timely topics, verifies claims, and produces source-backed briefs ready for production.'],
