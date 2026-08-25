@@ -11,7 +11,7 @@ Use one feature object per separately usable entitlement:
 ```json
 {
   "schema_version": "1.0",
-  "campaign_id": "sunny-linkedin-10k-10k",
+  "campaign_id": "linkedin-growth",
   "generated_at": "ISO-8601 timestamp",
   "subscription": {"product": "verified product", "tier": "verified tier"},
   "features": [

@@ -6,7 +6,7 @@ Run `audit_pipeline.py <state-dir> --write` and `dispatch_next_work.py <state-di
 
 `--record` leases the selected task for the configured duration. Record `task-event start` before work, checkpoint every durable result, and record either evidence-backed completion or a retryable failure. Task states are `pending`, `leased`, `running`, `retry-wait`, `recovering`, `missed-recovering`, and terminal outcomes. A restart expires abandoned leases and resumes from the latest checkpoint. Idempotency keys prevent the same daily package, publication, or recovery task from being created twice.
 
-The IST rollover is transactional and runs before selection. It archives the previous day's counters, activates valid packages for the new day, reconstructs region-specific publication tasks, creates the new mandatory stages, resets the base budget, and preserves verified publication evidence. It never carries yesterday's `2/2` publication count into today.
+The campaign-local rollover is transactional and runs before selection. It archives the previous day's counters, activates valid packages for the new day, reconstructs region-specific publication tasks, creates the new mandatory stages, resets the base budget, and preserves verified publication evidence. It never carries yesterday's `2/2` publication count into today.
 
 Do not run repeated fixed-duration sleep commands. Compute the next wake from the earliest predicted inbound event, publication opportunity, queue-staleness event, analytics trigger, content deadline, recovery requirement, or subscription-capacity event. Record the evidence, predicted opportunity, unfinished-work count, and wake trigger in `schedule-decisions.jsonl`.
 
@@ -28,9 +28,9 @@ Prevent starvation: after two consecutive selections of the same non-urgent task
 
 ## Dynamic publication
 
-Maintain exactly two validated packages: India and US-Central. The production priority block is 9:00 PM-2:00 AM IST, but direct inbound and exceptionally strong adaptive opportunities may interrupt it.
+Maintain exactly two validated packages for the configured required regions, which default to India and US-Central. Use the configured production-priority block, but allow direct inbound and exceptionally strong adaptive opportunities to interrupt it.
 
-Evaluate publication opportunities without fixed times or spacing. Use `select_publish_time.py <opportunities> --state-dir <state-dir> --record` so the decision is appended to `schedule-decisions.jsonl`. Score regional activity, qualified-target activity, topic freshness, current network velocity, the previous post's engagement velocity, historical equal-age performance, format/pillar fit, remaining-day opportunity, and a dynamic cannibalization risk from the other post's live distribution. Use 70 percent proven timing, 20 percent promising timing, and 10 percent exploration. Publish exactly two posts per IST content day; use the best final remaining opportunity if the model has not selected one earlier.
+Evaluate publication opportunities without fixed times or spacing. Use `select_publish_time.py <opportunities> --state-dir <state-dir> --record` so the decision is appended to `schedule-decisions.jsonl`. Score regional activity, qualified-target activity, topic freshness, current network velocity, the previous post's engagement velocity, historical equal-age performance, format/pillar fit, remaining-day opportunity, and a dynamic cannibalization risk from the other post's live distribution. Use 70 percent proven timing, 20 percent promising timing, and 10 percent exploration. Publish exactly two posts per campaign-local content day; use the best final remaining opportunity if the model has not selected one earlier.
 
 ## Completion and blocker behavior
 

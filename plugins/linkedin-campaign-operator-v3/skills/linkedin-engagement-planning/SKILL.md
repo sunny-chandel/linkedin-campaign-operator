@@ -3,12 +3,12 @@ name: linkedin-engagement-planning
 description: Build and validate adaptive LinkedIn action queues with qualified-growth scoring, qualification, cooldown, deduplication, and regional relevance. Use before any proactive action cluster.
 metadata:
   author: sunny
-  version: "0.6.0"
+  version: "1.1.0"
 ---
 
 # LinkedIn engagement planning
 
-Prepare high-quality queues for the continuous dispatcher. The shared base ceiling is 100 actions per IST day and is never a target. Genuine direct-inbound replies continue after the base ceiling and use the separate `direct_reply_overage` counter.
+Prepare high-quality queues for the continuous dispatcher. The shared base ceiling is 100 actions per campaign-local day and is never a target. Genuine direct-inbound replies continue after the base ceiling and use the separate `direct_reply_overage` counter.
 
 Inherit the parent's active campaign-lifetime consent receipt, pinned browser binding, lane circuit, and leased task. Never ask for device selection or action approval. Persist each qualified candidate immediately, and finish every discovery pass through `runtime_control.py reserve-pass` so page, duration, yield, adaptive target, backoff, and restart state are deterministic.
 

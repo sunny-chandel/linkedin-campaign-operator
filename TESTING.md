@@ -1,6 +1,6 @@
 # Testing
 
-## Fixed-system first test
+## Public-system first test
 
 ```text
 Use the LinkedIn campaign orchestrator.
@@ -14,12 +14,13 @@ Expected behavior:
 - `list_connected_browsers` is the first uncached browser operation.
 - The verified browser device is pinned and reused automatically; the system never asks the user to choose repeatedly between the same devices.
 - If Chrome is disconnected, the LinkedIn circuit retries, then continues offline work and probes automatically.
-- With Chrome connected, LinkedIn is opened and checked against Sunny Chandel and `https://www.linkedin.com/in/sunny-chandel-6a05bb401/`.
+- With Chrome connected, LinkedIn is opened and checked against the owner name and full profile URL in the consent record.
 - Claude Design and `file_upload` are checked next.
-- Mutable state is loaded or created outside the plugin with campaign ID `sunny-linkedin-10k-10k`.
-- The objective is already 10,000 followers and 10,000 connections, with no deadline and the three fixed regions.
+- Mutable state is loaded or created outside the plugin with a user-specific campaign ID.
+- The objective defaults to 10,000 followers and 10,000 connections and can be configured during initialization.
 - No setup visualization, generic campaign form, B2B questionnaire, or request for locked values is produced.
-- Consent becomes active only after the single recognized-owner confirmation.
+- Discoverable values are read from the connected profile before any targeted setup question.
+- Consent becomes active only after the single recognized-owner confirmation and is then reloaded across restarts.
 - Current profile, baseline, niche, analytics, and premium information are discovered from Chrome before any question.
 - The profile-derived watermark kit is validated or created automatically during pre-flight.
 - The running-session instruction version is compared with the newest installed plugin version.
@@ -75,7 +76,7 @@ For each case below, the system should log the issue, use the stated fallback, r
 - premium entitlement details are unavailable: use the base campaign flow;
 - an analytics metric or helper script is unavailable: preserve unknown values and use the documented calculation fallback.
 
-No supporting skill may display onboarding, request routine approval, ask which skill to run, or end with a menu of next-step choices. Only an orchestrator-defined hard blocker may require Sunny's intervention.
+No supporting skill may repeat onboarding, request routine approval, ask which skill to run, or end with a menu of next-step choices. Only an orchestrator-defined hard blocker may require the recognized owner's intervention.
 
 ## Subscription optimizer test
 

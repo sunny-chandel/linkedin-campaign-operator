@@ -83,14 +83,16 @@ def main() -> int:
         result = {
             "valid": True,
             "posting": {
-                "content_day_ist": publishing.get("content_day_ist"),
+                "content_day_local": (
+                    publishing.get("content_day_local") or publishing.get("content_day_ist")
+                ),
                 "packages_ready": int(publishing.get("packages_ready", 0)),
                 "packages_required": int(publishing.get("packages_required", 2)),
                 "posts_published": int(publishing.get("posts_published", 0)),
                 "posts_required": 2,
             },
             "engagement": {
-                "budget_day_ist": scaling.get("budget_day_ist"),
+                "budget_day_local": scaling.get("budget_day_local"),
                 "base_actions_used": base_used,
                 "base_daily_ceiling": base_ceiling,
                 "base_remaining": max(0, base_ceiling - base_used),

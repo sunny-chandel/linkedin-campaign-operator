@@ -14,7 +14,6 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 
-IST = ZoneInfo("Asia/Kolkata")
 ACTIVE_TASK_STATUSES = {"pending", "recovering", "missed-recovering", "retry-wait"}
 LEASED_TASK_STATUSES = {"leased", "running"}
 TERMINAL_TASK_STATUSES = {"completed", "blocked", "superseded", "expired", "cancelled"}
@@ -67,8 +66,24 @@ def iso_time(value: datetime) -> str:
     return value.astimezone(timezone.utc).isoformat()
 
 
-def ist_day(value: datetime) -> str:
-    return value.astimezone(IST).date().isoformat()
+def campaign_timezone(config: dict[str, Any]) -> ZoneInfo:
+    name = str(config.get("timezone") or "UTC")
+    try:
+        return ZoneInfo(name)
+    except Exception as exc:
+        raise ValueError(f"invalid campaign timezone: {name}") from exc
+
+
+def campaign_day(value: datetime, config: dict[str, Any]) -> str:
+    return value.astimezone(campaign_timezone(config)).date().isoformat()
+
+
+def required_regions(config: dict[str, Any]) -> tuple[str, ...]:
+    configured = config.get("publishing_optimization", {}).get("required_regions", [])
+    if not isinstance(configured, list):
+        configured = []
+    regions = tuple(str(region) for region in configured if isinstance(region, str) and region)
+    return regions or ("india", "us-central")
 
 
 def consent_fingerprint(consent: dict[str, Any]) -> str:
@@ -96,10 +111,20 @@ def sync_consent_snapshot(
         return False, "consent-record-missing"
     consent = load_object(path)
     receipt = consent.get("authorization_receipt", {})
+    owner = consent.get("owner", {})
+    account_profiles = [
+        account
+        for account in consent.get("accounts", [])
+        if isinstance(account, dict) and account.get("type") == "linkedin-profile"
+    ]
     valid = bool(
         consent.get("status") == "active"
         and consent.get("scope") == "campaign-lifetime"
-        and consent.get("owner", {}).get("display_name") == "Sunny Chandel"
+        and consent.get("campaign_id") == state.get("campaign_id")
+        and isinstance(owner, dict)
+        and owner.get("display_name")
+        and account_profiles
+        and account_profiles[0].get("url")
         and isinstance(receipt, dict)
         and receipt.get("receipt_id")
         and receipt.get("granted_at")
@@ -116,20 +141,34 @@ def sync_consent_snapshot(
             "reconfirmation_required": not valid,
         }
     )
+    if account_profiles and account_profiles[0].get("url"):
+        binding = state.setdefault("dispatcher", {}).setdefault("browser_binding", {})
+        binding["expected_profile_url"] = account_profiles[0]["url"]
+        binding["expected_profile_name"] = owner.get("expected_linkedin_identity") or owner.get(
+            "display_name"
+        )
     return valid, None if valid else "one-time-owner-consent-required"
 
 
-def find_daily_packages(state_dir: Path, day: str) -> dict[str, str]:
+def find_daily_packages(
+    state_dir: Path,
+    day: str,
+    regions: tuple[str, ...],
+) -> dict[str, str]:
     packages: dict[str, str] = {}
     for path in sorted(state_dir.glob(f"**/publication-package*{day}*.json")):
         try:
             value = load_object(path)
         except (OSError, json.JSONDecodeError, ValueError):
             continue
-        package_day = value.get("content_day_ist") or value.get("content_day")
+        package_day = (
+            value.get("content_day_local")
+            or value.get("content_day_ist")
+            or value.get("content_day")
+        )
         region = value.get("target_region") or value.get("region")
         status = value.get("final_validation_status") or value.get("validation_status")
-        if package_day != day or region not in {"india", "us-central"}:
+        if package_day != day or region not in regions:
             continue
         if not isinstance(status, str) or not status.startswith("ready"):
             continue
@@ -137,7 +176,11 @@ def find_daily_packages(state_dir: Path, day: str) -> dict[str, str]:
     return packages
 
 
-def read_publication_evidence(state_dir: Path, day: str) -> dict[str, dict[str, Any]]:
+def read_publication_evidence(
+    state_dir: Path,
+    day: str,
+    regions: tuple[str, ...],
+) -> dict[str, dict[str, Any]]:
     path = state_dir / "publication-evidence.jsonl"
     evidence: dict[str, dict[str, Any]] = {}
     if not path.exists():
@@ -149,10 +192,12 @@ def read_publication_evidence(state_dir: Path, day: str) -> dict[str, dict[str, 
             value = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if not isinstance(value, dict) or value.get("content_day_ist") != day:
+        if not isinstance(value, dict) or (
+            value.get("content_day_local") or value.get("content_day_ist")
+        ) != day:
             continue
         region = value.get("region")
-        if region in {"india", "us-central"} and value.get("verified") is True:
+        if region in regions and value.get("verified") is True:
             evidence[str(region)] = value
     return evidence
 
@@ -181,13 +226,16 @@ def upsert_stage(stages: list[dict[str, Any]], stage: dict[str, Any]) -> dict[st
 def reconcile_content_day(
     state_dir: Path,
     state: dict[str, Any],
+    config: dict[str, Any],
     queue: dict[str, Any],
     ledger: dict[str, Any],
     now: datetime,
 ) -> dict[str, Any]:
-    day = ist_day(now)
+    day = campaign_day(now, config)
+    timezone_value = campaign_timezone(config)
+    regions = required_regions(config)
     publishing = state.setdefault("publishing", {})
-    previous_day = publishing.get("content_day_ist")
+    previous_day = publishing.get("content_day_local") or publishing.get("content_day_ist")
     rollover = previous_day != day
     items = queue.setdefault("items", [])
     stages = ledger.setdefault("stages", [])
@@ -196,22 +244,26 @@ def reconcile_content_day(
 
     if rollover and previous_day:
         history = publishing.setdefault("day_history", [])
-        if not any(entry.get("content_day_ist") == previous_day for entry in history if isinstance(entry, dict)):
+        if not any(
+            (entry.get("content_day_local") or entry.get("content_day_ist")) == previous_day
+            for entry in history
+            if isinstance(entry, dict)
+        ):
             history.append(
                 {
-                    "content_day_ist": previous_day,
+                    "content_day_local": previous_day,
                     "packages_ready": int(publishing.get("packages_ready", 0) or 0),
                     "posts_published": int(publishing.get("posts_published", 0) or 0),
                     "published_post_ids": list(publishing.get("published_post_ids", [])),
                     "last_publication_at": publishing.get("last_publication_at"),
                     "closed_at": iso_time(now),
-                    "closure_reason": "automatic-ist-day-rollover",
+                    "closure_reason": "automatic-local-day-rollover",
                 }
             )
         for item in items:
             if not isinstance(item, dict):
                 continue
-            item_day = item.get("content_day_ist")
+            item_day = item.get("content_day_local") or item.get("content_day_ist")
             if (
                 item.get("task_type") in {"publication-opportunity", "publication-queue-building"}
                 and item_day
@@ -222,14 +274,19 @@ def reconcile_content_day(
                 item["completed_at"] = iso_time(now)
                 item["completion_reason"] = "content-day-closed"
 
-    packages = find_daily_packages(state_dir, day)
-    evidence = read_publication_evidence(state_dir, day)
-    analytics_due_at = datetime.fromisoformat(f"{day}T23:50:00").replace(tzinfo=IST).astimezone(timezone.utc)
+    packages = find_daily_packages(state_dir, day, regions)
+    evidence = read_publication_evidence(state_dir, day, regions)
+    analytics_due_at = (
+        datetime.fromisoformat(f"{day}T23:50:00")
+        .replace(tzinfo=timezone_value)
+        .astimezone(timezone.utc)
+    )
     if rollover:
         publishing.update(
             {
+                "content_day_local": day,
                 "content_day_ist": day,
-                "packages_required": 2,
+                "packages_required": len(regions),
                 "posts_published": len(evidence),
                 "published_post_ids": [
                     item.get("post_id") or item.get("post_url")
@@ -244,8 +301,11 @@ def reconcile_content_day(
             }
         )
     publishing["packages_ready"] = len(packages)
+    publishing["packages_required"] = len(regions)
+    publishing["content_day_local"] = day
+    publishing["content_day_ist"] = day
     publishing["prepared_packages"] = [
-        {"package": path, "region": region, "content_day_ist": day}
+        {"package": path, "region": region, "content_day_local": day}
         for region, path in sorted(packages.items())
     ]
 
@@ -257,7 +317,7 @@ def reconcile_content_day(
             "status": "pending",
             "required_artifacts": [],
             "completed_artifacts": [],
-            "content_day_ist": day,
+            "content_day_local": day,
         },
     )
     upsert_task(
@@ -284,17 +344,17 @@ def reconcile_content_day(
             "task_type": "two-package-production",
             "lane": "offline",
             "priority": 5,
-            "status": "completed" if len(packages) == 2 else "pending",
+            "status": "completed" if len(packages) == len(regions) else "pending",
             "ready": True,
             "requires_linkedin": False,
-            "content_day_ist": day,
-            "required_regions": ["india", "us-central"],
-            "required_package_count": 2,
+            "content_day_local": day,
+            "required_regions": list(regions),
+            "required_package_count": len(regions),
             "no_third_package": True,
             "idempotency_key": f"packages:{day}",
         },
     )
-    if len(packages) == 2 and production.get("status") not in TERMINAL_TASK_STATUSES:
+    if len(packages) == len(regions) and production.get("status") not in TERMINAL_TASK_STATUSES:
         production["status"] = "completed"
         production["completed_at"] = iso_time(now)
         production["completion_reason"] = "daily-packages-verified"
@@ -322,7 +382,7 @@ def reconcile_content_day(
                 "ready": True,
                 "requires_linkedin": True,
                 "engagement_queue_ready": False,
-                "content_day_ist": day,
+                "content_day_local": day,
                 "region": region,
                 "package_path": package_path,
                 "idempotency_key": f"publish:{day}:{region}",
@@ -338,18 +398,18 @@ def reconcile_content_day(
         {
             "stage_id": f"packages-{day}",
             "stage_type": "content-production",
-            "status": "completed" if len(packages) == 2 else "pending",
-            "required_artifacts": list(packages.values()) if len(packages) == 2 else [],
+            "status": "completed" if len(packages) == len(regions) else "pending",
+            "required_artifacts": list(packages.values()) if len(packages) == len(regions) else [],
             "completed_artifacts": list(packages.values()),
-            "content_day_ist": day,
+            "content_day_local": day,
         },
     )
-    if len(packages) == 2:
+    if len(packages) == len(regions):
         package_stage["status"] = "completed"
         package_stage["required_artifacts"] = list(packages.values())
         package_stage["completed_artifacts"] = list(packages.values())
 
-    for region in ("india", "us-central"):
+    for region in regions:
         upsert_stage(
             stages,
             {
@@ -358,7 +418,7 @@ def reconcile_content_day(
                 "status": "completed" if region in evidence else "pending",
                 "required_artifacts": ["publication-evidence.jsonl"],
                 "completed_artifacts": ["publication-evidence.jsonl"] if region in evidence else [],
-                "content_day_ist": day,
+                "content_day_local": day,
                 "region": region,
                 "evidence_recorded": region in evidence,
             },
@@ -371,7 +431,7 @@ def reconcile_content_day(
             "status": "pending",
             "required_artifacts": ["daily-analytics.jsonl", "learning-ledger.jsonl"],
             "completed_artifacts": [],
-            "content_day_ist": day,
+            "content_day_local": day,
             "learning_recorded": False,
             "learning_status": None,
             "experiment_outcome": None,
@@ -380,8 +440,9 @@ def reconcile_content_day(
         },
     )
     return {
+        "content_day_local": day,
         "content_day_ist": day,
-        "previous_content_day_ist": previous_day,
+        "previous_content_day_local": previous_day,
         "rollover_performed": rollover,
         "packages_ready": len(packages),
         "posts_published": len(evidence) if rollover else int(publishing.get("posts_published", 0) or 0),
@@ -497,16 +558,16 @@ def reconcile_runtime(
     *,
     startup: bool = False,
 ) -> dict[str, Any]:
-    day = ist_day(now)
+    day = campaign_day(now, config)
     scaling = state.setdefault("engagement_scaling", {})
-    budget_reset = scaling.get("budget_day_ist") != day
+    budget_reset = scaling.get("budget_day_local") != day
     if budget_reset:
-        scaling["budget_day_ist"] = day
+        scaling["budget_day_local"] = day
         scaling["base_actions_used"] = 0
         scaling["direct_reply_overage"] = 0
     consent_valid, consent_reason = sync_consent_snapshot(state_dir, state, now)
     lifecycle = reconcile_task_lifecycle(queue, now, startup=startup)
-    publishing = reconcile_content_day(state_dir, state, queue, ledger, now)
+    publishing = reconcile_content_day(state_dir, state, config, queue, ledger, now)
     reserve = recalculate_adaptive_reserve(state, config, now)
     continuity = state.setdefault("runtime_continuity", {})
     previous_heartbeat = parse_time(continuity.get("last_heartbeat_at"))
@@ -522,7 +583,7 @@ def reconcile_runtime(
             "expired_leases": lifecycle["expired_leases"],
             "missed_tasks": lifecycle["missed_tasks"],
             "rollover_performed": publishing["rollover_performed"],
-            "content_day_ist": day,
+            "content_day_local": day,
         }
     continuity["last_heartbeat_at"] = iso_time(now)
     queue["updated_at"] = iso_time(now)

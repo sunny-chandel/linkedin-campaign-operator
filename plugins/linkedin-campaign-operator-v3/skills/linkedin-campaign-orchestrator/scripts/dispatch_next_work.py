@@ -81,12 +81,12 @@ def atomic_write(path: Path, value: dict[str, Any]) -> None:
         raise
 
 
-def ist_day(timestamp: str) -> str:
+def local_day(timestamp: str, timezone_name: str) -> str:
     normalized = timestamp[:-1] + "+00:00" if timestamp.endswith("Z") else timestamp
     parsed = datetime.fromisoformat(normalized)
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(ZoneInfo("Asia/Kolkata")).date().isoformat()
+    return parsed.astimezone(ZoneInfo(timezone_name)).date().isoformat()
 
 
 def record_decision(state_dir: Path, state: dict[str, Any], result: dict[str, Any]) -> None:
@@ -216,7 +216,7 @@ def main() -> int:
                 "decided_at": now,
                 "priority": 0,
                 "reason": reconciliation["consent_reason"],
-                "prompt": "I will run the fixed LinkedIn operating system in fully automated mode, perform pre-flight checks, store this campaign-lifetime consent, and stop asking for routine approvals. Start?",
+                "prompt": "I will run your configured LinkedIn operating system in fully automated mode, perform pre-flight checks, store this campaign-lifetime consent, recover unfinished work after restarts, and stop asking for routine approvals. Start?",
                 "unfinished_work_count": 0,
             }
             if args.record:
@@ -227,7 +227,7 @@ def main() -> int:
             return 0
         scaling = state.get("engagement_scaling", {})
         publishing = state.get("publishing", {})
-        current_budget_day = reconciliation["content_day"]["content_day_ist"]
+        current_budget_day = reconciliation["content_day"]["content_day_local"]
         budget_day_reset = reconciliation["budget_day_reset"]
         base_used = int(scaling.get("base_actions_used", 0))
         base_ceiling = int(scaling.get("base_daily_ceiling", 100))
@@ -365,7 +365,7 @@ def main() -> int:
                     "status": "pending",
                     "ready": True,
                     "requires_linkedin": True,
-                    "content_day_ist": current_budget_day,
+                    "content_day_local": current_budget_day,
                     "execution_limits": config.get("automation_reliability", {}).get("reserve", {}),
                     "idempotency_key": f"reserve:{current_budget_day}:pass:{pass_number}",
                 }
@@ -503,7 +503,7 @@ def main() -> int:
                     "unfinished_work_count": 0,
                     "reason": "waiting is invalid until an evidence-backed wake trigger exists",
                 }
-        result["budget_day_ist"] = current_budget_day
+        result["budget_day_local"] = current_budget_day
         result["budget_day_reset"] = budget_day_reset
         result["reconciliation"] = reconciliation
         if args.record:

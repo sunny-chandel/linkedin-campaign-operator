@@ -1,0 +1,20 @@
+{
+  "name": "linkedin-campaign-operator",
+  "interface": {
+    "displayName": "LinkedIn Campaign Operator"
+  },
+  "plugins": [
+    {
+      "name": "linkedin-campaign-operator-v3",
+      "source": {
+        "source": "local",
+        "path": "./plugins/linkedin-campaign-operator-v3"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

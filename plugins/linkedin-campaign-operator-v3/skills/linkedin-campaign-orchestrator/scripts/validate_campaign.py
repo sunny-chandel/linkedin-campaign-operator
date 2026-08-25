@@ -7,6 +7,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 REQUIRED_FILES = ("campaign-config.json", "consent-record.json", "campaign-state.json")
@@ -73,14 +74,17 @@ def main() -> int:
             )
         if isinstance(metric.get("baseline"), (int, float)) and metric["baseline"] < 0:
             errors.append(f"campaign-config.json target.{metric_key}.baseline must not be negative")
-        if metric.get("goal") != 10000:
-            errors.append(f"campaign-config.json target.{metric_key}.goal must equal 10000")
+        goal = metric.get("goal")
+        if isinstance(goal, bool) or not isinstance(goal, (int, float)) or goal <= 0:
+            errors.append(f"campaign-config.json target.{metric_key}.goal must be positive")
 
     owner = consent.get("owner", {})
-    if owner.get("display_name") != "Sunny Chandel":
-        errors.append("consent-record.json owner.display_name must equal Sunny Chandel")
-    if owner.get("expected_linkedin_identity") != "Sunny Chandel":
-        errors.append("consent-record.json owner.expected_linkedin_identity must equal Sunny Chandel")
+    display_name = owner.get("display_name")
+    expected_identity = owner.get("expected_linkedin_identity")
+    if not isinstance(display_name, str) or not display_name.strip() or display_name == "replace-me":
+        errors.append("consent-record.json owner.display_name must identify the profile owner")
+    if expected_identity != display_name:
+        errors.append("consent-record.json owner.expected_linkedin_identity must match owner.display_name")
     if consent.get("status") != "active" and not args.allow_draft:
         errors.append("consent-record.json status must be active")
     if consent.get("consent_version") != "2.0":
@@ -101,13 +105,28 @@ def main() -> int:
     if reconfirmation.get("routine_reconfirmation_required") is not False:
         errors.append("consent-record.json routine reconfirmation must be disabled")
     accounts = consent.get("accounts", [])
-    expected_url = "https://www.linkedin.com/in/sunny-chandel-6a05bb401/"
-    if not any(account.get("url") == expected_url for account in accounts if isinstance(account, dict)):
-        errors.append("consent-record.json accounts must contain Sunny's fixed LinkedIn profile URL")
+    linkedin_accounts = [
+        account
+        for account in accounts
+        if isinstance(account, dict) and account.get("type") == "linkedin-profile"
+    ]
+    if len(linkedin_accounts) != 1:
+        errors.append("consent-record.json accounts must contain exactly one LinkedIn profile")
+    elif not str(linkedin_accounts[0].get("url", "")).startswith("https://www.linkedin.com/in/"):
+        errors.append("consent-record.json LinkedIn account must use a full profile URL")
+    elif linkedin_accounts[0].get("owner") != display_name:
+        errors.append("consent-record.json LinkedIn account owner must match owner.display_name")
     if not consent.get("approved_action_classes"):
         errors.append("consent-record.json approved_action_classes must be set")
     if not consent.get("data_directory"):
         errors.append("consent-record.json data_directory must be set")
+    configured_timezone = config.get("timezone")
+    try:
+        if not isinstance(configured_timezone, str) or not configured_timezone:
+            raise ZoneInfoNotFoundError
+        ZoneInfo(configured_timezone)
+    except ZoneInfoNotFoundError:
+        errors.append("campaign-config.json timezone must be a valid IANA timezone")
     persistent_settings = consent.get("persistent_settings", [])
     required_settings = {
         "automated-mode",
@@ -218,6 +237,9 @@ def main() -> int:
     for key, value in publishing_expected.items():
         if publishing_config.get(key) != value:
             errors.append(f"campaign-config.json publishing_optimization.{key} must equal {value}")
+    priority_window = publishing_config.get("production_priority_window", {})
+    if priority_window.get("timezone") != configured_timezone:
+        errors.append("publishing production window timezone must match campaign timezone")
 
     brand = config.get("brand_system", {})
     brand_expected = {
@@ -249,9 +271,9 @@ def main() -> int:
     scaling = state.get("engagement_scaling", {})
     if scaling.get("base_daily_ceiling") != 100:
         errors.append("campaign-state.json engagement_scaling.base_daily_ceiling must equal 100")
-    budget_day = scaling.get("budget_day_ist")
+    budget_day = scaling.get("budget_day_local")
     if budget_day is not None and (not isinstance(budget_day, str) or len(budget_day) != 10):
-        errors.append("campaign-state.json engagement_scaling.budget_day_ist must be an IST date or null")
+        errors.append("campaign-state.json engagement_scaling.budget_day_local must be a local date or null")
     base_used = scaling.get("base_actions_used")
     if isinstance(base_used, bool) or not isinstance(base_used, int) or not 0 <= base_used <= 100:
         errors.append("campaign-state.json engagement_scaling.base_actions_used must be from 0 to 100")

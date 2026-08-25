@@ -73,7 +73,15 @@ class SubscriptionOptimizerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             state_dir = Path(temporary) / "campaign"
             subprocess.run(
-                ["python3", str(ORCHESTRATOR_SCRIPTS / "init_campaign.py"), str(state_dir)],
+                [
+                    "python3",
+                    str(ORCHESTRATOR_SCRIPTS / "init_campaign.py"),
+                    str(state_dir),
+                    "--owner-name",
+                    "Test Operator",
+                    "--profile-url",
+                    "https://www.linkedin.com/in/test-operator/",
+                ],
                 check=True,
                 capture_output=True,
                 text=True,

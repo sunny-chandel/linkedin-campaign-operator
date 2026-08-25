@@ -1,0 +1,9 @@
+{
+  "name": "Claude LinkedIn",
+  "short_name": "Claude LI",
+  "description": "Your LinkedIn team in Claude.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#e07850"
+}

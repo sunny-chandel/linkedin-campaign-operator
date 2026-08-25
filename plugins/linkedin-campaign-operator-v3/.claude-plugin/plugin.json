@@ -2,17 +2,23 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "linkedin-campaign-operator-v3",
   "displayName": "LinkedIn Campaign Operator",
-  "version": "0.6.0",
-  "description": "Run Sunny Chandel's fully automated LinkedIn 10k/10k system with durable consent, self-revival, reliable task leases, adaptive dispatch, and persistent learning.",
+  "version": "1.1.0",
+  "description": "Run a reusable LinkedIn growth operating system with durable consent, crash self-revival, reliable task leases, adaptive engagement, dynamic publishing, analytics, and persistent learning.",
   "author": {
-    "name": "Sunny"
+    "name": "Sunny Chandel",
+    "url": "https://github.com/sunny-chandel"
   },
-  "license": "Proprietary",
+  "homepage": "https://linkedin-campaign-operator.sunnychandel73.chatgpt.site",
+  "repository": "https://github.com/sunny-chandel/linkedin-campaign-operator",
+  "license": "MIT",
   "keywords": [
     "linkedin",
     "content",
+    "linkedin-agent",
     "campaign",
     "analytics",
-    "claude-design"
+    "personal-branding",
+    "claude-code",
+    "codex"
   ]
 }

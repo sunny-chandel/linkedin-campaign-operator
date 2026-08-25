@@ -2,7 +2,7 @@
 
 ## Recognized owner
 
-The recognized owner is the person controlling the trusted Claude session and named in `consent-record.json`. The fixed LinkedIn identity is Sunny Chandel at `https://www.linkedin.com/in/sunny-chandel-6a05bb401/`.
+The recognized owner is the person controlling the trusted agent session and named in `consent-record.json`. Their LinkedIn identity and full profile URL are discovered during pre-flight or supplied to the initializer, then stored in the record.
 
 ## One-time stored consent
 
@@ -17,7 +17,7 @@ The record identifies:
 - accounts and Pages;
 - action classes;
 - continuous 24-hour adaptive dispatch, a shared 100-action base ceiling, a 10-action burst cap, and direct-inbound reply overage;
-- exactly two prepared and published packages per IST content day with dynamic timing and no fixed separation;
+- exactly two prepared and published packages per local content day with dynamic timing and no fixed separation;
 - automatic profile-derived watermark creation and application;
 - per-post GIF-pattern promotion and permanent dominant-pattern deletion;
 - premium products and persistent settings;
@@ -31,7 +31,7 @@ Do not describe a browser reconnect, pre-flight refresh, content preview, subski
 
 ## Restart recovery
 
-Every new or resumed session runs `resume_campaign.py` before ordinary dispatch. It reloads consent, calculates downtime from the last heartbeat, reopens abandoned task leases, reconciles the current IST day, discovers missing tasks from durable artifacts, and records a recovery event. Safe unfinished work resumes from its latest checkpoint. Completed external mutations remain completed. Obsolete prior-day publication or engagement work is closed with a reason instead of being replayed; current-day replacements are created automatically.
+Every new or resumed session runs `resume_campaign.py` before ordinary dispatch. It reloads consent, calculates downtime from the last heartbeat, reopens abandoned task leases, reconciles the current campaign-local day, discovers missing tasks from durable artifacts, and records a recovery event. Safe unfinished work resumes from its latest checkpoint. Completed external mutations remain completed. Obsolete prior-day publication or engagement work is closed with a reason instead of being replayed; current-day replacements are created automatically.
 
 ## Failure classification
 

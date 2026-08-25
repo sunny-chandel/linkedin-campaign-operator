@@ -15,17 +15,27 @@ TEMPLATES = {
     "campaign-state.template.json": "campaign-state.json",
 }
 
-DEFAULT_CAMPAIGN_ID = "sunny-linkedin-10k-10k"
+DEFAULT_CAMPAIGN_ID = "linkedin-growth"
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("state_dir", type=Path)
     parser.add_argument("--campaign-id", default=DEFAULT_CAMPAIGN_ID)
+    parser.add_argument("--owner-name", required=True, help="LinkedIn profile display name")
+    parser.add_argument("--profile-url", required=True, help="Full LinkedIn profile URL")
+    parser.add_argument("--timezone", default="UTC", help="IANA timezone, for example Europe/London")
     parser.add_argument("--followers-baseline", type=int)
     parser.add_argument("--connections-baseline", type=int)
+    parser.add_argument("--followers-goal", type=int, default=10000)
+    parser.add_argument("--connections-goal", type=int, default=10000)
     parser.add_argument("--niche")
     args = parser.parse_args()
+
+    if not args.profile_url.startswith("https://www.linkedin.com/in/"):
+        parser.error("--profile-url must be a full https://www.linkedin.com/in/... URL")
+    if args.followers_goal <= 0 or args.connections_goal <= 0:
+        parser.error("growth goals must be positive")
 
     state_dir = args.state_dir.expanduser().resolve()
     if state_dir.exists() and any(state_dir.iterdir()):
@@ -40,14 +50,35 @@ def main() -> int:
         data = json.loads(source.read_text(encoding="utf-8"))
         data["campaign_id"] = args.campaign_id
         if output_name == "campaign-config.json":
+            data["timezone"] = args.timezone
             data["target"]["metric_a"]["baseline"] = args.followers_baseline
             data["target"]["metric_b"]["baseline"] = args.connections_baseline
+            data["target"]["metric_a"]["goal"] = args.followers_goal
+            data["target"]["metric_b"]["goal"] = args.connections_goal
+            data["target"]["name"] = f"{args.followers_goal}-followers-{args.connections_goal}-connections"
+            data["target"]["completion_formula"] = (
+                f"metric_a >= {args.followers_goal} and metric_b >= {args.connections_goal}"
+            )
+            data["publishing_optimization"]["production_priority_window"]["timezone"] = args.timezone
             if args.niche:
                 data["audience"]["niche"] = args.niche
         if output_name == "consent-record.json":
+            data["owner"] = {
+                "display_name": args.owner_name,
+                "expected_linkedin_identity": args.owner_name,
+            }
+            data["accounts"] = [
+                {
+                    "type": "linkedin-profile",
+                    "owner": args.owner_name,
+                    "url": args.profile_url,
+                }
+            ]
             data["data_directory"] = str(state_dir)
         if output_name == "campaign-state.json":
             data["updated_at"] = now
+            data["dispatcher"]["browser_binding"]["expected_profile_url"] = args.profile_url
+            data["dispatcher"]["browser_binding"]["expected_profile_name"] = args.owner_name
         (state_dir / output_name).write_text(
             json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )

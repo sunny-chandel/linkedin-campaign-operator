@@ -51,7 +51,7 @@ Follower count is a qualification gate for new additions, not a substitute for r
 
 ## Budget and burst controls
 
-- The shared base ceiling is 100 actions per IST day.
+- The shared base ceiling is 100 actions per campaign-local day.
 - Proactive and soft-reciprocal actions stop when the base ceiling is reached.
 - Direct-inbound replies consume base capacity while it remains, then increment `direct_reply_overage` and continue.
 - Every burst is capped at 10 actions.

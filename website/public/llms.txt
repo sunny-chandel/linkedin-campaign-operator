@@ -1,0 +1,15 @@
+# Claude LinkedIn
+
+Claude LinkedIn is a free, open-source collection of eight Agent Skills for running a stateful organic LinkedIn content and engagement campaign in Claude Code and Codex. Its technical repository and plugin identifier remain LinkedIn Campaign Operator.
+
+Primary documentation:
+- /install — Claude Code and Codex installation
+- /skills — the eight-skill system map
+- /examples — practical prompts and workflows
+- /docs — configuration, state, and architecture
+- /press — product facts and founder story
+- /blog/launch — launch article
+
+Source: https://github.com/sunny-chandel/linkedin-campaign-operator
+License: MIT
+Creator: Sunny Chandel

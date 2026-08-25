@@ -19,11 +19,11 @@ from runtime_state import (
     load_object,
     parse_time,
     recalculate_adaptive_reserve,
+    required_regions,
     sync_consent_snapshot,
 )
 
 
-EXPECTED_PROFILE = "https://www.linkedin.com/in/sunny-chandel-6a05bb401/"
 PREFLIGHT_COMPONENTS = {
     "browser",
     "linkedin-identity",
@@ -73,6 +73,20 @@ def parse_payload(value: str | None) -> dict[str, Any]:
     return decoded
 
 
+def recognized_identity(consent: dict[str, Any]) -> tuple[str, str]:
+    owner = consent.get("owner", {})
+    owner_name = owner.get("display_name") if isinstance(owner, dict) else None
+    profiles = [
+        account
+        for account in consent.get("accounts", [])
+        if isinstance(account, dict) and account.get("type") == "linkedin-profile"
+    ]
+    profile_url = profiles[0].get("url") if profiles else None
+    if not owner_name or not profile_url:
+        raise ValueError("consent record requires a recognized owner and LinkedIn profile URL")
+    return str(owner_name), str(profile_url)
+
+
 def consent_grant(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, Any]:
     consent_path = state_dir / "consent-record.json"
     consent = load_object(consent_path)
@@ -87,8 +101,10 @@ def consent_grant(args, state_dir: Path, state: dict[str, Any], now) -> dict[str
             "scope": consent.get("scope"),
             "reconfirmation_required": False,
         }
-    if args.owner != "Sunny Chandel":
-        raise ValueError("recognized owner must be Sunny Chandel")
+    expected_owner, _ = recognized_identity(consent)
+    granted_by = args.owner or expected_owner
+    if granted_by != expected_owner:
+        raise ValueError("consent grant owner does not match the configured recognized owner")
     receipt_id = f"consent-{state.get('campaign_id')}-{int(now.timestamp())}"
     consent.update(
         {
@@ -100,7 +116,7 @@ def consent_grant(args, state_dir: Path, state: dict[str, Any], now) -> dict[str
             "authorization_receipt": {
                 "receipt_id": receipt_id,
                 "granted_at": iso_time(now),
-                "granted_by": args.owner,
+                "granted_by": granted_by,
                 "source": args.source,
                 "automation_mode": "fully-automated",
                 "portable_across_model_sessions": True,
@@ -153,6 +169,8 @@ def consent_revoke(state_dir: Path, state: dict[str, Any], now) -> dict[str, Any
 
 def browser_bind(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, Any]:
     require_active_consent(state_dir, state, now)
+    consent = load_object(state_dir / "consent-record.json")
+    _, expected_profile = recognized_identity(consent)
     dispatcher = state.setdefault("dispatcher", {})
     binding = dispatcher.setdefault("browser_binding", {})
     existing_id = binding.get("device_id")
@@ -165,7 +183,7 @@ def browser_bind(args, state_dir: Path, state: dict[str, Any], now) -> dict[str,
             "device_id": args.device_id,
             "device_label": args.device_label,
             "platform": args.platform,
-            "expected_profile_url": EXPECTED_PROFILE,
+            "expected_profile_url": expected_profile,
             "identity_verified": args.identity_verified,
             "bound_at": binding.get("bound_at") or iso_time(now),
             "last_seen_at": iso_time(now),
@@ -339,11 +357,16 @@ def task_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, A
                     "publication completion requires verified region, post_id, and post_url evidence"
                 )
             publishing = state.setdefault("publishing", {})
-            day = item.get("content_day_ist") or publishing.get("content_day_ist")
+            day = (
+                item.get("content_day_local")
+                or item.get("content_day_ist")
+                or publishing.get("content_day_local")
+                or publishing.get("content_day_ist")
+            )
             evidence = {
                 "schema_version": "1.0",
                 "campaign_id": state.get("campaign_id"),
-                "content_day_ist": day,
+                "content_day_local": day,
                 "region": payload["region"],
                 "post_id": payload["post_id"],
                 "post_url": payload["post_url"],
@@ -356,7 +379,8 @@ def task_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, A
             ids = publishing.setdefault("published_post_ids", [])
             if payload["post_id"] not in ids:
                 ids.append(payload["post_id"])
-            publishing["posts_published"] = min(2, len(ids))
+            config = load_object(state_dir / "campaign-config.json")
+            publishing["posts_published"] = min(len(required_regions(config)), len(ids))
             publishing["last_publication_at"] = evidence["published_at"]
         if item.get("task_type") == "preflight" and payload.get("preflight_passed") is not True:
             raise ValueError("preflight completion requires preflight_passed=true")
@@ -520,7 +544,7 @@ def main() -> int:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     grant = subparsers.add_parser("consent-grant")
-    grant.add_argument("--owner", default="Sunny Chandel")
+    grant.add_argument("--owner")
     grant.add_argument("--source", default="explicit-owner-confirmation")
     subparsers.add_parser("consent-revoke")
 

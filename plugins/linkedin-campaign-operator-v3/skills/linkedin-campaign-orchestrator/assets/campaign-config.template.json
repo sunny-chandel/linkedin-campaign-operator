@@ -1,7 +1,7 @@
 {
   "schema_version": "1.2",
   "campaign_id": "replace-me",
-  "timezone": "Asia/Kolkata",
+  "timezone": "UTC",
   "target": {
     "name": "10k-10k",
     "metric_a": {"name": "followers", "baseline": null, "goal": 10000},
@@ -103,7 +103,7 @@
     "production_priority_window": {
       "start": "21:00",
       "end": "02:00",
-      "timezone": "Asia/Kolkata"
+      "timezone": "UTC"
     },
     "required_regions": ["india", "us-central"],
     "fixed_publish_times": [],

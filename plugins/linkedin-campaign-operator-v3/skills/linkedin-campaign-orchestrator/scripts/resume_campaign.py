@@ -27,7 +27,7 @@ def reconcile_missed_stages(ledger: dict, current_day: str, now: str) -> dict:
     for stage in stages:
         if not isinstance(stage, dict) or stage.get("status") == "completed":
             continue
-        stage_day = stage.get("content_day_ist")
+        stage_day = stage.get("content_day_local") or stage.get("content_day_ist")
         if not stage_day or stage_day >= current_day:
             continue
         stage_type = stage.get("stage_type")
@@ -69,7 +69,7 @@ def main() -> int:
         )
         missed = reconcile_missed_stages(
             ledger,
-            report["content_day"]["content_day_ist"],
+            report["content_day"]["content_day_local"],
             timestamp,
         )
         continuity = state.setdefault("runtime_continuity", {})

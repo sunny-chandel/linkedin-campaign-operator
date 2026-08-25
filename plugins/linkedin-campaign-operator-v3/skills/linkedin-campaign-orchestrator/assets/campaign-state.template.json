@@ -8,16 +8,16 @@
   "hard_blocker": null,
   "progress": {},
   "runtime_instructions": {
-    "session_version": "0.6.0",
-    "active_version": "0.6.0",
-    "detected_version": "0.6.0",
+    "session_version": "1.1.0",
+    "active_version": "1.1.0",
+    "detected_version": "1.1.0",
     "install_path": null,
     "last_checked_at": null,
     "activated_at": null,
     "refresh_mode": "session-loaded"
   },
   "engagement_scaling": {
-    "budget_day_ist": null,
+    "budget_day_local": null,
     "base_daily_ceiling": 100,
     "base_actions_used": 0,
     "direct_reply_overage": 0,
@@ -46,7 +46,8 @@
       "device_id": null,
       "device_label": null,
       "platform": null,
-      "expected_profile_url": "https://www.linkedin.com/in/sunny-chandel-6a05bb401/",
+      "expected_profile_url": null,
+      "expected_profile_name": null,
       "identity_verified": false,
       "bound_at": null,
       "last_seen_at": null,
@@ -90,6 +91,7 @@
     "last_recovery_report": null
   },
   "publishing": {
+    "content_day_local": null,
     "content_day_ist": null,
     "packages_required": 2,
     "packages_ready": 0,

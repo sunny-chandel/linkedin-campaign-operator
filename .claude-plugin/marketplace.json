@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "sunny-linkedin-tools",
-  "description": "Claude plugins for continuous adaptive LinkedIn production, engagement, measurement, and learning.",
+  "description": "Free, open-source LinkedIn content, engagement, measurement, and learning skills for AI agents.",
   "owner": {
     "name": "Sunny Chandel"
   },
@@ -9,7 +9,7 @@
     {
       "name": "linkedin-campaign-operator-v3",
       "source": "./plugins/linkedin-campaign-operator-v3",
-      "description": "Run Sunny Chandel's v0.6.0 fully automated LinkedIn 10k/10k system with durable consent, self-revival, pinned browser recovery, reliable adaptive dispatch, branding, subscription optimization, and persistent learning.",
+      "description": "Run a reusable LinkedIn growth system with durable consent, crash self-revival, adaptive dispatch, research, content production, engagement, analytics, branding, and persistent learning.",
       "author": {
         "name": "Sunny Chandel"
       }

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Show what you built
+    url: https://github.com/sunny-chandel/linkedin-campaign-operator/discussions
+    about: Share campaign artifacts, prompts, examples, and results with the community.
+  - name: Installation guide
+    url: https://linkedin-campaign-operator.sunnychandel73.chatgpt.site/install
+    about: Follow the Claude Code or Codex installation path.

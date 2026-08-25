@@ -3,7 +3,7 @@ name: linkedin-content-production
 description: Turn a completed, verified research brief into LinkedIn captions and Claude Design assets using the campaign's voices, active watermark kit, and per-post GIF creative specification. Use for daily post packages and response drafts.
 metadata:
   author: sunny
-  version: "0.6.0"
+  version: "1.1.0"
 ---
 
 # LinkedIn content production
@@ -12,7 +12,7 @@ Create publication-ready packages from completed, verified research briefs. Read
 
 Inherit the parent's active campaign-lifetime consent receipt and leased task. Never request a second approval after a restart or model change. Checkpoint the caption, design source, export, watermark validation, and final package separately so self-revival resumes from the last verified artifact without rebuilding completed work.
 
-For each IST content day, produce and validate exactly two packages: one India-focused package and one US-Central-focused package. Never create a third scheduled, backup, or stockpiled package. Treat 9:00 PM to 2:00 AM IST as the priority production period, but accept production work from the continuous dispatcher at any hour when it outranks other available offline work.
+For each campaign-local content day, produce and validate exactly two packages for the configured required regions, which default to India and US-Central. Never create a third scheduled, backup, or stockpiled package. Treat the configured production-priority window as the preferred production period, but accept production work from the continuous dispatcher at any hour when it outranks other available offline work.
 
 If a brief is missing or fails validation, return automatically to `linkedin-content-research`, repair only the missing fields, and resume production. If an asset build or export fails, save the last valid artifact, retry safely, then rebuild with another supported format or workflow while preserving the content and design requirements. Do not ask the owner to select routine design options, wording, format, or export settings. Escalate only when the parent orchestrator classifies the required design or upload capability as a hard blocker.
 
@@ -53,4 +53,4 @@ Include:
 
 Comments, DMs, and replies are one to four short lines and can be one word. Use deliberately imperfect loose grammar and inconsistent capitalization. Always be adversarial by challenging the other person's view or a common assumption. Use no em dash or en dash. Fact-check every claim regardless of length.
 
-In automated mode, sending a preview to chat is informational, not an approval gate. Continue automatically through production and publish through the connected Chrome session when the dynamic selector returns `publish-now`, then verify the live result. Guarantee exactly two publications before the IST content day closes; if no strong opportunity appears, use the highest-scoring remaining opportunity. Ask the owner only when the parent orchestrator classifies a hard blocker.
+In automated mode, sending a preview to chat is informational, not an approval gate. Continue automatically through production and publish through the connected Chrome session when the dynamic selector returns `publish-now`, then verify the live result. Guarantee exactly two publications before the campaign-local content day closes; if no strong opportunity appears, use the highest-scoring remaining opportunity. Ask the owner only when the parent orchestrator classifies a hard blocker.
