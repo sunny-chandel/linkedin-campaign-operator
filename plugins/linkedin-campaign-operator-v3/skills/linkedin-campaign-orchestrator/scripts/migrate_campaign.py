@@ -158,8 +158,10 @@ def main() -> int:
             bool(today.get(key))
             for key in ("window_2_india_published", "window_4_us_central_published")
         )
-        package_count = min(
-            sum(1 for _ in state_dir.glob("**/publication-package*.json")), 2
+        package_count = (
+            0
+            if published_count >= 2
+            else min(sum(1 for _ in state_dir.glob("**/publication-package*.json")), 2)
         )
         publishing = state.get("publishing", {})
         if not isinstance(publishing, dict):
@@ -357,6 +359,10 @@ def main() -> int:
                 "status": "pending",
                 "ready": True,
                 "requires_linkedin": False,
+                "target_scope": "next-content-day" if publishing.get("posts_published", 0) >= 2 else "current-content-day",
+                "required_regions": ["india", "us-central"],
+                "required_package_count": 2,
+                "no_third_package": True,
             }
         )
     analytics_path = state_dir / "daily-analytics.jsonl"

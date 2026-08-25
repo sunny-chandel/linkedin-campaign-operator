@@ -360,6 +360,13 @@ class AdaptiveDispatchTests(unittest.TestCase):
             self.assertIn("historic", (state_dir / "interaction-log.jsonl").read_text(encoding="utf-8"))
             self.assertEqual(json.loads((state_dir / "experiments.json").read_text(encoding="utf-8"))["experiments"][0]["id"], "preserve")
             self.assertTrue((state_dir / "publication-evidence.json").is_file())
+            production_task = next(
+                item
+                for item in json.loads((state_dir / "work-queue.json").read_text(encoding="utf-8"))["items"]
+                if item["task_id"] == "prepare-two-packages"
+            )
+            self.assertEqual(production_task["required_regions"], ["india", "us-central"])
+            self.assertEqual(production_task["required_package_count"], 2)
             validated = run_json(["python3", str(ORCHESTRATOR / "validate_campaign.py"), str(state_dir)])
             self.assertTrue(validated["valid"])
 
