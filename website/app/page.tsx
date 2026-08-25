@@ -5,7 +5,7 @@ import { Footer, Header, githubUrl } from './components/Shell';
 
 const installCommand = 'git clone --depth 1 https://github.com/sunny-chandel/linkedin-campaign-operator.git';
 
-export const metadata: Metadata = { title: 'Claude LinkedIn — Your LinkedIn Team in Claude', alternates: { canonical: '/' } };
+export const metadata: Metadata = { title: 'Your LinkedIn Team in Claude', alternates: { canonical: '/' } };
 
 const skills = [
   ['01', 'CAMPAIGN ORCHESTRATOR', '[STATEFUL]', 'IDENTITY, STATE, ROUTING, RECOVERY, DISPATCH, AND THE NEXT VALID CAMPAIGN ACTION.'],
