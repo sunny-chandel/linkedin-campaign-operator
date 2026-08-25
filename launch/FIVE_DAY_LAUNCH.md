@@ -8,7 +8,7 @@ The launch message is consistent everywhere:
 
 > Your LinkedIn operating system. Inside your AI agent.
 
-Primary link: `https://github.com/sunny-chandel/linkedin-campaign-operator`
+Primary link: `https://linkedin-campaign-operator.sunnychandel73.chatgpt.site`
 
 ## Day 1 — Establish the source of truth
 

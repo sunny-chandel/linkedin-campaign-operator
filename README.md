@@ -4,6 +4,8 @@
 
 LinkedIn Campaign Operator is a free, open-source collection of Agent Skills for researching topics, writing LinkedIn posts, planning thoughtful engagement, publishing at evidence-based times, measuring results, and carrying campaign learning across sessions.
 
+**Website:** [linkedin-campaign-operator.sunnychandel73.chatgpt.site](https://linkedin-campaign-operator.sunnychandel73.chatgpt.site)
+
 It runs in Claude Code and Codex, keeps mutable campaign data outside the plugin, and resumes from verified state instead of starting over every day.
 
 ## What it does

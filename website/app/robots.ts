@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 
 export default function robots(): MetadataRoute.Robots {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://github.com/sunny-chandel/linkedin-campaign-operator';
+  const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://linkedin-campaign-operator.sunnychandel73.chatgpt.site';
   return { rules: { userAgent: '*', allow: '/' }, sitemap: `${base}/sitemap.xml` };
 }

@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://github.com/sunny-chandel/linkedin-campaign-operator';
+  const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://linkedin-campaign-operator.sunnychandel73.chatgpt.site';
   return ['', '/install', '/skills', '/examples', '/docs', '/press', '/blog/launch'].map((path, index) => ({
     url: `${base}${path}`,
     lastModified: new Date(),
