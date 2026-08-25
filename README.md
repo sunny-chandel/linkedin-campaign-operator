@@ -1,5 +1,9 @@
 # LinkedIn Campaign Operator
 
+[![Validate public release](https://github.com/sunny-chandel/linkedin-campaign-operator/actions/workflows/ci.yml/badge.svg)](https://github.com/sunny-chandel/linkedin-campaign-operator/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/sunny-chandel/linkedin-campaign-operator)](https://github.com/sunny-chandel/linkedin-campaign-operator/releases/latest)
+[![MIT license](https://img.shields.io/badge/license-MIT-1557ff)](LICENSE)
+
 **Your LinkedIn operating system. Inside your AI agent.**
 
 LinkedIn Campaign Operator is a free, open-source collection of Agent Skills for researching topics, writing LinkedIn posts, planning thoughtful engagement, publishing at evidence-based times, measuring results, and carrying campaign learning across sessions.
