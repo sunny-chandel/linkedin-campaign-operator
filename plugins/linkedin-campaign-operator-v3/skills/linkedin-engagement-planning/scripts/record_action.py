@@ -12,6 +12,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 
 VALID_LANES = {"proactive", "soft-reciprocity", "direct-inbound"}
@@ -46,6 +47,14 @@ def relationship_strength(value: Any) -> float:
     if not math.isfinite(number) or not 0 <= number <= 1:
         raise ValueError("relationship_strength must be a number from 0 to 1")
     return number
+
+
+def ist_day(timestamp: str) -> str:
+    normalized = timestamp[:-1] + "+00:00" if timestamp.endswith("Z") else timestamp
+    parsed = datetime.fromisoformat(normalized)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(ZoneInfo("Asia/Kolkata")).date().isoformat()
 
 
 def main() -> int:
@@ -84,7 +93,13 @@ def main() -> int:
         if action_id in existing_ids:
             raise ValueError(f"action_id already recorded: {action_id}")
 
+        now = args.now or datetime.now(timezone.utc).isoformat()
+        current_budget_day = ist_day(now)
         scaling = state.setdefault("engagement_scaling", {})
+        if scaling.get("budget_day_ist") != current_budget_day:
+            scaling["budget_day_ist"] = current_budget_day
+            scaling["base_actions_used"] = 0
+            scaling["direct_reply_overage"] = 0
         base_ceiling = int(scaling.get("base_daily_ceiling", 100))
         base_used = int(scaling.get("base_actions_used", 0))
         overage = int(scaling.get("direct_reply_overage", 0))
@@ -99,7 +114,6 @@ def main() -> int:
             budget_class = "base"
             base_used += 1
 
-        now = args.now or datetime.now(timezone.utc).isoformat()
         record = {
             **action,
             "schema_version": "1.1",
@@ -123,6 +137,7 @@ def main() -> int:
                     "base_actions_used": base_used,
                     "base_daily_ceiling": base_ceiling,
                     "direct_reply_overage": overage,
+                    "budget_day_ist": current_budget_day,
                 },
                 indent=2,
                 ensure_ascii=False,

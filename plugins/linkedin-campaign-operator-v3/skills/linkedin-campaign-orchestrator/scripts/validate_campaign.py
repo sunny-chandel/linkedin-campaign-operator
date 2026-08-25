@@ -203,6 +203,9 @@ def main() -> int:
     scaling = state.get("engagement_scaling", {})
     if scaling.get("base_daily_ceiling") != 100:
         errors.append("campaign-state.json engagement_scaling.base_daily_ceiling must equal 100")
+    budget_day = scaling.get("budget_day_ist")
+    if budget_day is not None and (not isinstance(budget_day, str) or len(budget_day) != 10):
+        errors.append("campaign-state.json engagement_scaling.budget_day_ist must be an IST date or null")
     base_used = scaling.get("base_actions_used")
     if isinstance(base_used, bool) or not isinstance(base_used, int) or not 0 <= base_used <= 100:
         errors.append("campaign-state.json engagement_scaling.base_actions_used must be from 0 to 100")

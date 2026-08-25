@@ -5,10 +5,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 
 ACTIVE_STATUSES = {"pending", "recovering", "missed-recovering"}
@@ -26,6 +29,47 @@ def load_object(path: Path) -> dict[str, Any]:
 def append_jsonl(path: Path, value: dict[str, Any]) -> None:
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(value, ensure_ascii=False) + "\n")
+
+
+def atomic_write(path: Path, value: dict[str, Any]) -> None:
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(value, handle, indent=2, ensure_ascii=False)
+            handle.write("\n")
+        os.replace(temporary_name, path)
+    except BaseException:
+        try:
+            os.unlink(temporary_name)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def ist_day(timestamp: str) -> str:
+    normalized = timestamp[:-1] + "+00:00" if timestamp.endswith("Z") else timestamp
+    parsed = datetime.fromisoformat(normalized)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(ZoneInfo("Asia/Kolkata")).date().isoformat()
+
+
+def record_decision(state_dir: Path, state: dict[str, Any], result: dict[str, Any]) -> None:
+    append_jsonl(state_dir / "schedule-decisions.jsonl", result)
+    dispatcher = state.setdefault("dispatcher", {})
+    dispatcher["last_decision_at"] = result.get("decided_at")
+    dispatcher["unfinished_work_count"] = int(result.get("unfinished_work_count", 0) or 0)
+    dispatcher["current_task_id"] = (
+        result.get("task", {}).get("task_id") if isinstance(result.get("task"), dict) else None
+    )
+    if result.get("decision") == "wait":
+        dispatcher["next_wake_at"] = result.get("predicted_next_opportunity")
+        dispatcher["next_wake_reason"] = result.get("wake_trigger")
+    elif result.get("decision") == "execute":
+        dispatcher["next_wake_at"] = None
+        dispatcher["next_wake_reason"] = None
+    state["updated_at"] = result.get("decided_at")
+    atomic_write(state_dir / "campaign-state.json", state)
 
 
 def active_stage_debt(ledger: dict[str, Any]) -> list[dict[str, Any]]:
@@ -101,12 +145,18 @@ def main() -> int:
                 "reason": "technical signal or identity blocker must stop external and offline execution",
             }
             if args.record:
-                append_jsonl(state_dir / "schedule-decisions.jsonl", result)
+                record_decision(state_dir, state, result)
             print(json.dumps(result, indent=2, ensure_ascii=False))
             return 0
         scaling = state.get("engagement_scaling", {})
         dispatcher = state.get("dispatcher", {})
         publishing = state.get("publishing", {})
+        current_budget_day = ist_day(now)
+        budget_day_reset = scaling.get("budget_day_ist") != current_budget_day
+        if budget_day_reset:
+            scaling["budget_day_ist"] = current_budget_day
+            scaling["base_actions_used"] = 0
+            scaling["direct_reply_overage"] = 0
         base_used = int(scaling.get("base_actions_used", 0))
         base_ceiling = int(scaling.get("base_daily_ceiling", 100))
         overage_allowed = config.get("fixed_rules", {}).get("direct_reply_overage_allowed") is True
@@ -310,8 +360,10 @@ def main() -> int:
                     "unfinished_work_count": 0,
                     "reason": "waiting is invalid until an evidence-backed wake trigger exists",
                 }
+        result["budget_day_ist"] = current_budget_day
+        result["budget_day_reset"] = budget_day_reset
         if args.record:
-            append_jsonl(state_dir / "schedule-decisions.jsonl", result)
+            record_decision(state_dir, state, result)
         print(json.dumps(result, indent=2, ensure_ascii=False))
     except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
         print(json.dumps({"valid": False, "error": str(exc)}), file=sys.stderr)

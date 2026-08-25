@@ -169,6 +169,7 @@ class AdaptiveDispatchTests(unittest.TestCase):
 
             state_dir = self.init_campaign(root)
             state = json.loads((state_dir / "campaign-state.json").read_text(encoding="utf-8"))
+            state["engagement_scaling"]["budget_day_ist"] = "2026-08-25"
             state["engagement_scaling"]["base_actions_used"] = 100
             write_json(state_dir / "campaign-state.json", state)
             action = root / "action.json"
@@ -183,7 +184,7 @@ class AdaptiveDispatchTests(unittest.TestCase):
                 },
             )
             recorded = run_json(
-                ["python3", str(ENGAGEMENT / "record_action.py"), str(state_dir), str(action)]
+                ["python3", str(ENGAGEMENT / "record_action.py"), str(state_dir), str(action), "--now", "2026-08-25T12:00:00+05:30"]
             )
             self.assertEqual(recorded["base_actions_used"], 100)
             self.assertEqual(recorded["direct_reply_overage"], 1)
@@ -318,6 +319,10 @@ class AdaptiveDispatchTests(unittest.TestCase):
             self.assertEqual(waited["decision"], "wait")
             self.assertEqual(waited["unfinished_work_count"], 0)
             self.assertIn("validated work queue", waited["evidence"])
+            persisted = json.loads((state_dir / "campaign-state.json").read_text(encoding="utf-8"))
+            self.assertEqual(persisted["dispatcher"]["last_decision_at"], waited["decided_at"])
+            self.assertEqual(persisted["dispatcher"]["unfinished_work_count"], 0)
+            self.assertEqual(persisted["engagement_scaling"]["budget_day_ist"], "2026-08-25")
 
     def test_migration_preserves_history_and_converts_80_to_100(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

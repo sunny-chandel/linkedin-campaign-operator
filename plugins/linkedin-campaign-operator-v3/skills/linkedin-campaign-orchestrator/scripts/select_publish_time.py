@@ -7,6 +7,7 @@ import argparse
 import json
 import math
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -46,7 +47,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("opportunities", type=Path)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--state-dir", type=Path)
+    parser.add_argument("--record", action="store_true", help="append to schedule-decisions.jsonl")
     args = parser.parse_args()
+    if args.record and not args.state_dir:
+        parser.error("--record requires --state-dir")
     try:
         data = json.loads(args.opportunities.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
@@ -144,6 +149,15 @@ def main() -> int:
             args.output.write_text(rendered, encoding="utf-8")
         else:
             print(rendered, end="")
+        if args.record:
+            state_dir = args.state_dir.expanduser().resolve()
+            log_record = {
+                **result,
+                "decision_type": "publication",
+                "recorded_at": datetime.now(timezone.utc).isoformat(),
+            }
+            with (state_dir / "schedule-decisions.jsonl").open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(log_record, ensure_ascii=False) + "\n")
     except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
         print(json.dumps({"valid": False, "error": str(exc)}), file=sys.stderr)
         return 1

@@ -24,7 +24,7 @@ Forecast the next two likely bursts and maintain an adaptive reserve based on ex
 
 Maintain exactly two validated packages: India and US-Central. The production priority block is 9:00 PM-2:00 AM IST, but direct inbound and exceptionally strong adaptive opportunities may interrupt it.
 
-Evaluate publication opportunities without fixed times or spacing. Use regional activity, qualified-target activity, topic freshness, current network velocity, the previous post's engagement velocity, historical equal-age performance, format/pillar fit, remaining-day opportunity, and a dynamic cannibalization risk from the other post's live distribution. Use 70 percent proven timing, 20 percent promising timing, and 10 percent exploration. Publish exactly two posts per IST content day; use the best final remaining opportunity if the model has not selected one earlier.
+Evaluate publication opportunities without fixed times or spacing. Use `select_publish_time.py <opportunities> --state-dir <state-dir> --record` so the decision is appended to `schedule-decisions.jsonl`. Score regional activity, qualified-target activity, topic freshness, current network velocity, the previous post's engagement velocity, historical equal-age performance, format/pillar fit, remaining-day opportunity, and a dynamic cannibalization risk from the other post's live distribution. Use 70 percent proven timing, 20 percent promising timing, and 10 percent exploration. Publish exactly two posts per IST content day; use the best final remaining opportunity if the model has not selected one earlier.
 
 ## Completion and blocker behavior
 

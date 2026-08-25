@@ -109,6 +109,9 @@ def main() -> int:
         old_scaling = state.get("engagement_scaling", {})
         if not isinstance(old_scaling, dict):
             old_scaling = {}
+        legacy_today = state.get("today", {})
+        if not isinstance(legacy_today, dict):
+            legacy_today = {}
         legacy_clusters = old_scaling.get("completed_clusters", [])
         if not isinstance(legacy_clusters, list):
             legacy_clusters = []
@@ -133,6 +136,7 @@ def main() -> int:
                     }
                 )
         state["engagement_scaling"] = {
+            "budget_day_ist": old_scaling.get("budget_day_ist") or legacy_today.get("date_ist"),
             "base_daily_ceiling": 100,
             "base_actions_used": min(max(base_actions_used, 0), 100),
             "direct_reply_overage": max(int(old_scaling.get("direct_reply_overage", 0) or 0), 0),

@@ -17,6 +17,7 @@
     "refresh_mode": "session-loaded"
   },
   "engagement_scaling": {
+    "budget_day_ist": null,
     "base_daily_ceiling": 100,
     "base_actions_used": 0,
     "direct_reply_overage": 0,

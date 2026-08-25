@@ -88,6 +88,7 @@ def main() -> int:
                 "posts_required": 2,
             },
             "engagement": {
+                "budget_day_ist": scaling.get("budget_day_ist"),
                 "base_actions_used": base_used,
                 "base_daily_ceiling": base_ceiling,
                 "base_remaining": max(0, base_ceiling - base_used),

@@ -111,7 +111,7 @@ Give 9:00 PM-2:00 AM priority to source research, learning-ledger maintenance, e
 
 At each dispatcher cycle, use this order: technical signal or identity blocker; genuine direct inbound; due publication opportunity; mandatory-stage or analytics recovery; qualified soft reciprocity; adaptive-reserve replenishment; two-package production; analytics and investigation. Read [continuous dispatch](references/continuous-dispatch.md) for signal routing, adaptive timing, budget accounting, completion gates, and lane-specific recovery.
 
-Publishing has no fixed time or fixed separation. Run `select_publish_time.py` against current regional activity, qualified-target activity, topic freshness, network velocity, the previous post's engagement velocity, historical equal-age performance, format/pillar fit, remaining-day opportunity, and cannibalization evidence. Guarantee exactly two verified publications per IST content day; if no strong opportunity appears, use the highest-scoring final remaining opportunity before the day closes.
+Publishing has no fixed time or fixed separation. Run `select_publish_time.py <opportunities> --state-dir <state-dir> --record` against current regional activity, qualified-target activity, topic freshness, network velocity, the previous post's engagement velocity, historical equal-age performance, format/pillar fit, remaining-day opportunity, and cannibalization evidence. Guarantee exactly two verified publications per IST content day; if no strong opportunity appears, use the highest-scoring final remaining opportunity before the day closes.
 
 ## Fixed campaign invariants
 
