@@ -16,6 +16,8 @@ export const metadata: Metadata = {
   keywords: ['LinkedIn agent skill', 'LinkedIn content agent', 'Claude Code LinkedIn plugin', 'Codex LinkedIn plugin', 'open-source LinkedIn agent', 'LinkedIn engagement assistant'],
   authors: [{ name: 'Sunny Chandel', url: 'https://github.com/sunny-chandel' }],
   creator: 'Sunny Chandel',
+  manifest: '/manifest.webmanifest',
+  category: 'technology',
   alternates: { canonical: '/' },
   openGraph: {
     type: 'website',

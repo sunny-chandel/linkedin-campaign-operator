@@ -1,0 +1,9 @@
+{
+  "name": "LinkedIn Campaign Operator",
+  "short_name": "LCO",
+  "description": "Your LinkedIn operating system. Inside your AI agent.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f3ec",
+  "theme_color": "#1557ff"
+}

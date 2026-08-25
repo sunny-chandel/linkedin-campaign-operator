@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>LinkedIn Campaign Operator</title>
+    <link>https://linkedin-campaign-operator.sunnychandel73.chatgpt.site</link>
+    <description>Release notes and practical guides for the open-source LinkedIn agent skill.</description>
+    <language>en</language>
+    <item>
+      <title>Why I built a LinkedIn operating system—not another post generator</title>
+      <link>https://linkedin-campaign-operator.sunnychandel73.chatgpt.site/blog/launch</link>
+      <guid>https://linkedin-campaign-operator.sunnychandel73.chatgpt.site/blog/launch</guid>
+      <pubDate>Tue, 25 Aug 2026 00:00:00 GMT</pubDate>
+      <description>A personal 10k/10k workflow becomes an open-source, stateful Agent Skill for Claude Code and Codex.</description>
+    </item>
+  </channel>
+</rss>
