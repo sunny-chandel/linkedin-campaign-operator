@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Acceptance tests for the v0.5.0 adaptive dispatcher and state model."""
+"""Acceptance tests for the public adaptive dispatcher and state model."""
 
 from __future__ import annotations
 
@@ -35,7 +35,19 @@ def write_json(path: Path, value: dict) -> None:
 class AdaptiveDispatchTests(unittest.TestCase):
     def init_campaign(self, root: Path) -> Path:
         state_dir = root / "campaign"
-        run_json(["python3", str(ORCHESTRATOR / "init_campaign.py"), str(state_dir)])
+        run_json(
+            [
+                "python3",
+                str(ORCHESTRATOR / "init_campaign.py"),
+                str(state_dir),
+                "--owner-name",
+                "Test Operator",
+                "--profile-url",
+                "https://www.linkedin.com/in/test-operator/",
+                "--timezone",
+                "Asia/Kolkata",
+            ]
+        )
         ledger_path = state_dir / "stage-ledger.json"
         ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
         ledger["stages"][0]["status"] = "completed"
@@ -50,7 +62,7 @@ class AdaptiveDispatchTests(unittest.TestCase):
             write_json(state_dir / "campaign-state.json", state)
             queue = {
                 "schema_version": "1.0",
-                "campaign_id": "sunny-linkedin-10k-10k",
+                "campaign_id": "linkedin-growth",
                 "items": [
                     {
                         "task_id": "publish-india",
@@ -169,7 +181,7 @@ class AdaptiveDispatchTests(unittest.TestCase):
 
             state_dir = self.init_campaign(root)
             state = json.loads((state_dir / "campaign-state.json").read_text(encoding="utf-8"))
-            state["engagement_scaling"]["budget_day_ist"] = "2026-08-25"
+            state["engagement_scaling"]["budget_day_local"] = "2026-08-25"
             state["engagement_scaling"]["base_actions_used"] = 100
             write_json(state_dir / "campaign-state.json", state)
             action = root / "action.json"
@@ -286,7 +298,7 @@ class AdaptiveDispatchTests(unittest.TestCase):
                 state_dir / "work-queue.json",
                 {
                     "schema_version": "1.0",
-                    "campaign_id": "sunny-linkedin-10k-10k",
+                    "campaign_id": "linkedin-growth",
                     "items": [
                         {"task_id": "linkedin", "task_type": "soft-reciprocity", "action_lane": "soft-reciprocity", "lane": "linkedin", "priority": 2, "status": "pending", "ready": True, "requires_linkedin": True},
                         {"task_id": "offline", "task_type": "analytics-and-investigation", "lane": "offline", "priority": 8, "status": "pending", "ready": True, "requires_linkedin": False},
@@ -322,7 +334,42 @@ class AdaptiveDispatchTests(unittest.TestCase):
             persisted = json.loads((state_dir / "campaign-state.json").read_text(encoding="utf-8"))
             self.assertEqual(persisted["dispatcher"]["last_decision_at"], waited["decided_at"])
             self.assertEqual(persisted["dispatcher"]["unfinished_work_count"], 0)
-            self.assertEqual(persisted["engagement_scaling"]["budget_day_ist"], "2026-08-25")
+            self.assertEqual(persisted["engagement_scaling"]["budget_day_local"], "2026-08-25")
+
+    def test_public_initializer_accepts_custom_identity_timezone_and_goals(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            state_dir = Path(temporary) / "public-campaign"
+            run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "init_campaign.py"),
+                    str(state_dir),
+                    "--owner-name",
+                    "Ada Example",
+                    "--profile-url",
+                    "https://www.linkedin.com/in/ada-example/",
+                    "--timezone",
+                    "America/New_York",
+                    "--followers-goal",
+                    "25000",
+                    "--connections-goal",
+                    "7500",
+                    "--niche",
+                    "developer tools",
+                ]
+            )
+            validated = run_json(
+                ["python3", str(ORCHESTRATOR / "validate_campaign.py"), str(state_dir)]
+            )
+            self.assertTrue(validated["valid"])
+            config = json.loads((state_dir / "campaign-config.json").read_text(encoding="utf-8"))
+            consent = json.loads((state_dir / "consent-record.json").read_text(encoding="utf-8"))
+            self.assertEqual(config["timezone"], "America/New_York")
+            self.assertEqual(config["target"]["metric_a"]["goal"], 25000)
+            self.assertEqual(config["target"]["metric_b"]["goal"], 7500)
+            self.assertEqual(config["audience"]["niche"], "developer tools")
+            self.assertEqual(consent["owner"]["display_name"], "Ada Example")
+            self.assertEqual(consent["accounts"][0]["url"], "https://www.linkedin.com/in/ada-example/")
 
     def test_migration_preserves_history_and_converts_80_to_100(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

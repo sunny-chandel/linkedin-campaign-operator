@@ -2,7 +2,7 @@
 
 ## Recognized owner
 
-The recognized owner is the person controlling the trusted Claude session and named in `consent-record.json`. The fixed LinkedIn identity is Sunny Chandel at `https://www.linkedin.com/in/sunny-chandel-6a05bb401/`.
+The recognized owner is the person controlling the trusted agent session and named in `consent-record.json`. Their LinkedIn identity and full profile URL are discovered during pre-flight or supplied to the initializer, then stored in the record.
 
 ## Stored consent
 
@@ -13,7 +13,7 @@ Invoking the parent skill or explicitly telling it to start activates and stores
 - accounts and Pages;
 - action classes;
 - continuous 24-hour adaptive dispatch, a shared 100-action base ceiling, a 10-action burst cap, and direct-inbound reply overage;
-- exactly two prepared and published packages per IST content day with dynamic timing and no fixed separation;
+- exactly two prepared and published packages per local content day with dynamic timing and no fixed separation;
 - automatic profile-derived watermark creation and application;
 - per-post GIF-pattern promotion and permanent dominant-pattern deletion;
 - premium products and persistent settings;

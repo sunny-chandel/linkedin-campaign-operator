@@ -46,12 +46,12 @@ def atomic_write(path: Path, value: dict[str, Any]) -> None:
         raise
 
 
-def ist_day(timestamp: str) -> str:
+def local_day(timestamp: str, timezone_name: str) -> str:
     normalized = timestamp[:-1] + "+00:00" if timestamp.endswith("Z") else timestamp
     parsed = datetime.fromisoformat(normalized)
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(ZoneInfo("Asia/Kolkata")).date().isoformat()
+    return parsed.astimezone(ZoneInfo(timezone_name)).date().isoformat()
 
 
 def record_decision(state_dir: Path, state: dict[str, Any], result: dict[str, Any]) -> None:
@@ -151,10 +151,10 @@ def main() -> int:
         scaling = state.get("engagement_scaling", {})
         dispatcher = state.get("dispatcher", {})
         publishing = state.get("publishing", {})
-        current_budget_day = ist_day(now)
-        budget_day_reset = scaling.get("budget_day_ist") != current_budget_day
+        current_budget_day = local_day(now, str(config.get("timezone", "UTC")))
+        budget_day_reset = scaling.get("budget_day_local") != current_budget_day
         if budget_day_reset:
-            scaling["budget_day_ist"] = current_budget_day
+            scaling["budget_day_local"] = current_budget_day
             scaling["base_actions_used"] = 0
             scaling["direct_reply_overage"] = 0
         base_used = int(scaling.get("base_actions_used", 0))
@@ -360,7 +360,7 @@ def main() -> int:
                     "unfinished_work_count": 0,
                     "reason": "waiting is invalid until an evidence-backed wake trigger exists",
                 }
-        result["budget_day_ist"] = current_budget_day
+        result["budget_day_local"] = current_budget_day
         result["budget_day_reset"] = budget_day_reset
         if args.record:
             record_decision(state_dir, state, result)

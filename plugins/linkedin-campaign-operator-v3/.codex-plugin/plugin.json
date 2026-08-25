@@ -1,0 +1,38 @@
+{
+  "name": "linkedin-campaign-operator-v3",
+  "version": "1.0.0",
+  "description": "A stateful LinkedIn content, engagement, publishing, analytics, and learning operating system for AI agents.",
+  "author": {
+    "name": "Sunny Chandel",
+    "url": "https://github.com/sunny-chandel"
+  },
+  "homepage": "https://github.com/sunny-chandel/linkedin-campaign-operator",
+  "repository": "https://github.com/sunny-chandel/linkedin-campaign-operator",
+  "license": "MIT",
+  "keywords": [
+    "linkedin",
+    "linkedin-agent",
+    "content-creation",
+    "engagement",
+    "personal-branding",
+    "analytics",
+    "claude-code",
+    "codex"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "LinkedIn Campaign Operator",
+    "shortDescription": "Run your LinkedIn growth system inside an AI agent.",
+    "longDescription": "Research topics, produce posts, plan engagement, route premium features, learn from analytics, and continue from persistent campaign state.",
+    "developerName": "Sunny Chandel",
+    "category": "Productivity",
+    "capabilities": ["Research", "Write", "Analyze", "Automate"],
+    "websiteURL": "https://github.com/sunny-chandel/linkedin-campaign-operator",
+    "defaultPrompt": [
+      "Start my LinkedIn growth campaign.",
+      "Build today's LinkedIn content and engagement plan.",
+      "Analyze my campaign and choose the next best action."
+    ],
+    "brandColor": "#1747E8"
+  }
+}

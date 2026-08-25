@@ -1,6 +1,6 @@
 # Testing
 
-## Fixed-system first test
+## Public-system first test
 
 ```text
 Use the LinkedIn campaign orchestrator.
@@ -10,11 +10,11 @@ Expected behavior:
 
 - `list_connected_browsers` is the first pre-flight operation.
 - If Chrome is disconnected, the only request is to connect or select Chrome, and no partial run occurs.
-- With Chrome connected, LinkedIn is opened and checked against Sunny Chandel and `https://www.linkedin.com/in/sunny-chandel-6a05bb401/`.
+- With Chrome connected, LinkedIn is opened and its display name and full profile URL are discovered or checked against campaign state.
 - Claude Design and `file_upload` are checked next.
-- Mutable state is loaded or created outside the plugin with campaign ID `sunny-linkedin-10k-10k`.
-- The objective is already 10,000 followers and 10,000 connections, with no deadline and the three fixed regions.
-- No setup visualization, generic campaign form, B2B questionnaire, or request for locked values is produced.
+- Mutable state is loaded or created outside the plugin with a user-specific campaign ID.
+- The objective defaults to 10,000 followers and 10,000 connections and can be configured during initialization.
+- Discoverable values are read from the connected profile before any targeted setup question.
 - Consent is stored as active when the recognized owner invokes the system.
 - Current profile, baseline, niche, analytics, and premium information are discovered from Chrome before any question.
 - The profile-derived watermark kit is validated or created automatically during pre-flight.
@@ -71,7 +71,7 @@ For each case below, the system should log the issue, use the stated fallback, r
 - premium entitlement details are unavailable: use the base campaign flow;
 - an analytics metric or helper script is unavailable: preserve unknown values and use the documented calculation fallback.
 
-No supporting skill may display onboarding, request routine approval, ask which skill to run, or end with a menu of next-step choices. Only an orchestrator-defined hard blocker may require Sunny's intervention.
+No supporting skill may repeat onboarding, request routine approval, ask which skill to run, or end with a menu of next-step choices. Only an orchestrator-defined hard blocker may require the recognized owner's intervention.
 
 ## Subscription optimizer test
 

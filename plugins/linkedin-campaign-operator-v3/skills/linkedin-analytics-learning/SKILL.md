@@ -3,7 +3,7 @@ name: linkedin-analytics-learning
 description: Normalize LinkedIn campaign analytics, run controlled experiments, and update a versioned runtime learning layer without editing the governing skill. Use for daily and weekly reviews.
 metadata:
   author: sunny
-  version: "0.5.0"
+  version: "1.0.0"
 ---
 
 # LinkedIn analytics and learning

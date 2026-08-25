@@ -49,12 +49,12 @@ def relationship_strength(value: Any) -> float:
     return number
 
 
-def ist_day(timestamp: str) -> str:
+def local_day(timestamp: str, timezone_name: str) -> str:
     normalized = timestamp[:-1] + "+00:00" if timestamp.endswith("Z") else timestamp
     parsed = datetime.fromisoformat(normalized)
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(ZoneInfo("Asia/Kolkata")).date().isoformat()
+    return parsed.astimezone(ZoneInfo(timezone_name)).date().isoformat()
 
 
 def main() -> int:
@@ -67,6 +67,7 @@ def main() -> int:
     state_dir = args.state_dir.expanduser().resolve()
     try:
         state_path = state_dir / "campaign-state.json"
+        config = load_object(state_dir / "campaign-config.json")
         log_path = state_dir / "interaction-log.jsonl"
         state = load_object(state_path)
         action = load_object(args.action)
@@ -94,10 +95,10 @@ def main() -> int:
             raise ValueError(f"action_id already recorded: {action_id}")
 
         now = args.now or datetime.now(timezone.utc).isoformat()
-        current_budget_day = ist_day(now)
+        current_budget_day = local_day(now, str(config.get("timezone", "UTC")))
         scaling = state.setdefault("engagement_scaling", {})
-        if scaling.get("budget_day_ist") != current_budget_day:
-            scaling["budget_day_ist"] = current_budget_day
+        if scaling.get("budget_day_local") != current_budget_day:
+            scaling["budget_day_local"] = current_budget_day
             scaling["base_actions_used"] = 0
             scaling["direct_reply_overage"] = 0
         base_ceiling = int(scaling.get("base_daily_ceiling", 100))
@@ -137,7 +138,7 @@ def main() -> int:
                     "base_actions_used": base_used,
                     "base_daily_ceiling": base_ceiling,
                     "direct_reply_overage": overage,
-                    "budget_day_ist": current_budget_day,
+                    "budget_day_local": current_budget_day,
                 },
                 indent=2,
                 ensure_ascii=False,

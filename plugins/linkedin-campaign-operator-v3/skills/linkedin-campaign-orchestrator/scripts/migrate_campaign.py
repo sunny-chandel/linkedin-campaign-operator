@@ -95,6 +95,9 @@ def main() -> int:
     engagement = config.setdefault("engagement_optimization", {})
     engagement.pop("clusters", None)
     merged, merged_missing = merge_missing(config, defaults)
+    merged.setdefault("publishing_optimization", {}).setdefault(
+        "production_priority_window", {}
+    )["timezone"] = merged.get("timezone", "UTC")
     changed = merged_missing or merged != original_config
     if changed:
         atomic_write_json(config_path, merged)
@@ -136,7 +139,7 @@ def main() -> int:
                     }
                 )
         state["engagement_scaling"] = {
-            "budget_day_ist": old_scaling.get("budget_day_ist") or legacy_today.get("date_ist"),
+            "budget_day_local": old_scaling.get("budget_day_local") or old_scaling.get("budget_day_ist") or legacy_today.get("date_ist"),
             "base_daily_ceiling": 100,
             "base_actions_used": min(max(base_actions_used, 0), 100),
             "direct_reply_overage": max(int(old_scaling.get("direct_reply_overage", 0) or 0), 0),
@@ -192,34 +195,33 @@ def main() -> int:
     consent_updated = False
     if consent_path.is_file():
         consent = load_object(consent_path)
-        if consent.get("owner", {}).get("display_name") == "Sunny Chandel":
-            required_settings = [
-                "automated-mode",
-                "adaptive-100-base-action-ceiling",
-                "continuous-24-hour-dispatch",
-                "direct-inbound-overage",
-                "fully-dynamic-publishing",
-                "automatic-profile-watermark",
-                "permanent-dominant-gif-learning-deletion",
-            ]
-            current_settings = consent.get("persistent_settings", [])
-            if not isinstance(current_settings, list):
-                current_settings = []
-            current_settings = [
-                value for value in current_settings if value != "adaptive-80-action-ceiling"
-            ]
-            merged_settings = list(dict.fromkeys([*current_settings, *required_settings]))
-            if consent.get("consent_version") != "1.2" or merged_settings != current_settings:
-                consent["consent_version"] = "1.2"
-                consent["persistent_settings"] = merged_settings
-                approved = consent.get("approved_action_classes", [])
-                if not isinstance(approved, list):
-                    approved = []
-                consent["approved_action_classes"] = list(
-                    dict.fromkeys([*approved, "adaptive-scheduling", "signal-reciprocity"])
-                )
-                atomic_write_json(consent_path, consent)
-                consent_updated = True
+        required_settings = [
+            "automated-mode",
+            "adaptive-100-base-action-ceiling",
+            "continuous-24-hour-dispatch",
+            "direct-inbound-overage",
+            "fully-dynamic-publishing",
+            "automatic-profile-watermark",
+            "permanent-dominant-gif-learning-deletion",
+        ]
+        current_settings = consent.get("persistent_settings", [])
+        if not isinstance(current_settings, list):
+            current_settings = []
+        current_settings = [
+            value for value in current_settings if value != "adaptive-80-action-ceiling"
+        ]
+        merged_settings = list(dict.fromkeys([*current_settings, *required_settings]))
+        if consent.get("consent_version") != "1.2" or merged_settings != current_settings:
+            consent["consent_version"] = "1.2"
+            consent["persistent_settings"] = merged_settings
+            approved = consent.get("approved_action_classes", [])
+            if not isinstance(approved, list):
+                approved = []
+            consent["approved_action_classes"] = list(
+                dict.fromkeys([*approved, "adaptive-scheduling", "signal-reciprocity"])
+            )
+            atomic_write_json(consent_path, consent)
+            consent_updated = True
 
     created: list[str] = []
     artifacts = {
