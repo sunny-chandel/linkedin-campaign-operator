@@ -1,0 +1,21 @@
+name: Feature request
+description: Propose a campaign workflow, adapter, scoring improvement, or new example.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    attributes:
+      label: Campaign problem
+      description: What work should become easier or more effective?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposed workflow
+      description: Describe the input, skill route, artifact, and expected outcome.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Example prompt or data
+      description: Add a concrete example that can become a fixture or documentation sample.

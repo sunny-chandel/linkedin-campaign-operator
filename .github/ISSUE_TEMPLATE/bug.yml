@@ -1,0 +1,29 @@
+name: Bug report
+description: Report a reproducible problem in a skill, script, or campaign artifact.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: What happened?
+      description: Include the skill, command, and observable result.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Reproduction
+      description: Provide the smallest sequence that reproduces the problem.
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Agent environment
+      options: [Claude Code, Codex, Other]
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Plugin version
+      placeholder: v1.0.0
+    validations:
+      required: true
