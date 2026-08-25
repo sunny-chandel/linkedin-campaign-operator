@@ -197,11 +197,11 @@ class AdaptiveGifRefreshTests(unittest.TestCase):
     def test_resolver_finds_newer_installed_instructions(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            install = root / "cache" / "0.4.1"
+            install = root / "cache" / "0.5.0"
             (install / ".claude-plugin").mkdir(parents=True)
             (install / "skills" / "linkedin-campaign-orchestrator").mkdir(parents=True)
             (install / ".claude-plugin" / "plugin.json").write_text(
-                json.dumps({"name": "linkedin-campaign-operator-v3", "version": "0.4.1"}),
+                json.dumps({"name": "linkedin-campaign-operator-v3", "version": "0.5.0"}),
                 encoding="utf-8",
             )
             (install / "skills" / "linkedin-campaign-orchestrator" / "SKILL.md").write_text(
@@ -214,7 +214,7 @@ class AdaptiveGifRefreshTests(unittest.TestCase):
                     {
                         "plugins": {
                             PLUGIN_ID: [
-                                {"scope": "user", "installPath": str(install), "version": "0.4.1"}
+                                {"scope": "user", "installPath": str(install), "version": "0.5.0"}
                             ]
                         }
                     }
@@ -254,18 +254,18 @@ class AdaptiveGifRefreshTests(unittest.TestCase):
                 ]
             )
             self.assertTrue(resolved["update_available"])
-            self.assertEqual(resolved["installed_version"], "0.4.1")
+            self.assertEqual(resolved["installed_version"], "0.5.0")
             self.assertEqual(resolved["reload_command"], "/reload-plugins")
             self.assertEqual(resolved["desktop_refresh_mode"], "direct-load")
             pending = json.loads(state_path.read_text(encoding="utf-8"))["runtime_instructions"]
             self.assertEqual(pending["active_version"], "0.3.3")
-            self.assertEqual(pending["detected_version"], "0.4.1")
+            self.assertEqual(pending["detected_version"], "0.5.0")
             self.assertEqual(pending["refresh_mode"], "pending-direct-load")
 
             activated = run_json([*base_arguments, "--activate"])
-            self.assertEqual(activated["runtime_state"]["active_version"], "0.4.1")
+            self.assertEqual(activated["runtime_state"]["active_version"], "0.5.0")
             active = json.loads(state_path.read_text(encoding="utf-8"))["runtime_instructions"]
-            self.assertEqual(active["active_version"], "0.4.1")
+            self.assertEqual(active["active_version"], "0.5.0")
             self.assertEqual(active["install_path"], str(install.resolve()))
             self.assertEqual(active["refresh_mode"], "direct-loaded")
 

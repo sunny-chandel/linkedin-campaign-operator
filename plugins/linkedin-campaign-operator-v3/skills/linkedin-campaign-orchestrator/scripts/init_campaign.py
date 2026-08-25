@@ -110,13 +110,40 @@ def main() -> int:
             "summary": {},
         },
         "working-algorithm-model.json": {
-            "schema_version": "1.0",
+            "schema_version": "1.1",
             "campaign_id": args.campaign_id,
-            "version": "0.1",
+            "version": "0.2",
             "strategy_weights": {"proven": 70, "promising": 20, "exploration": 10},
+            "scheduling_models": {
+                "publication_timing": {"mode": "evidence-adaptive", "observations": []},
+                "response_latency": {"mode": "evidence-adaptive", "observations": []},
+                "regional_opportunity": {"mode": "evidence-adaptive", "observations": []},
+                "concentration": {"mode": "evidence-adaptive", "observations": []},
+                "candidate_staleness": {"mode": "evidence-adaptive", "observations": []},
+            },
             "hypotheses": [],
         },
         "experiments.json": {"schema_version": "1.0", "campaign_id": args.campaign_id, "experiments": []},
+        "work-queue.json": {
+            "schema_version": "1.0",
+            "campaign_id": args.campaign_id,
+            "updated_at": now,
+            "items": [],
+        },
+        "stage-ledger.json": {
+            "schema_version": "1.0",
+            "campaign_id": args.campaign_id,
+            "updated_at": now,
+            "stages": [
+                {
+                    "stage_id": "preflight",
+                    "stage_type": "preflight",
+                    "status": "pending",
+                    "required_artifacts": [],
+                    "completed_artifacts": [],
+                }
+            ],
+        },
     }.items():
         (state_dir / name).write_text(
             json.dumps(initial, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
@@ -127,6 +154,8 @@ def main() -> int:
         "daily-analytics.jsonl",
         "learning-ledger.jsonl",
         "subscription-results.jsonl",
+        "signal-events.jsonl",
+        "schedule-decisions.jsonl",
     ):
         (state_dir / name).touch()
     (state_dir / "logs").mkdir()

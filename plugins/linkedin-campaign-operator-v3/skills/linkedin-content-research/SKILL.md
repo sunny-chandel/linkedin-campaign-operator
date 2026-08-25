@@ -1,15 +1,16 @@
 ---
 name: linkedin-content-research
 description: Research fresh LinkedIn campaign topics, primary sources, platform changes, and credible trends. Use when creating research briefs or checking claims and algorithm advice.
-compatibility: Requires internet access. Use current direct sources and respect site access rules.
 metadata:
   author: sunny
-  version: "0.3.2"
+  version: "0.5.0"
 ---
 
 # LinkedIn content research
 
 Produce evidence-ranked research briefs for the campaign. Do not draft the final post until the brief is complete.
+
+Produce only the research needed for the content day's exactly two packages: one India brief and one US-Central brief. Do not create a third backup brief or stockpile future packages.
 
 ## Automated execution
 

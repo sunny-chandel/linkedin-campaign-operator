@@ -1,10 +1,9 @@
 ---
 name: linkedin-premium-router
-description: Detect every active LinkedIn paid entitlement, calculate a prioritized utilization plan, configure included features, and route them through the campaign without changing fixed limits. Use for subscription inventory, optimization, setup, usage, and weekly utilization review.
-compatibility: Requires current LinkedIn product documentation and visible entitlement information from the connected account.
+description: Detect every active LinkedIn paid entitlement, calculate a prioritized utilization plan, configure included features, and route them through the adaptive campaign without changing fixed limits. Use for subscription inventory, optimization, setup, usage, and weekly utilization review.
 metadata:
   author: sunny
-  version: "0.3.3"
+  version: "0.5.0"
 ---
 
 # LinkedIn subscription optimizer
@@ -24,7 +23,7 @@ Here, optimize or upgrade means improve the setup and utilization of services th
 3. Confirm the current feature set from official LinkedIn documentation; do not infer access from a generic product name.
 4. Normalize each verified feature into `subscription-inventory.json`. Preserve unknown values as `null`; never invent access, limits, or remaining credits.
 5. Run `python scripts/score_subscription_features.py subscription-inventory.json --output subscription-utilization-plan.json` using the campaign's configured weights and thresholds.
-6. For every `activate-now` item, perform any reversible setup required to use the already-entitled feature, then inject its usage into the mapped pipeline stage. Schedule lower-priority eligible items without creating new campaign actions or changing fixed windows.
+6. For every `activate-now` item, perform any reversible setup required to use the already-entitled feature, then inject its usage into the mapped pipeline stage. Queue lower-priority eligible items without creating extra campaign actions or overriding adaptive scheduling.
 7. Log setup changes, reversal steps, usage, capacity consumed, and measurable outcomes in `subscription-results.jsonl`.
 8. Recalculate the plan when entitlement information changes, before a pipeline stage that depends on a paid feature, and during the weekly retrospective. Use measured results to adjust feature priority within the configured bounds.
 
@@ -36,8 +35,8 @@ Read [subscription optimization](references/subscription-optimization.md) for th
 
 - Pre-flight: refresh inventory, compute the plan, and complete eligible setup.
 - Research and content: use included insights or learning only when relevant and independently verify public factual claims.
-- Identification passes: use eligible searches, saved entities, alerts, recommendations, and insights to improve candidate discovery and ranking.
-- Engagement windows: execute selected premium-assisted actions inside the existing queue and action total.
+- Investigation and reserve building: use eligible searches, saved entities, alerts, recommendations, and insights to improve candidate discovery and ranking.
+- Adaptive bursts: execute selected premium-assisted actions inside the shared base budget and burst cap.
 - Analytics: attribute usage and outcomes to the feature that supported them.
 - Weekly retrospective: compare utilization, outcomes, remaining capacity, renewal timing, and fallback performance; then recompute priorities.
 

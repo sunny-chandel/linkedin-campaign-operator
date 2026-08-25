@@ -22,11 +22,17 @@ Store mutable artifacts outside the plugin.
 - `learning-ledger.jsonl`: evidence-ranked learning records.
 - `working-algorithm-model.json`: current hypotheses and strategy weights.
 - `experiments.json`: registered controlled experiments.
+- `work-queue.json`: unified prioritized tasks and lane blockers.
+- `stage-ledger.json`: mandatory-stage evidence and completion gates.
+- `signal-events.jsonl`: append-only inbound and soft-reciprocity signals.
+- `schedule-decisions.jsonl`: append-only dispatcher, burst, publication, and wake decisions.
 - `logs/`: daily summaries and execution records.
+
+Every interaction event additionally records its lane, triggering signal, relationship strength, budget classification, and scheduling rationale.
 
 ## Pipeline artifacts
 
-`research-brief.json` → `content-plan.json` → `gif-creative-spec.json` when applicable → `publication-package.json` → `engagement-queue.json` → `daily-results.json` → `learning-update.json`
+`research-brief.json` → `content-plan.json` → `gif-creative-spec.json` when applicable → exactly two `publication-package.json` records → `work-queue.json` → `daily-results.json` → `learning-update.json` → mandatory-stage completion
 
 Every artifact should contain:
 
@@ -41,3 +47,5 @@ Every artifact should contain:
 - warnings and unresolved uncertainty.
 
 Do not infer that an artifact exists because a prior tool call timed out. Verify it on disk.
+
+The pipeline auditor rejects completion when a required artifact is absent. For analytics, the stage remains incomplete until the ledger contains a provisional or validated learning, an experiment or explicit no-change decision, and the next measurement trigger.

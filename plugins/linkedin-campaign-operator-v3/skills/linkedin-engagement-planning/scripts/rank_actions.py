@@ -19,7 +19,8 @@ WEIGHTS = {
     "freshness_timing": 0.10,
     "historical_performance": 0.05,
 }
-HARD_GATES = ("qualified", "cooldown_passed", "action_available", "capacity_available")
+HARD_GATES = ("action_available",)
+VALID_LANES = {"proactive", "soft-reciprocity", "direct-inbound"}
 
 
 def bounded(value: Any, field: str) -> float:
@@ -50,35 +51,153 @@ def main() -> int:
             raise ValueError("candidates must be an array")
         eligible: list[dict[str, Any]] = []
         rejected: list[dict[str, Any]] = []
+        budget = data.get("budget", {})
+        if not isinstance(budget, dict):
+            raise ValueError("budget must be an object")
+        base_used = int(budget.get("base_actions_used", 0))
+        base_ceiling = int(budget.get("base_daily_ceiling", 100))
+        if not 0 <= base_used <= base_ceiling or base_ceiling != 100:
+            raise ValueError("budget must use a 100-action base ceiling with valid usage")
+        direct_overage_allowed = budget.get("direct_reply_overage_allowed", True) is True
+        new_target_min_followers = int(data.get("new_target_min_followers", 3000))
+        concentration_penalty = bounded(data.get("concentration_penalty", 0), "concentration_penalty")
+        concentration_penalty_weight = bounded(
+            data.get("concentration_penalty_weight", 0.20), "concentration_penalty_weight"
+        )
+        minimum_marginal_value = bounded(
+            data.get("minimum_expected_marginal_value", 0.65),
+            "minimum_expected_marginal_value",
+        )
         for position, candidate in enumerate(candidates):
             if not isinstance(candidate, dict):
                 raise ValueError(f"candidates[{position}] must be an object")
             candidate_id = candidate.get("candidate_id")
             if not isinstance(candidate_id, str) or not candidate_id:
                 raise ValueError(f"candidates[{position}].candidate_id must be set")
+            lane = candidate.get("lane", "proactive")
+            if lane not in VALID_LANES:
+                raise ValueError(f"{candidate_id}.lane is invalid")
             failed_gates = [gate for gate in HARD_GATES if candidate.get(gate) is not True]
+            if lane != "direct-inbound":
+                if candidate.get("capacity_available", True) is not True:
+                    failed_gates.append("capacity_available")
+                if candidate.get("cooldown_passed") is not True:
+                    failed_gates.append("cooldown_passed")
+                if candidate.get("target_status") == "new":
+                    follower_count = candidate.get("follower_count")
+                    if (
+                        isinstance(follower_count, bool)
+                        or not isinstance(follower_count, (int, float))
+                        or follower_count < new_target_min_followers
+                    ):
+                        failed_gates.append("new_target_min_followers")
+                elif candidate.get("qualified") is not True:
+                    failed_gates.append("qualified")
+                if base_used >= base_ceiling:
+                    failed_gates.append("base_daily_ceiling")
+            elif base_used >= base_ceiling and not direct_overage_allowed:
+                failed_gates.append("direct_reply_overage_allowed")
+            if lane == "soft-reciprocity" and not candidate.get("triggering_signal"):
+                failed_gates.append("triggering_signal")
             if failed_gates:
-                rejected.append({"candidate_id": candidate_id, "reason": "hard-gate", "failed_gates": failed_gates})
+                rejected.append(
+                    {
+                        "candidate_id": candidate_id,
+                        "lane": lane,
+                        "reason": "hard-gate",
+                        "failed_gates": list(dict.fromkeys(failed_gates)),
+                    }
+                )
                 continue
             components = {
                 name: bounded(candidate.get(name, 0), f"{candidate_id}.{name}")
                 for name in WEIGHTS
             }
-            score = round(sum(components[name] * WEIGHTS[name] for name in WEIGHTS) * 100, 2)
-            ranked = {**candidate, "score_components": components, "action_score": score}
-            if score >= args.threshold:
+            marginal_value = bounded(
+                candidate.get("expected_marginal_value", 1),
+                f"{candidate_id}.expected_marginal_value",
+            )
+            if lane != "direct-inbound" and marginal_value < minimum_marginal_value:
+                rejected.append(
+                    {
+                        "candidate_id": candidate_id,
+                        "lane": lane,
+                        "reason": "marginal-value-decline",
+                        "expected_marginal_value": marginal_value,
+                    }
+                )
+                continue
+            raw_score = sum(components[name] * WEIGHTS[name] for name in WEIGHTS)
+            applied_penalty = 0 if lane == "direct-inbound" else concentration_penalty * concentration_penalty_weight
+            score = round(max(0, raw_score - applied_penalty) * 100, 2)
+            ranked = {
+                **candidate,
+                "lane": lane,
+                "score_components": components,
+                "expected_marginal_value": marginal_value,
+                "concentration_penalty_applied": round(applied_penalty * 100, 2),
+                "action_score": score,
+            }
+            if lane == "direct-inbound" or score >= args.threshold:
                 eligible.append(ranked)
             else:
                 rejected.append({"candidate_id": candidate_id, "reason": "below-threshold", "action_score": score})
-        eligible.sort(key=lambda item: (-item["action_score"], item["candidate_id"]))
+        lane_priority = {"direct-inbound": 0, "soft-reciprocity": 1, "proactive": 2}
+        eligible.sort(
+            key=lambda item: (
+                lane_priority[item["lane"]],
+                -item["action_score"],
+                item["candidate_id"],
+            )
+        )
+        selected: list[dict[str, Any]] = []
+        eligible_not_selected: list[dict[str, Any]] = []
+        selected_soft_targets: set[str] = set()
+        projected_base = base_used
+        projected_overage = int(budget.get("direct_reply_overage", 0) or 0)
+        for item in eligible:
+            if len(selected) >= args.limit:
+                eligible_not_selected.append(item)
+                continue
+            item = dict(item)
+            if item["lane"] == "soft-reciprocity":
+                soft_target = str(
+                    item.get("target_id")
+                    or item.get("signal_actor_id")
+                    or item.get("candidate_id")
+                )
+                if soft_target in selected_soft_targets:
+                    rejected.append(
+                        {
+                            "candidate_id": item["candidate_id"],
+                            "lane": item["lane"],
+                            "reason": "soft-reciprocity-one-opportunity",
+                        }
+                    )
+                    continue
+                selected_soft_targets.add(soft_target)
+            if item["lane"] == "direct-inbound" and projected_base >= base_ceiling:
+                item["budget_class"] = "direct-reply-overage"
+                projected_overage += 1
+            else:
+                item["budget_class"] = "base"
+                projected_base += 1
+            selected.append(item)
         output = {
             "schema_version": "1.0",
             "campaign_id": data.get("campaign_id"),
             "threshold": args.threshold,
             "limit": args.limit,
-            "selected": eligible[: args.limit],
-            "eligible_not_selected": eligible[args.limit :],
+            "concentration_penalty": concentration_penalty,
+            "concentration_penalty_weight": concentration_penalty_weight,
+            "selected": selected,
+            "eligible_not_selected": eligible_not_selected,
             "rejected": rejected,
+            "projected_budget": {
+                "base_actions_used": min(projected_base, base_ceiling),
+                "base_daily_ceiling": base_ceiling,
+                "direct_reply_overage": projected_overage,
+            },
         }
         rendered = json.dumps(output, indent=2, ensure_ascii=False) + "\n"
         if args.output:

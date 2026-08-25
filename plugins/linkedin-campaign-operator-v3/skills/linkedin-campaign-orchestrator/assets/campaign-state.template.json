@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "campaign_id": "replace-me",
   "lifecycle_state": "ready",
   "current_stage": "preflight",
@@ -8,21 +8,48 @@
   "hard_blocker": null,
   "progress": {},
   "runtime_instructions": {
-    "session_version": "0.4.1",
-    "active_version": "0.4.1",
-    "detected_version": "0.4.1",
+    "session_version": "0.5.0",
+    "active_version": "0.5.0",
+    "detected_version": "0.5.0",
     "install_path": null,
     "last_checked_at": null,
     "activated_at": null,
     "refresh_mode": "session-loaded"
   },
   "engagement_scaling": {
-    "daily_ceiling": 80,
-    "actions_executed_today": 0,
-    "last_proactive_cluster_ended_at": null,
-    "completed_clusters": [],
-    "gap_clusters_enabled": true,
+    "base_daily_ceiling": 100,
+    "base_actions_used": 0,
+    "direct_reply_overage": 0,
+    "burst_history": [],
+    "concentration_state": {},
+    "regional_opportunity_state": {},
+    "adaptive_reserve": {
+      "forecast_bursts": 2,
+      "target_count": 0,
+      "qualified_count": 0,
+      "staleness_rate": null,
+      "last_replenished_at": null
+    },
     "recovery_level": "adaptive"
+  },
+  "dispatcher": {
+    "work_queue_path": "work-queue.json",
+    "stage_ledger_path": "stage-ledger.json",
+    "linkedin_lane": "ready",
+    "offline_lane": "ready",
+    "last_decision_at": null,
+    "next_wake_at": null,
+    "next_wake_reason": null,
+    "unfinished_work_count": 0
+  },
+  "publishing": {
+    "content_day_ist": null,
+    "packages_required": 2,
+    "packages_ready": 0,
+    "posts_published": 0,
+    "published_post_ids": [],
+    "last_publication_at": null,
+    "current_cannibalization_signal": null
   },
   "brand_system": {
     "identity_hash": null,

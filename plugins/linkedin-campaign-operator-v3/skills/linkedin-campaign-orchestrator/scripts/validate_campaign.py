@@ -10,6 +10,13 @@ from pathlib import Path
 
 
 REQUIRED_FILES = ("campaign-config.json", "consent-record.json", "campaign-state.json")
+REQUIRED_ARTIFACTS = (
+    "work-queue.json",
+    "stage-ledger.json",
+    "working-algorithm-model.json",
+    "signal-events.jsonl",
+    "schedule-decisions.jsonl",
+)
 VALID_STATES = {"ready", "running", "recovering", "hard-blocked", "completed", "user-stopped"}
 
 
@@ -40,6 +47,9 @@ def main() -> int:
     config = docs["campaign-config.json"]
     consent = docs["consent-record.json"]
     state = docs["campaign-state.json"]
+    for name in REQUIRED_ARTIFACTS:
+        if not (state_dir / name).is_file():
+            errors.append(f"missing file: {name}")
 
     ids = {doc.get("campaign_id") for doc in docs.values() if doc}
     if not ids or None in ids or "replace-me" in ids:
@@ -70,8 +80,8 @@ def main() -> int:
         errors.append("consent-record.json owner.expected_linkedin_identity must equal Sunny Chandel")
     if consent.get("status") != "active" and not args.allow_draft:
         errors.append("consent-record.json status must be active")
-    if consent.get("consent_version") != "1.1":
-        errors.append("consent-record.json consent_version must equal 1.1")
+    if consent.get("consent_version") != "1.2":
+        errors.append("consent-record.json consent_version must equal 1.2")
     if not consent.get("activated_at") and not args.allow_draft:
         errors.append("consent-record.json activated_at must be set")
     accounts = consent.get("accounts", [])
@@ -85,7 +95,10 @@ def main() -> int:
     persistent_settings = consent.get("persistent_settings", [])
     required_settings = {
         "automated-mode",
-        "adaptive-80-action-ceiling",
+        "adaptive-100-base-action-ceiling",
+        "continuous-24-hour-dispatch",
+        "direct-inbound-overage",
+        "fully-dynamic-publishing",
         "automatic-profile-watermark",
         "permanent-dominant-gif-learning-deletion",
     }
@@ -98,13 +111,10 @@ def main() -> int:
     fixed = config.get("fixed_rules", {})
     expected = {
         "posts_per_day": 2,
-        "windows_per_day": 4,
-        "max_actions_per_window": 10,
-        "gap_clusters_per_day": 4,
-        "max_action_clusters_per_day": 8,
-        "max_actions_per_cluster": 10,
-        "max_actions_per_day": 80,
-        "min_proactive_cluster_gap_minutes": 60,
+        "prepared_packages_per_content_day": 2,
+        "max_actions_per_burst": 10,
+        "base_actions_per_day": 100,
+        "direct_reply_overage_allowed": True,
         "new_target_min_followers": 3000,
         "cooldown_hours": 72,
         "max_proactive_actions_per_person_per_7d": 2,
@@ -133,19 +143,35 @@ def main() -> int:
         errors.append("campaign-config.json engagement_optimization.weights values must be from 0 to 1")
     elif abs(sum(engagement_weights.values()) - 1.0) > 1e-9:
         errors.append("campaign-config.json engagement_optimization.weights must sum to 1.0")
-    clusters = engagement.get("clusters", [])
-    expected_clusters = [
-        {"id": "cluster-1", "start": "05:00", "end": "05:45"},
-        {"id": "cluster-2", "start": "07:00", "end": "07:30"},
-        {"id": "cluster-3", "start": "09:10", "end": "10:00"},
-        {"id": "cluster-4", "start": "11:30", "end": "12:00"},
-        {"id": "cluster-5", "start": "13:30", "end": "14:20"},
-        {"id": "cluster-6", "start": "16:00", "end": "16:30"},
-        {"id": "cluster-7", "start": "17:30", "end": "18:00"},
-        {"id": "cluster-8", "start": "19:45", "end": "20:30"},
-    ]
-    if clusters != expected_clusters:
-        errors.append("campaign-config.json engagement_optimization.clusters must match the fixed schedule")
+    if "clusters" in engagement:
+        errors.append("campaign-config.json engagement_optimization.clusters must be removed")
+
+    dispatch = config.get("adaptive_dispatch", {})
+    dispatch_expected = {
+        "enabled": True,
+        "operating_span": "24h",
+        "burst_gap_mode": "fully-adaptive",
+        "wait_requires_empty_validated_queue": True,
+        "reserve_mode": "adaptive-next-two-bursts",
+    }
+    for key, value in dispatch_expected.items():
+        if dispatch.get(key) != value:
+            errors.append(f"campaign-config.json adaptive_dispatch.{key} must equal {value}")
+    if not isinstance(dispatch.get("priority_order"), list) or len(dispatch["priority_order"]) != 8:
+        errors.append("campaign-config.json adaptive_dispatch.priority_order must contain eight priorities")
+
+    publishing_config = config.get("publishing_optimization", {})
+    publishing_expected = {
+        "mode": "fully-dynamic",
+        "required_regions": ["india", "us-central"],
+        "fixed_publish_times": [],
+        "fixed_spacing_minutes": None,
+        "dynamic_cannibalization_penalty": True,
+        "no_extra_stockpile": True,
+    }
+    for key, value in publishing_expected.items():
+        if publishing_config.get(key) != value:
+            errors.append(f"campaign-config.json publishing_optimization.{key} must equal {value}")
 
     brand = config.get("brand_system", {})
     brand_expected = {
@@ -173,6 +199,45 @@ def main() -> int:
     for key, value in gif_expected.items():
         if gif.get(key) != value:
             errors.append(f"campaign-config.json gif_creative_intelligence.{key} must equal {value}")
+
+    scaling = state.get("engagement_scaling", {})
+    if scaling.get("base_daily_ceiling") != 100:
+        errors.append("campaign-state.json engagement_scaling.base_daily_ceiling must equal 100")
+    base_used = scaling.get("base_actions_used")
+    if isinstance(base_used, bool) or not isinstance(base_used, int) or not 0 <= base_used <= 100:
+        errors.append("campaign-state.json engagement_scaling.base_actions_used must be from 0 to 100")
+    overage = scaling.get("direct_reply_overage")
+    if isinstance(overage, bool) or not isinstance(overage, int) or overage < 0:
+        errors.append("campaign-state.json engagement_scaling.direct_reply_overage must be non-negative")
+    if not isinstance(scaling.get("burst_history"), list):
+        errors.append("campaign-state.json engagement_scaling.burst_history must be an array")
+
+    dispatcher = state.get("dispatcher", {})
+    for lane in ("linkedin_lane", "offline_lane"):
+        if dispatcher.get(lane) not in {"ready", "recovering", "blocked"}:
+            errors.append(f"campaign-state.json dispatcher.{lane} is invalid")
+    publishing_state = state.get("publishing", {})
+    for key in ("packages_ready", "posts_published"):
+        value = publishing_state.get(key)
+        if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 2:
+            errors.append(f"campaign-state.json publishing.{key} must be from 0 to 2")
+
+    work_queue = load_json(state_dir / "work-queue.json", errors)
+    if work_queue and not isinstance(work_queue.get("items"), list):
+        errors.append("work-queue.json items must be an array")
+    stage_ledger = load_json(state_dir / "stage-ledger.json", errors)
+    if stage_ledger and not isinstance(stage_ledger.get("stages"), list):
+        errors.append("stage-ledger.json stages must be an array")
+    algorithm = load_json(state_dir / "working-algorithm-model.json", errors)
+    required_models = {
+        "publication_timing",
+        "response_latency",
+        "regional_opportunity",
+        "concentration",
+        "candidate_staleness",
+    }
+    if algorithm and not required_models.issubset(set(algorithm.get("scheduling_models", {}))):
+        errors.append("working-algorithm-model.json scheduling_models is incomplete")
 
     subscription = config.get("subscription_optimization", {})
     if subscription.get("enabled") is not True:

@@ -22,6 +22,16 @@ Statuses: `observed`, `hypothesis`, `testing`, `provisionally-supported`, `valid
 
 Maintain evidence-ranked hypotheses about professional relevance, semantic alignment, relationship proximity, audience history, quality and trust, freshness, format, measurable reading behavior, engagement types, network distribution, negative feedback, regional differences, consistency, and premium signals.
 
+Maintain explicit scheduling models for:
+
+- publication timing and cannibalization risk;
+- response latency and inbound value decay;
+- regional opportunity;
+- recent action concentration and penalty decay;
+- candidate staleness and reserve replacement demand.
+
+Each scheduling observation records the evidence time, context, prediction, selected decision, measured result, confidence, and next measurement trigger. A wait decision is itself an experimentable schedule decision and must be compared with the opportunity that actually appeared.
+
 ## Experiment requirements
 
 - One primary variable.

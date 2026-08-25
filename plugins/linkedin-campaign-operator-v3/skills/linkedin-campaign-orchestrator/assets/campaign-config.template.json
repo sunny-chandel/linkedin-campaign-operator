@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "campaign_id": "replace-me",
   "timezone": "Asia/Kolkata",
   "target": {
@@ -23,13 +23,10 @@
   "content_pillars": [],
   "fixed_rules": {
     "posts_per_day": 2,
-    "windows_per_day": 4,
-    "max_actions_per_window": 10,
-    "gap_clusters_per_day": 4,
-    "max_action_clusters_per_day": 8,
-    "max_actions_per_cluster": 10,
-    "max_actions_per_day": 80,
-    "min_proactive_cluster_gap_minutes": 60,
+    "prepared_packages_per_content_day": 2,
+    "max_actions_per_burst": 10,
+    "base_actions_per_day": 100,
+    "direct_reply_overage_allowed": true,
     "new_target_min_followers": 3000,
     "cooldown_hours": 72,
     "max_proactive_actions_per_person_per_7d": 2
@@ -44,17 +41,45 @@
       "target_relevance": 0.15,
       "freshness_timing": 0.1,
       "historical_performance": 0.05
-    },
-    "clusters": [
-      {"id": "cluster-1", "start": "05:00", "end": "05:45"},
-      {"id": "cluster-2", "start": "07:00", "end": "07:30"},
-      {"id": "cluster-3", "start": "09:10", "end": "10:00"},
-      {"id": "cluster-4", "start": "11:30", "end": "12:00"},
-      {"id": "cluster-5", "start": "13:30", "end": "14:20"},
-      {"id": "cluster-6", "start": "16:00", "end": "16:30"},
-      {"id": "cluster-7", "start": "17:30", "end": "18:00"},
-      {"id": "cluster-8", "start": "19:45", "end": "20:30"}
+    }
+  },
+  "adaptive_dispatch": {
+    "enabled": true,
+    "operating_span": "24h",
+    "burst_gap_mode": "fully-adaptive",
+    "wait_requires_empty_validated_queue": true,
+    "reserve_mode": "adaptive-next-two-bursts",
+    "soft_reciprocity_signals": [
+      "like",
+      "reaction",
+      "follow",
+      "profile-view",
+      "connection-accepted"
+    ],
+    "direct_inbound_signals": ["comment", "reply", "direct-message"],
+    "priority_order": [
+      "platform-or-identity-blocker",
+      "direct-inbound",
+      "publication-opportunity",
+      "mandatory-stage-recovery",
+      "soft-reciprocity",
+      "adaptive-reserve",
+      "two-package-production",
+      "analytics-and-investigation"
     ]
+  },
+  "publishing_optimization": {
+    "mode": "fully-dynamic",
+    "production_priority_window": {
+      "start": "21:00",
+      "end": "02:00",
+      "timezone": "Asia/Kolkata"
+    },
+    "required_regions": ["india", "us-central"],
+    "fixed_publish_times": [],
+    "fixed_spacing_minutes": null,
+    "dynamic_cannibalization_penalty": true,
+    "no_extra_stockpile": true
   },
   "brand_system": {
     "auto_create": true,

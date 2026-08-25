@@ -62,22 +62,125 @@ def main() -> int:
     assets_dir = Path(__file__).resolve().parent.parent / "assets"
     defaults = load_object(assets_dir / "campaign-config.template.json")
     config = load_object(config_path)
+    original_config = json.loads(json.dumps(config))
     campaign_id = config.get("campaign_id")
     if not isinstance(campaign_id, str) or not campaign_id:
         parser.error("campaign-config.json requires a campaign_id before migration")
 
-    merged, changed = merge_missing(config, defaults)
+    legacy_fixed_keys = {
+        "windows_per_day",
+        "max_actions_per_window",
+        "gap_clusters_per_day",
+        "max_action_clusters_per_day",
+        "max_actions_per_cluster",
+        "max_actions_per_day",
+        "min_proactive_cluster_gap_minutes",
+    }
+    config["schema_version"] = "1.1"
+    fixed = config.setdefault("fixed_rules", {})
+    for key in legacy_fixed_keys:
+        fixed.pop(key, None)
+    fixed.update(
+        {
+            "posts_per_day": 2,
+            "prepared_packages_per_content_day": 2,
+            "max_actions_per_burst": 10,
+            "base_actions_per_day": 100,
+            "direct_reply_overage_allowed": True,
+            "new_target_min_followers": 3000,
+            "cooldown_hours": 72,
+            "max_proactive_actions_per_person_per_7d": 2,
+        }
+    )
+    engagement = config.setdefault("engagement_optimization", {})
+    engagement.pop("clusters", None)
+    merged, merged_missing = merge_missing(config, defaults)
+    changed = merged_missing or merged != original_config
     if changed:
         atomic_write_json(config_path, merged)
+    config = merged
 
     state_path = state_dir / "campaign-state.json"
     state_updated = False
     if state_path.is_file():
         state_defaults = load_object(assets_dir / "campaign-state.template.json")
         state = load_object(state_path)
+        state["schema_version"] = "1.1"
+        old_scaling = state.get("engagement_scaling", {})
+        if not isinstance(old_scaling, dict):
+            old_scaling = {}
+        legacy_clusters = old_scaling.get("completed_clusters", [])
+        if not isinstance(legacy_clusters, list):
+            legacy_clusters = []
+        base_actions_used = old_scaling.get(
+            "base_actions_used", old_scaling.get("actions_executed_today", 0)
+        )
+        if isinstance(base_actions_used, bool) or not isinstance(base_actions_used, int):
+            base_actions_used = 0
+        burst_history = old_scaling.get("burst_history", [])
+        if not isinstance(burst_history, list):
+            burst_history = []
+        existing_legacy_ids = {
+            item.get("legacy_cluster_id") for item in burst_history if isinstance(item, dict)
+        }
+        for cluster_id in legacy_clusters:
+            if cluster_id not in existing_legacy_ids:
+                burst_history.append(
+                    {
+                        "burst_id": f"legacy-{cluster_id}",
+                        "legacy_cluster_id": cluster_id,
+                        "status": "completed-before-v0.5.0",
+                    }
+                )
+        state["engagement_scaling"] = {
+            "base_daily_ceiling": 100,
+            "base_actions_used": min(max(base_actions_used, 0), 100),
+            "direct_reply_overage": max(int(old_scaling.get("direct_reply_overage", 0) or 0), 0),
+            "burst_history": burst_history,
+            "concentration_state": old_scaling.get("concentration_state", {}),
+            "regional_opportunity_state": old_scaling.get("regional_opportunity_state", {}),
+            "adaptive_reserve": old_scaling.get(
+                "adaptive_reserve",
+                {
+                    "forecast_bursts": 2,
+                    "target_count": 0,
+                    "qualified_count": 0,
+                    "staleness_rate": None,
+                    "last_replenished_at": None,
+                },
+            ),
+            "recovery_level": old_scaling.get("recovery_level", "adaptive"),
+        }
+        today = state.get("today", {})
+        if not isinstance(today, dict):
+            today = {}
+        published_count = sum(
+            bool(today.get(key))
+            for key in ("window_2_india_published", "window_4_us_central_published")
+        )
+        package_count = min(
+            sum(1 for _ in state_dir.glob("**/publication-package*.json")), 2
+        )
+        publishing = state.get("publishing", {})
+        if not isinstance(publishing, dict):
+            publishing = {}
+        publishing.update(
+            {
+                "content_day_ist": publishing.get("content_day_ist") or today.get("date_ist"),
+                "packages_required": 2,
+                "packages_ready": min(max(int(publishing.get("packages_ready", package_count) or 0), 0), 2),
+                "posts_published": min(max(int(publishing.get("posts_published", published_count) or 0), 0), 2),
+                "published_post_ids": publishing.get("published_post_ids", []),
+                "last_publication_at": publishing.get("last_publication_at"),
+                "current_cannibalization_signal": publishing.get("current_cannibalization_signal"),
+            }
+        )
+        state["publishing"] = publishing
         merged_state, state_updated = merge_missing(state, state_defaults)
+        state_updated = state_updated or merged_state != load_object(state_path)
         if state_updated:
             atomic_write_json(state_path, merged_state)
+        state = merged_state
 
     consent_path = state_dir / "consent-record.json"
     consent_updated = False
@@ -86,17 +189,29 @@ def main() -> int:
         if consent.get("owner", {}).get("display_name") == "Sunny Chandel":
             required_settings = [
                 "automated-mode",
-                "adaptive-80-action-ceiling",
+                "adaptive-100-base-action-ceiling",
+                "continuous-24-hour-dispatch",
+                "direct-inbound-overage",
+                "fully-dynamic-publishing",
                 "automatic-profile-watermark",
                 "permanent-dominant-gif-learning-deletion",
             ]
             current_settings = consent.get("persistent_settings", [])
             if not isinstance(current_settings, list):
                 current_settings = []
+            current_settings = [
+                value for value in current_settings if value != "adaptive-80-action-ceiling"
+            ]
             merged_settings = list(dict.fromkeys([*current_settings, *required_settings]))
-            if consent.get("consent_version") != "1.1" or merged_settings != current_settings:
-                consent["consent_version"] = "1.1"
+            if consent.get("consent_version") != "1.2" or merged_settings != current_settings:
+                consent["consent_version"] = "1.2"
                 consent["persistent_settings"] = merged_settings
+                approved = consent.get("approved_action_classes", [])
+                if not isinstance(approved, list):
+                    approved = []
+                consent["approved_action_classes"] = list(
+                    dict.fromkeys([*approved, "adaptive-scheduling", "signal-reciprocity"])
+                )
                 atomic_write_json(consent_path, consent)
                 consent_updated = True
 
@@ -156,6 +271,18 @@ def main() -> int:
             "features": [],
             "summary": {},
         },
+        "work-queue.json": {
+            "schema_version": "1.0",
+            "campaign_id": campaign_id,
+            "updated_at": None,
+            "items": [],
+        },
+        "stage-ledger.json": {
+            "schema_version": "1.0",
+            "campaign_id": campaign_id,
+            "updated_at": None,
+            "stages": [],
+        },
     }
     for name, initial in artifacts.items():
         path = state_dir / name
@@ -166,6 +293,114 @@ def main() -> int:
     if not results.exists():
         results.touch()
         created.append(results.name)
+    for name in ("signal-events.jsonl", "schedule-decisions.jsonl"):
+        path = state_dir / name
+        if not path.exists():
+            path.touch()
+            created.append(path.name)
+
+    algorithm_path = state_dir / "working-algorithm-model.json"
+    algorithm_defaults = {
+        "schema_version": "1.1",
+        "campaign_id": campaign_id,
+        "version": "0.2",
+        "strategy_weights": {"proven": 70, "promising": 20, "exploration": 10},
+        "scheduling_models": {
+            "publication_timing": {"mode": "evidence-adaptive", "observations": []},
+            "response_latency": {"mode": "evidence-adaptive", "observations": []},
+            "regional_opportunity": {"mode": "evidence-adaptive", "observations": []},
+            "concentration": {"mode": "evidence-adaptive", "observations": []},
+            "candidate_staleness": {"mode": "evidence-adaptive", "observations": []},
+        },
+        "hypotheses": [],
+    }
+    if algorithm_path.exists():
+        algorithm = load_object(algorithm_path)
+        merged_algorithm, algorithm_updated = merge_missing(algorithm, algorithm_defaults)
+        merged_algorithm["schema_version"] = "1.1"
+        merged_algorithm["version"] = "0.2"
+        if algorithm_updated or merged_algorithm != algorithm:
+            atomic_write_json(algorithm_path, merged_algorithm)
+    else:
+        atomic_write_json(algorithm_path, algorithm_defaults)
+        created.append(algorithm_path.name)
+
+    state = load_object(state_path) if state_path.is_file() else {}
+    queue_path = state_dir / "work-queue.json"
+    queue = load_object(queue_path)
+    items = queue.get("items", [])
+    if not isinstance(items, list):
+        items = []
+    existing_task_ids = {item.get("task_id") for item in items if isinstance(item, dict)}
+    reserve = state.get("engagement_scaling", {}).get("adaptive_reserve", {})
+    if reserve.get("qualified_count", 0) < reserve.get("target_count", 0) or not reserve.get("qualified_count"):
+        if "replenish-adaptive-reserve" not in existing_task_ids:
+            items.append(
+                {
+                    "task_id": "replenish-adaptive-reserve",
+                    "task_type": "adaptive-reserve",
+                    "lane": "linkedin",
+                    "priority": 6,
+                    "status": "pending",
+                    "ready": True,
+                    "requires_linkedin": True,
+                }
+            )
+    publishing = state.get("publishing", {})
+    if publishing.get("packages_ready", 0) < 2 and "prepare-two-packages" not in existing_task_ids:
+        items.append(
+            {
+                "task_id": "prepare-two-packages",
+                "task_type": "two-package-production",
+                "lane": "offline",
+                "priority": 7,
+                "status": "pending",
+                "ready": True,
+                "requires_linkedin": False,
+            }
+        )
+    analytics_path = state_dir / "daily-analytics.jsonl"
+    learning_path = state_dir / "learning-ledger.jsonl"
+    analytics_debt = analytics_path.exists() and analytics_path.stat().st_size > 0 and (
+        not learning_path.exists() or '"stage": "analytics-learning"' not in learning_path.read_text(encoding="utf-8")
+    )
+    if analytics_debt and "analytics-backfill" not in existing_task_ids:
+        items.append(
+            {
+                "task_id": "analytics-backfill",
+                "task_type": "mandatory-stage-recovery",
+                "lane": "offline",
+                "priority": 4,
+                "status": "pending",
+                "ready": True,
+                "requires_linkedin": False,
+            }
+        )
+    queue["items"] = items
+    atomic_write_json(queue_path, queue)
+
+    ledger_path = state_dir / "stage-ledger.json"
+    ledger = load_object(ledger_path)
+    stages = ledger.get("stages", [])
+    if not isinstance(stages, list):
+        stages = []
+    stage_ids = {stage.get("stage_id") for stage in stages if isinstance(stage, dict)}
+    if analytics_debt and "analytics-backfill" not in stage_ids:
+        stages.append(
+            {
+                "stage_id": "analytics-backfill",
+                "stage_type": "analytics",
+                "status": "missed-recovering",
+                "required_artifacts": ["daily-analytics.jsonl", "learning-ledger.jsonl"],
+                "completed_artifacts": ["daily-analytics.jsonl"],
+                "learning_recorded": False,
+                "learning_status": None,
+                "experiment_outcome": None,
+                "next_measurement_trigger": None,
+            }
+        )
+    ledger["stages"] = stages
+    atomic_write_json(ledger_path, ledger)
     for directory in (state_dir / "brand" / "watermarks", state_dir / "gif-reference-captures"):
         if not directory.exists():
             directory.mkdir(parents=True)

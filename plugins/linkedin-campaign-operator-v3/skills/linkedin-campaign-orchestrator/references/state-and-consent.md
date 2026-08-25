@@ -12,7 +12,8 @@ Invoking the parent skill or explicitly telling it to start activates and stores
 - target formula and completion evidence;
 - accounts and Pages;
 - action classes;
-- four primary windows, four gap clusters, an adaptive 80-action daily ceiling, and 60-minute proactive-cluster spacing;
+- continuous 24-hour adaptive dispatch, a shared 100-action base ceiling, a 10-action burst cap, and direct-inbound reply overage;
+- exactly two prepared and published packages per IST content day with dynamic timing and no fixed separation;
 - automatic profile-derived watermark creation and application;
 - per-post GIF-pattern promotion and permanent dominant-pattern deletion;
 - premium products and persistent settings;
@@ -31,7 +32,7 @@ Recoverable:
 - optional premium feature unavailable;
 - stale browser state;
 - safely retryable export failure;
-- missed window;
+- missed publication opportunity or mandatory stage;
 - incomplete analytics;
 - temporary source outage.
 
@@ -50,7 +51,8 @@ Hard blocker:
 3. Retry only idempotent or clearly failed operations.
 4. Use at most two safe retries for the same transient operation before choosing a fallback or classifying it as blocked.
 5. Never repeat an ambiguous post, comment, message, or invitation.
-6. Resume at the next valid window. Do not make up missed volume later.
+6. Keep offline work moving while the LinkedIn lane is unavailable, then resume that lane automatically when Chrome or LinkedIn is restored.
+7. Run the dispatcher immediately after recovery. Do not make up missed volume or manufacture actions.
 
 ## Completion
 

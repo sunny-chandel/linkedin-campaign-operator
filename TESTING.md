@@ -53,10 +53,10 @@ Expected behavior: refuse to bypass the interactive verification, preserve state
 ## Missing-package automation test
 
 ```text
-Window 4 is open, but today's US-Central research brief and publication package do not exist.
+The US-Central post has a qualified publication opportunity, but its research brief and publication package do not exist.
 ```
 
-Expected behavior: report the recovery as a status update, automatically run `linkedin-content-research` and `linkedin-content-production`, validate the resulting package, and continue to publication while the window remains open. Never ask whether to run either supporting skill or wait for content approval.
+Expected behavior: report the recovery as a status update, automatically run `linkedin-content-research` and `linkedin-content-production`, validate the resulting package, re-score the opportunity, and continue to publication when it remains the best valid work. Never ask whether to run either supporting skill or wait for content approval.
 
 ## Cross-stage recovery tests
 
@@ -67,7 +67,7 @@ For each case below, the system should log the issue, use the stated fallback, r
 - the research brief is incomplete: repair it through research and resume production;
 - the preferred asset export fails: retry safely, then use another supported export workflow;
 - an engagement candidate fails qualification or cooldown: replace it automatically;
-- fewer than 10 safe actions exist before the window closes: execute the verified subset and log the shortfall;
+- fewer than 10 safe actions exist in a burst: execute the verified subset and replenish the adaptive reserve;
 - premium entitlement details are unavailable: use the base campaign flow;
 - an analytics metric or helper script is unavailable: preserve unknown values and use the documented calculation fallback.
 
@@ -83,17 +83,30 @@ Expected behavior:
 - unknown capacity contributes zero instead of an invented value;
 - the unavailable feature receives score zero and status `unavailable`;
 - the output is deterministic apart from its generation timestamp;
-- paid actions remain inside existing windows and action totals;
+- paid actions remain inside the adaptive dispatcher, shared base budget, and burst cap;
 - no purchase, paid-plan upgrade, billing change, contract acceptance, or paid-trial start is attempted.
 
 ## Adaptive engagement tests
 
-- Eight fixed proactive clusters are available with at least 60 minutes between completed clusters.
-- Each cluster selects no more than 10 eligible actions scoring at least 65.
-- The combined daily total, including inbound replies, never exceeds 80.
+- No fixed cluster list or fixed interval exists; fresh opportunity and concentration evidence control burst timing.
+- Each burst selects no more than 10 eligible proactive or soft-reciprocal actions scoring at least 65.
+- Proactive and soft-reciprocity actions stop at the shared 100-action base ceiling.
+- Genuine direct-inbound replies continue after 100 and increment `direct_reply_overage`.
 - The action type is selected by qualified-growth score rather than a fixed mix.
 - Unqualified, cooling, unavailable, capacity-blocked, and below-threshold candidates are rejected.
-- A smaller safe queue is executed without compensating later.
+- A liker with one qualified fresh post creates at most one soft-reciprocal candidate; a cooldown or low score prevents execution.
+- A smaller safe queue is executed without manufacturing actions.
+
+## Dispatcher, publishing, and completion tests
+
+- A ready publication package with a missing engagement reserve selects reserve building instead of waiting.
+- Missing analytics produces immediate offline recovery and cannot be marked complete from raw snapshots alone.
+- Exactly two packages, India and US-Central, are accepted; a third package fails validation.
+- Publication opportunities are scored from live evidence and cannibalization risk with no fixed time or separation.
+- Empty or weak engagement queues route to research, reserve building, analytics, or investigation instead of forced clicking.
+- A wait is valid only with zero unfinished work plus recorded evidence, predicted opportunity, and wake trigger.
+- Status output separates posting progress, base and overage utilization, analytics debt, blockers, and true idle time.
+- Migration preserves legacy interaction history, publication evidence, experiments, scheduled work, and old cluster identifiers while converting the ceiling from 80 to 100.
 
 ## Brand and GIF tests
 

@@ -13,7 +13,7 @@ The plugin contains eight composable Agent Skills:
 - `linkedin-brand-system`
 - `linkedin-gif-creative-intelligence`
 
-It separates versioned skill instructions from mutable campaign state, refreshes running-session instructions when the installed plugin changes, validates target and consent configuration, enforces adaptive engagement limits and cooldown rules, generates profile-derived watermark assets, learns GIF construction from current creator references, optimizes already-active LinkedIn subscriptions, and maintains runtime learning.
+Version 0.5.0 separates versioned skill instructions from mutable campaign state, refreshes running-session instructions when the installed plugin changes, and runs a continuous 24-hour dispatcher. It maintains a shared 100-action base ceiling, direct-inbound overage, adaptive bursts capped at 10, qualified soft reciprocity, exactly two dynamically timed daily posts, pipeline completion auditing, profile-derived watermark assets, GIF intelligence, subscription optimization, and evidence-based runtime learning.
 
 ## Install from the marketplace
 
@@ -36,9 +36,9 @@ Invoke the parent skill with:
 /linkedin-campaign-operator-v3:linkedin-campaign-orchestrator
 ```
 
-The parent starts Sunny Chandel's preconfigured organic LinkedIn system for 10,000 followers and 10,000 connections. It checks connected Chrome first, verifies the fixed LinkedIn identity, checks Claude Design and file upload, refreshes the profile-derived watermark kit, discovers account and subscription state, calculates the best use of verified included features, and routes automatically through the seven supporting skills. It does not open a generic campaign-setup form.
+The parent starts Sunny Chandel's preconfigured organic LinkedIn system for 10,000 followers and 10,000 connections. It checks connected Chrome first, verifies the fixed LinkedIn identity, checks Claude Design and file upload, refreshes the profile-derived watermark kit, discovers account and subscription state, calculates the best use of verified included features, and routes automatically through the seven supporting skills. It does not open a generic campaign-setup form or use fixed engagement clusters.
 
-When an installed update becomes available to an already-running Claude Desktop session, the orchestrator resolves and directly loads the newest installed skill instructions at its next scheduled wake or stage boundary, records the newest cache path, migrates state, and continues without restarting. `/reload-plugins` is used only in clients that explicitly expose that command.
+When an installed update becomes available to an already-running Claude Desktop session, the orchestrator resolves and directly loads the newest installed skill instructions at its next dispatcher wake or stage boundary, records the newest cache path, migrates state, terminates legacy fixed-sleep behavior, and continues without restarting. `/reload-plugins` is used only in clients that explicitly expose that command.
 
 ## Install for development
 

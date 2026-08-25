@@ -1,10 +1,9 @@
 ---
 name: linkedin-gif-creative-intelligence
 description: Observe high-performing LinkedIn GIF creators, measure their visual and motion patterns, select the strongest reference per post, and maintain a self-growing GIF rule library. Use during creator observation and before GIF production.
-compatibility: Requires connected LinkedIn reading, campaign analytics, writable campaign state, and Python with Pillow for deterministic GIF inspection.
 metadata:
   author: sunny
-  version: "0.4.0"
+  version: "0.5.0"
 ---
 
 # LinkedIn GIF creative intelligence
@@ -15,7 +14,7 @@ Learn professional GIF construction from current high-information, high-interact
 
 1. Maintain 12 core high-performing creators and eight rotating discoveries across India, US-Central, and UK/EU.
 2. Apply the 3,000-follower gate when adding a new creator. Inspect up to two current relevant GIF posts per creator; never fabricate or fill a missing reference.
-3. Run LinkedIn observation during daytime identification passes. Block 0 uses stored references and never touches LinkedIn.
+3. Run LinkedIn observation when the continuous dispatcher selects creator research and the LinkedIn lane is available. During the 9:00 PM to 2:00 AM IST production-priority period, prefer stored validated references unless a higher-value fresh observation is selected.
 4. Record public engagement, follower count, post age, topic, region, information quality, and reference location.
 5. Inspect available GIF files with `python scripts/inspect_gif.py <gif>`.
 6. Measure typography, color roles, spacing, margins, grid, panel count, simultaneous elements, information density, transitions, easing, scene order, and loop quality through visual analysis.
