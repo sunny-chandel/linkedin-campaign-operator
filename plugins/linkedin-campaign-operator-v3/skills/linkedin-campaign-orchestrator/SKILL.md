@@ -4,7 +4,7 @@ description: Run Sunny Chandel's persistent organic LinkedIn 10k/10k operating s
 compatibility: Requires Chrome control, code execution, internet access, and a writable campaign-data directory. Asset cycles require Claude Design and file-upload capabilities.
 metadata:
   author: sunny
-  version: "0.3.2"
+  version: "0.3.3"
 ---
 
 # LinkedIn campaign orchestrator
@@ -40,7 +40,7 @@ The package already fixes these values; never ask for them during startup:
 
 The fixed LinkedIn profile is `https://www.linkedin.com/in/sunny-chandel-6a05bb401/`. Use Chrome and visible profile information, recent content, analytics, and entitlement information to determine current follower and connection baselines, professional niche, content pillars, premium products, and usable capabilities. Never ask for the profile URL, niche, baselines, or premium plan before attempting to discover them.
 
-After Chrome pre-flight passes, continue the existing `sunny-linkedin-10k-10k` state when available. Otherwise initialize `campaign-data/sunny-linkedin-10k-10k/` with `python scripts/init_campaign.py <state-dir>`. Migrate any older blank or generic draft to these fixed defaults. Store discovered values when visible; record temporarily unavailable optional values as unknown and continue.
+After Chrome pre-flight passes, continue the existing `sunny-linkedin-10k-10k` state when available. Otherwise initialize `campaign-data/sunny-linkedin-10k-10k/` with `python scripts/init_campaign.py <state-dir>`. For an existing state directory, run `python scripts/migrate_campaign.py <state-dir>` before validation so newly introduced artifacts and safe optimizer defaults are added without overwriting campaign data. Migrate any older blank or generic draft to these fixed defaults. Store discovered values when visible; record temporarily unavailable optional values as unknown and continue.
 
 Run `python scripts/validate_campaign.py <state-dir>`. The initializer records active consent from the recognized owner. Do not present a consent questionnaire or activation summary. Ask the owner only for the exact action needed to clear a hard blocker.
 
@@ -66,7 +66,7 @@ Run once before every daily cycle, in this order:
 3. Open Claude Design and confirm its dashboard or projects load. If unavailable, stop and report that exact blocker.
 4. Confirm the `file_upload` capability is loaded. Never click a native file-input button directly; locate the input with page-reading tools and use `file_upload` with the local path. The upload cap is 10 MB per call.
 5. Inspect the latest available Chrome, Claude Design, computer-use, and upload capabilities needed for the cycle and use the current supported workflow.
-6. Inventory active LinkedIn premium entitlements, plan tiers, roles, limits, credits, and expiry information visible in the connected account.
+6. Run `linkedin-premium-router` to inventory active LinkedIn paid entitlements, plan tiers, roles, limits, credits, and expiry information; calculate `subscription-utilization-plan.json`; and complete eligible setup for already-included features.
 7. Read current followers, connections, profile positioning, recent content, and available analytics from the connected account, and save discovered values to campaign state.
 8. Load or initialize campaign configuration, consent, current state, unresolved failures, runtime learning, active experiments, strategy weights, and the Working Algorithm Model.
 9. Recalculate target progress. If achieved, save final evidence and mark `completed`; otherwise continue immediately from the next valid pipeline stage.
@@ -79,7 +79,7 @@ Do not reopen a locked target during pre-flight. A missing optional goal-trackin
 
 The owner invokes this parent skill for the complete system. Route to the installed supporting skills without asking the owner to invoke them separately:
 
-- use `linkedin-premium-router` during pre-flight and whenever an entitlement changes;
+- use `linkedin-premium-router` during pre-flight, whenever an entitlement changes, before a stage that depends on a paid feature, and during the weekly retrospective;
 - use `linkedin-content-research` for source discovery, trend checks, topic selection, and claim verification;
 - use `linkedin-content-production` after a research brief is complete;
 - use `linkedin-engagement-planning` before every identification pass and engagement window;
@@ -109,7 +109,7 @@ US West Coast evening and Singapore morning. Perform 10 engagement actions. No p
 
 ### Identification pass: 6:00-9:00 AM
 
-Prioritize replies to the campaign owner, then hub-account content, adjacency signals, premium insights, and current trends. Apply the new-user qualification gate and cooldown before saving the Window 2 queue.
+Prioritize replies to the campaign owner, then hub-account content, adjacency signals, subscription-utilization-plan features, and current trends. Apply the new-user qualification gate and cooldown before saving the Window 2 queue.
 
 ### Window 2: 9:00-10:30 AM
 
@@ -121,7 +121,7 @@ Check active replies and prepare the UK/EU queue.
 
 ### Window 3: 1:30-3:00 PM
 
-Perform 10 UK/EU engagement actions. Capture equal-age analytics and premium insights.
+Perform 10 UK/EU engagement actions. Capture equal-age analytics and paid-feature usage and outcomes.
 
 ### Afternoon pass: 3:00-7:00 PM
 
@@ -129,7 +129,7 @@ Prepare the US-Central queue and update target lists, response-bank observations
 
 ### Window 4: 7:00-9:00 PM
 
-Ensure the US-Central package exists using the automatic missing-package recovery rule above. Publish it, verify it is live, perform 10 engagement actions, handle fast replies through approximately 9:30 PM, pull end-of-day analytics, and update the full log.
+Ensure the US-Central package exists using the automatic missing-package recovery rule above. Publish it, verify it is live, perform 10 engagement actions, handle fast replies through approximately 9:30 PM, pull end-of-day analytics, update paid-feature usage and remaining capacity, and update the full log.
 
 ## Fixed campaign invariants
 
@@ -139,6 +139,7 @@ Ensure the US-Central package exists using the automatic missing-package recover
 - The 3,000-follower qualification gate applies only to new target additions, not direct replies or existing targets.
 - Do not initiate proactive engagement with the same person more than once in 72 hours or twice in seven days. Direct inbound conversations are exempt but logged.
 - Premium actions count toward the same totals.
+- Subscription optimization can reprioritize and configure already-included features, but it cannot purchase, upgrade, start a paid trial, change billing, accept a contract, or alter any fixed campaign invariant.
 - Tier 2 and Tier 3 content rules remain active; load the content-production skill for their exact definitions.
 - Fact-check every public factual claim.
 - Chat previews are informational during active automated mode.

@@ -7,7 +7,10 @@ Store mutable artifacts outside the plugin.
 - `campaign-config.json`: target, audience, content pillars, cadence, and completion formula.
 - `consent-record.json`: recognized owner, start time, and authorized action classes.
 - `campaign-state.json`: lifecycle state, current stage, last action, blockers, and progress.
-- `premium-entitlements.json`: detected products, tiers, roles, limits, and mappings.
+- `premium-entitlements.json`: compatibility inventory of detected products, tiers, roles, and limits.
+- `subscription-inventory.json`: normalized feature-level entitlements, setup state, capacity, expiry, and pipeline mappings.
+- `subscription-utilization-plan.json`: deterministic priority scores and execution routing for verified included features.
+- `subscription-results.jsonl`: feature setup, usage, capacity, and outcome events used by daily and weekly learning.
 - `interaction-log.jsonl`: one interaction event per line.
 - `daily-analytics.jsonl`: normalized snapshot events.
 - `learning-ledger.jsonl`: evidence-ranked learning records.

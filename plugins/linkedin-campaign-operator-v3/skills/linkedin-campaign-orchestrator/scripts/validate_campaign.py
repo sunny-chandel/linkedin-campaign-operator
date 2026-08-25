@@ -97,6 +97,32 @@ def main() -> int:
         if fixed.get(key) != value:
             errors.append(f"campaign-config.json fixed_rules.{key} must equal {value}")
 
+    subscription = config.get("subscription_optimization", {})
+    if subscription.get("enabled") is not True:
+        errors.append("campaign-config.json subscription_optimization.enabled must equal true")
+    for key in (
+        "purchases_allowed",
+        "paid_plan_upgrades_allowed",
+        "billing_changes_allowed",
+        "paid_trial_starts_allowed",
+    ):
+        if subscription.get(key) is not False:
+            errors.append(f"campaign-config.json subscription_optimization.{key} must equal false")
+    weights = subscription.get("weights", {})
+    expected_weight_keys = {
+        "campaign_relevance",
+        "unused_capacity",
+        "evidence_strength",
+        "expiry_urgency",
+        "implementation_readiness",
+    }
+    if set(weights) != expected_weight_keys:
+        errors.append("campaign-config.json subscription_optimization.weights has invalid keys")
+    elif any(isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 <= value <= 1 for value in weights.values()):
+        errors.append("campaign-config.json subscription_optimization.weights values must be from 0 to 1")
+    elif abs(sum(weights.values()) - 1.0) > 1e-9:
+        errors.append("campaign-config.json subscription_optimization.weights must sum to 1.0")
+
     result = {"valid": not errors, "state_dir": str(state_dir), "errors": errors}
     print(json.dumps(result, indent=2))
     return 0 if not errors else 1

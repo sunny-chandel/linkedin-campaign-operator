@@ -11,7 +11,7 @@ The plugin contains six composable Agent Skills:
 - `linkedin-premium-router`
 - `linkedin-analytics-learning`
 
-It separates immutable skill instructions from mutable campaign state, validates target and consent configuration, enforces qualification and cooldown rules, and maintains a versioned runtime-learning ledger.
+It separates immutable skill instructions from mutable campaign state, validates target and consent configuration, enforces qualification and cooldown rules, automatically optimizes already-active LinkedIn subscriptions, and maintains a versioned runtime-learning ledger.
 
 ## Install from the marketplace
 
@@ -34,7 +34,7 @@ Invoke the parent skill with:
 /linkedin-campaign-operator-v3:linkedin-campaign-orchestrator
 ```
 
-The parent starts Sunny Chandel's preconfigured organic LinkedIn system for 10,000 followers and 10,000 connections. It checks connected Chrome first, verifies the fixed LinkedIn identity, checks Claude Design and file upload, discovers account state, and routes automatically through the five supporting skills. It does not open a generic campaign-setup form.
+The parent starts Sunny Chandel's preconfigured organic LinkedIn system for 10,000 followers and 10,000 connections. It checks connected Chrome first, verifies the fixed LinkedIn identity, checks Claude Design and file upload, discovers account and subscription state, calculates the best use of verified included features, and routes automatically through the five supporting skills. It does not open a generic campaign-setup form.
 
 ## Install for development
 

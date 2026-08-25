@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "linkedin-campaign-operator-v3",
   "displayName": "LinkedIn Campaign Operator",
-  "version": "0.3.2",
-  "description": "Run Sunny Chandel's automated LinkedIn 10k/10k operating system with persistent state and auditable learning.",
+  "version": "0.3.3",
+  "description": "Run Sunny Chandel's automated LinkedIn 10k/10k operating system with subscription optimization, persistent state, and auditable learning.",
   "author": {
     "name": "Sunny"
   },

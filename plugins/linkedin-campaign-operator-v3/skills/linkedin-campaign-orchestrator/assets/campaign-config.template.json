@@ -28,5 +28,23 @@
     "new_target_min_followers": 3000,
     "cooldown_hours": 72,
     "max_proactive_actions_per_person_per_7d": 2
+  },
+  "subscription_optimization": {
+    "enabled": true,
+    "weights": {
+      "campaign_relevance": 0.3,
+      "unused_capacity": 0.25,
+      "evidence_strength": 0.2,
+      "expiry_urgency": 0.15,
+      "implementation_readiness": 0.1
+    },
+    "thresholds": {
+      "activate_now": 70,
+      "schedule": 45
+    },
+    "purchases_allowed": false,
+    "paid_plan_upgrades_allowed": false,
+    "billing_changes_allowed": false,
+    "paid_trial_starts_allowed": false
   }
 }

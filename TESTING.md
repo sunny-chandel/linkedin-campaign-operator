@@ -33,7 +33,7 @@ Validate this engagement queue against the 3,000-follower new-target rule and th
 ```
 
 ```text
-Inspect my visible LinkedIn premium entitlements and create a utilization map without purchasing, upgrading, or changing billing.
+Inspect my visible LinkedIn paid entitlements, calculate the utilization plan, configure eligible included features, and route them into the campaign without purchasing, upgrading, starting a paid trial, or changing billing.
 ```
 
 ```text
@@ -70,3 +70,16 @@ For each case below, the system should log the issue, use the stated fallback, r
 - an analytics metric or helper script is unavailable: preserve unknown values and use the documented calculation fallback.
 
 No supporting skill may display onboarding, request routine approval, ask which skill to run, or end with a menu of next-step choices. Only an orchestrator-defined hard blocker may require Sunny's intervention.
+
+## Subscription optimizer test
+
+Create a feature inventory containing one high-value entitled feature with 80% verified unused capacity, one low-value entitled feature with unknown capacity, and one unavailable feature. Run `score_subscription_features.py` with the campaign configuration.
+
+Expected behavior:
+
+- the entitled high-value feature receives the highest score and is routed by the configured thresholds;
+- unknown capacity contributes zero instead of an invented value;
+- the unavailable feature receives score zero and status `unavailable`;
+- the output is deterministic apart from its generation timestamp;
+- paid actions remain inside existing windows and action totals;
+- no purchase, paid-plan upgrade, billing change, contract acceptance, or paid-trial start is attempted.

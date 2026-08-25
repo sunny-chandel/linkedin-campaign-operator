@@ -7,5 +7,12 @@
   "recoverable_failures": [],
   "hard_blocker": null,
   "progress": {},
+  "subscription_optimization": {
+    "last_inventory_at": null,
+    "last_plan_at": null,
+    "active_features": [],
+    "pending_setup": [],
+    "utilization_score": null
+  },
   "updated_at": null
 }

@@ -55,6 +55,20 @@ def main() -> int:
 
     for name, initial in {
         "premium-entitlements.json": {"schema_version": "1.0", "campaign_id": args.campaign_id, "products": []},
+        "subscription-inventory.json": {
+            "schema_version": "1.0",
+            "campaign_id": args.campaign_id,
+            "generated_at": None,
+            "subscription": {},
+            "features": [],
+        },
+        "subscription-utilization-plan.json": {
+            "schema_version": "1.0",
+            "campaign_id": args.campaign_id,
+            "generated_at": None,
+            "features": [],
+            "summary": {},
+        },
         "working-algorithm-model.json": {
             "schema_version": "1.0",
             "campaign_id": args.campaign_id,
@@ -68,7 +82,12 @@ def main() -> int:
             json.dumps(initial, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
 
-    for name in ("interaction-log.jsonl", "daily-analytics.jsonl", "learning-ledger.jsonl"):
+    for name in (
+        "interaction-log.jsonl",
+        "daily-analytics.jsonl",
+        "learning-ledger.jsonl",
+        "subscription-results.jsonl",
+    ):
         (state_dir / name).touch()
     (state_dir / "logs").mkdir()
 
