@@ -1,10 +1,22 @@
-# Claude LinkedIn
+<h1 align="center">Claude LinkedIn</h1>
 
-[![Validate public release](https://github.com/sunny-chandel/linkedin-campaign-operator/actions/workflows/ci.yml/badge.svg)](https://github.com/sunny-chandel/linkedin-campaign-operator/actions/workflows/ci.yml)
-[![Latest release](https://img.shields.io/github/v/release/sunny-chandel/linkedin-campaign-operator)](https://github.com/sunny-chandel/linkedin-campaign-operator/releases/latest)
-[![MIT license](https://img.shields.io/badge/license-MIT-e07850)](LICENSE)
+<p align="center"><strong>Your LinkedIn team in Claude.</strong></p>
 
-**Your LinkedIn team in Claude.**
+<p align="center">
+  <a href="https://github.com/sunny-chandel/linkedin-campaign-operator/actions/workflows/ci.yml"><img alt="Validate public release" src="https://github.com/sunny-chandel/linkedin-campaign-operator/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/sunny-chandel/linkedin-campaign-operator/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/sunny-chandel/linkedin-campaign-operator"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-e07850"></a>
+</p>
+
+<p align="center">
+  <a href="https://linkedin-campaign-operator.sunnychandel73.chatgpt.site/"><img src="assets/claude-linkedin-hero.gif" alt="Claude LinkedIn animated campaign operator with moving research, writing, engagement, and learning cursors" width="960"></a>
+</p>
+
+<p align="center">
+  <a href="https://linkedin-campaign-operator.sunnychandel73.chatgpt.site/"><strong>Explore the live system →</strong></a>
+  &nbsp;·&nbsp;
+  <a href="#install-in-claude-code"><strong>Install for Claude Code →</strong></a>
+</p>
 
 Claude LinkedIn is the public interface for LinkedIn Campaign Operator: a free, open-source collection of Agent Skills for researching topics, writing LinkedIn posts, planning thoughtful engagement, publishing at evidence-based times, measuring results, and carrying campaign learning across sessions.
 
@@ -53,7 +65,7 @@ Then run:
 /linkedin-campaign-operator-v3:linkedin-campaign-orchestrator
 ```
 
-## Install in Codex
+## Automated startup and recovery
 
 The parent starts the configured organic LinkedIn system. On the first run it asks one automation-consent question and stores the resulting campaign-lifetime receipt. Later sessions self-revive from durable state without asking again, reconcile missed work and local-day rollover, reuse the pinned verified browser and valid pre-flight evidence, and route automatically through the seven supporting skills. It does not open a generic campaign-setup form or use fixed engagement clusters.
 
