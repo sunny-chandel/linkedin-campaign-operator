@@ -56,7 +56,8 @@ Follower count is a qualification gate for new additions, not a substitute for r
 - Direct-inbound replies consume base capacity while it remains, then increment `direct_reply_overage` and continue.
 - Every burst is capped at 10 actions.
 - Do not manufacture low-quality actions to fill a burst or the daily budget.
-- The reserve should cover the next two predicted bursts after accounting for candidate staleness.
+- Calculate reserve coverage from the next two predicted bursts, recent executed burst size, staleness, rejection rate, remaining base capacity, and the configured minimum and maximum. Do not assume two 10-action bursts.
+- Stop a reserve pass after five pages, eight minutes, target completion, qualified yield below the configured floor, or declining marginal value. Persist every accepted candidate immediately and record the pass through the parent runtime so low-yield backoff and task rotation survive restart.
 
 ## Repetition controls
 

@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "campaign_id": "replace-me",
   "timezone": "Asia/Kolkata",
   "target": {
@@ -67,6 +67,36 @@
       "two-package-production",
       "analytics-and-investigation"
     ]
+  },
+  "automation_reliability": {
+    "consent_mode": "single-owner-grant",
+    "consent_persistence": "campaign-lifetime",
+    "task_lease_minutes": 15,
+    "max_consecutive_same_task_type": 2,
+    "preflight_evidence_ttl_minutes": 30,
+    "retry_backoff_minutes": [2, 5, 15, 30],
+    "browser_binding": {
+      "reuse_pinned_device": true,
+      "prefer_local_macos_on_first_bind": true,
+      "identity_match_required": true,
+      "routine_device_questions_allowed": false
+    },
+    "circuit_breaker": {
+      "max_safe_retries": 2,
+      "cooldown_minutes": 15,
+      "continue_offline_lane": true,
+      "automatic_probe": true
+    },
+    "reserve": {
+      "default_expected_burst_size": 5,
+      "min_target": 4,
+      "max_target": 20,
+      "max_pages_per_pass": 5,
+      "max_minutes_per_pass": 8,
+      "min_qualified_yield_per_page": 0.25,
+      "max_low_yield_passes": 2,
+      "low_yield_backoff_minutes": 30
+    }
   },
   "publishing_optimization": {
     "mode": "fully-dynamic",

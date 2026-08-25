@@ -45,14 +45,16 @@ def main() -> int:
             raise ValueError("work queue items and stage ledger stages must be arrays")
         unfinished = [
             item for item in items
-            if isinstance(item, dict) and item.get("status") in {"pending", "recovering", "missed-recovering"}
+            if isinstance(item, dict) and item.get("status") in {
+                "pending", "recovering", "missed-recovering", "retry-wait", "leased", "running"
+            }
         ]
         analytics_debt = []
         unfinished_stages = []
         for stage in stages:
             if not isinstance(stage, dict):
                 continue
-            if stage.get("status") != "completed":
+            if stage.get("status") not in {"completed", "missed-closed", "superseded", "cancelled"}:
                 unfinished_stages.append(stage.get("stage_id"))
             if stage.get("stage_type") != "analytics":
                 continue
@@ -93,6 +95,7 @@ def main() -> int:
                 "base_daily_ceiling": base_ceiling,
                 "base_remaining": max(0, base_ceiling - base_used),
                 "direct_reply_overage": int(scaling.get("direct_reply_overage", 0)),
+                "adaptive_reserve": scaling.get("adaptive_reserve", {}),
             },
             "analytics_debt": {
                 "count": len(analytics_debt),
@@ -102,6 +105,13 @@ def main() -> int:
                 "hard_blocker": state.get("hard_blocker"),
                 "linkedin_lane": dispatcher.get("linkedin_lane", "ready"),
                 "offline_lane": dispatcher.get("offline_lane", "ready"),
+                "lane_circuits": dispatcher.get("lane_circuits", {}),
+            },
+            "automation": {
+                "consent": state.get("automation_consent", {}),
+                "browser_binding": dispatcher.get("browser_binding", {}),
+                "preflight_evidence": state.get("preflight_evidence", {}),
+                "runtime_continuity": state.get("runtime_continuity", {}),
             },
             "unfinished_work_count": len(unfinished),
             "unfinished_stage_count": len(unfinished_stages),

@@ -8,14 +8,18 @@ Use the LinkedIn campaign orchestrator.
 
 Expected behavior:
 
-- `list_connected_browsers` is the first pre-flight operation.
-- If Chrome is disconnected, the only request is to connect or select Chrome, and no partial run occurs.
+- Existing state runs `migrate_campaign.py` and `resume_campaign.py` before ordinary dispatch.
+- On the first run only, the owner is told that pre-flight and the fixed campaign will run automatically and is asked one consent question. The answer is stored as a campaign-lifetime receipt.
+- Later restarts reload that receipt and never ask for routine consent again.
+- `list_connected_browsers` is the first uncached browser operation.
+- The verified browser device is pinned and reused automatically; the system never asks the user to choose repeatedly between the same devices.
+- If Chrome is disconnected, the LinkedIn circuit retries, then continues offline work and probes automatically.
 - With Chrome connected, LinkedIn is opened and checked against Sunny Chandel and `https://www.linkedin.com/in/sunny-chandel-6a05bb401/`.
 - Claude Design and `file_upload` are checked next.
 - Mutable state is loaded or created outside the plugin with campaign ID `sunny-linkedin-10k-10k`.
 - The objective is already 10,000 followers and 10,000 connections, with no deadline and the three fixed regions.
 - No setup visualization, generic campaign form, B2B questionnaire, or request for locked values is produced.
-- Consent is stored as active when the recognized owner invokes the system.
+- Consent becomes active only after the single recognized-owner confirmation.
 - Current profile, baseline, niche, analytics, and premium information are discovered from Chrome before any question.
 - The profile-derived watermark kit is validated or created automatically during pre-flight.
 - The running-session instruction version is compared with the newest installed plugin version.
@@ -107,6 +111,10 @@ Expected behavior:
 - A wait is valid only with zero unfinished work plus recorded evidence, predicted opportunity, and wake trigger.
 - Status output separates posting progress, base and overage utilization, analytics debt, blockers, and true idle time.
 - Migration preserves legacy interaction history, publication evidence, experiments, scheduled work, and old cluster identifiers while converting the ceiling from 80 to 100.
+- A recorded dispatch leases the task, checkpoints survive interruption, and a restarted session recovers an abandoned lease without replaying completed external work.
+- IST rollover resets the new day's publication and engagement counters, activates its packages, creates region-specific publication tasks, and archives the prior day.
+- Reserve targets respond to recent burst size, staleness, rejection, and remaining capacity; low-yield or limit-ending passes back off instead of monopolizing the dispatcher.
+- After two consecutive non-urgent tasks of one type, another eligible task type receives a turn.
 
 ## Brand and GIF tests
 

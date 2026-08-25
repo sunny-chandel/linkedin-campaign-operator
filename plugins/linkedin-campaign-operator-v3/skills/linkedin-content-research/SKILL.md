@@ -3,12 +3,14 @@ name: linkedin-content-research
 description: Research fresh LinkedIn campaign topics, primary sources, platform changes, and credible trends. Use when creating research briefs or checking claims and algorithm advice.
 metadata:
   author: sunny
-  version: "0.5.0"
+  version: "0.6.0"
 ---
 
 # LinkedIn content research
 
 Produce evidence-ranked research briefs for the campaign. Do not draft the final post until the brief is complete.
+
+Inherit the parent's active campaign-lifetime consent receipt and leased task. Never request separate approval after routing or restart. Checkpoint each verified source set and completed regional brief so recovery continues from durable evidence.
 
 Produce only the research needed for the content day's exactly two packages: one India brief and one US-Central brief. Do not create a third backup brief or stockpile future packages.
 

@@ -3,12 +3,14 @@ name: linkedin-analytics-learning
 description: Normalize LinkedIn campaign analytics, run controlled experiments, and update a versioned runtime learning layer without editing the governing skill. Use for daily and weekly reviews.
 metadata:
   author: sunny
-  version: "0.5.0"
+  version: "0.6.0"
 ---
 
 # LinkedIn analytics and learning
 
 Maintain runtime learning separately from immutable system and skill instructions. Read [learning system](references/learning-system.md) before promoting or rolling back a finding.
+
+Inherit the parent's active campaign-lifetime consent receipt and leased task. Never ask for a separate approval. Checkpoint every saved snapshot, learning, experiment decision, and measurement trigger through the parent runtime before returning control.
 
 ## Automated execution
 

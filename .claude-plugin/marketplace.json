@@ -9,7 +9,7 @@
     {
       "name": "linkedin-campaign-operator-v3",
       "source": "./plugins/linkedin-campaign-operator-v3",
-      "description": "Run Sunny Chandel's v0.5.0 continuous LinkedIn 10k/10k system with adaptive dispatch, reciprocity, dynamic publishing, live refresh, branding, subscription optimization, and persistent learning.",
+      "description": "Run Sunny Chandel's v0.6.0 fully automated LinkedIn 10k/10k system with durable consent, self-revival, pinned browser recovery, reliable adaptive dispatch, branding, subscription optimization, and persistent learning.",
       "author": {
         "name": "Sunny Chandel"
       }

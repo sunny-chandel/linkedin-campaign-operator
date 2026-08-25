@@ -4,6 +4,8 @@ Claude installs every marketplace plugin version in a separate cache directory. 
 
 ## Stage-boundary check
 
+On a new or resumed Claude Code session, run `resume_campaign.py` before this version check. Self-revival restores durable consent and task state; instruction refresh then determines which installed scripts and skills govern the recovered task.
+
 At pre-flight, every scheduled wake, and before every stage, read `runtime_instructions.active_version` and `runtime_instructions.install_path` from `campaign-state.json`. Run the resolver under the recorded install path. Only when no recorded path exists, use the currently loaded skill directory:
 
 ```text

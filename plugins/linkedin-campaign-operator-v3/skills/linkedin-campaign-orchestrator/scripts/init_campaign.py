@@ -46,7 +46,6 @@ def main() -> int:
                 data["audience"]["niche"] = args.niche
         if output_name == "consent-record.json":
             data["data_directory"] = str(state_dir)
-            data["activated_at"] = now
         if output_name == "campaign-state.json":
             data["updated_at"] = now
         (state_dir / output_name).write_text(
@@ -134,15 +133,7 @@ def main() -> int:
             "schema_version": "1.0",
             "campaign_id": args.campaign_id,
             "updated_at": now,
-            "stages": [
-                {
-                    "stage_id": "preflight",
-                    "stage_type": "preflight",
-                    "status": "pending",
-                    "required_artifacts": [],
-                    "completed_artifacts": [],
-                }
-            ],
+            "stages": [],
         },
     }.items():
         (state_dir / name).write_text(
@@ -156,6 +147,9 @@ def main() -> int:
         "subscription-results.jsonl",
         "signal-events.jsonl",
         "schedule-decisions.jsonl",
+        "publication-evidence.jsonl",
+        "task-events.jsonl",
+        "recovery-events.jsonl",
     ):
         (state_dir / name).touch()
     (state_dir / "logs").mkdir()

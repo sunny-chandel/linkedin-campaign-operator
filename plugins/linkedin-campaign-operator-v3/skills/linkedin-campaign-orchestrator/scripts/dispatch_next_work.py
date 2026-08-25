@@ -13,10 +13,45 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from runtime_state import (
+    current_time,
+    iso_time,
+    lease_task,
+    parse_time,
+    reconcile_runtime,
+)
+
 
 ACTIVE_STATUSES = {"pending", "recovering", "missed-recovering"}
+UNFINISHED_STATUSES = ACTIVE_STATUSES | {"retry-wait", "leased", "running"}
 DIRECT_TYPES = {"direct-inbound", "comment", "reply", "direct-message"}
 BASE_BUDGET_TYPES = {"proactive", "soft-reciprocity"}
+PRIORITY_BY_TYPE = {
+    "preflight": 1,
+    "lane-recovery-probe": 1,
+    "direct-inbound": 1,
+    "comment": 1,
+    "reply": 1,
+    "direct-message": 1,
+    "publication-opportunity": 2,
+    "publication-queue-building": 2,
+    "mandatory-stage-recovery": 3,
+    "soft-reciprocity": 4,
+    "two-package-production": 5,
+    "adaptive-reserve": 6,
+    "analytics-and-investigation": 8,
+}
+STARVATION_EXEMPT_TYPES = {
+    "preflight",
+    "lane-recovery-probe",
+    "direct-inbound",
+    "comment",
+    "reply",
+    "direct-message",
+    "publication-opportunity",
+    "publication-queue-building",
+    "mandatory-stage-recovery",
+}
 
 
 def load_object(path: Path) -> dict[str, Any]:
@@ -62,6 +97,18 @@ def record_decision(state_dir: Path, state: dict[str, Any], result: dict[str, An
     dispatcher["current_task_id"] = (
         result.get("task", {}).get("task_id") if isinstance(result.get("task"), dict) else None
     )
+    if result.get("decision") == "execute" and isinstance(result.get("task"), dict):
+        selected_type = result["task"].get("task_type")
+        previous_type = dispatcher.get("last_selected_task_type")
+        dispatcher["consecutive_same_task_type"] = (
+            int(dispatcher.get("consecutive_same_task_type", 0) or 0) + 1
+            if previous_type == selected_type
+            else 1
+        )
+        dispatcher["last_selected_task_type"] = selected_type
+        state["current_stage"] = selected_type
+        if state.get("lifecycle_state") not in {"completed", "user-stopped"}:
+            state["lifecycle_state"] = "running"
     if result.get("decision") == "wait":
         dispatcher["next_wake_at"] = result.get("predicted_next_opportunity")
         dispatcher["next_wake_reason"] = result.get("wake_trigger")
@@ -80,7 +127,7 @@ def active_stage_debt(ledger: dict[str, Any]) -> list[dict[str, Any]]:
         stage
         for stage in stages
         if isinstance(stage, dict)
-        and stage.get("status") in {"pending", "recovering", "missed-recovering"}
+        and stage.get("status") in {"recovering", "missed-recovering"}
     ]
 
 
@@ -97,8 +144,8 @@ def task_is_eligible(
     if task.get("status") not in ACTIVE_STATUSES or task.get("ready") is not True:
         return False, "not-ready"
     requires_linkedin = task.get("requires_linkedin") is True or task.get("lane") == "linkedin"
-    if requires_linkedin and linkedin_lane == "blocked":
-        return False, "linkedin-lane-blocked"
+    if requires_linkedin and linkedin_lane != "ready" and task.get("task_type") != "lane-recovery-probe":
+        return False, f"linkedin-lane-{linkedin_lane}"
     if not requires_linkedin and offline_lane == "blocked":
         return False, "offline-lane-blocked"
     task_type = str(task.get("task_type", ""))
@@ -125,8 +172,20 @@ def main() -> int:
         config = load_object(state_dir / "campaign-config.json")
         queue = load_object(state_dir / "work-queue.json")
         ledger = load_object(state_dir / "stage-ledger.json")
-        now = args.now or datetime.now(timezone.utc).isoformat()
-        if state.get("hard_blocker"):
+        now_dt = current_time(args.now)
+        now = iso_time(now_dt)
+        reconciliation = reconcile_runtime(
+            state_dir,
+            state,
+            config,
+            queue,
+            ledger,
+            now_dt,
+            startup=False,
+        )
+        dispatcher = state.get("dispatcher", {})
+        global_hard_blocker = state.get("hard_blocker") and dispatcher.get("offline_lane") == "blocked"
+        if global_hard_blocker:
             blocker_items = queue.get("items", [])
             if not isinstance(blocker_items, list):
                 raise ValueError("work-queue.json items must be an array")
@@ -148,15 +207,28 @@ def main() -> int:
                 record_decision(state_dir, state, result)
             print(json.dumps(result, indent=2, ensure_ascii=False))
             return 0
+        if state.get("hard_blocker"):
+            dispatcher["linkedin_lane"] = "blocked"
+        if not reconciliation["consent_valid"]:
+            result = {
+                "valid": True,
+                "decision": "consent-required",
+                "decided_at": now,
+                "priority": 0,
+                "reason": reconciliation["consent_reason"],
+                "prompt": "I will run the fixed LinkedIn operating system in fully automated mode, perform pre-flight checks, store this campaign-lifetime consent, and stop asking for routine approvals. Start?",
+                "unfinished_work_count": 0,
+            }
+            if args.record:
+                atomic_write(state_dir / "work-queue.json", queue)
+                atomic_write(state_dir / "stage-ledger.json", ledger)
+                record_decision(state_dir, state, result)
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+            return 0
         scaling = state.get("engagement_scaling", {})
-        dispatcher = state.get("dispatcher", {})
         publishing = state.get("publishing", {})
-        current_budget_day = ist_day(now)
-        budget_day_reset = scaling.get("budget_day_ist") != current_budget_day
-        if budget_day_reset:
-            scaling["budget_day_ist"] = current_budget_day
-            scaling["base_actions_used"] = 0
-            scaling["direct_reply_overage"] = 0
+        current_budget_day = reconciliation["content_day"]["content_day_ist"]
+        budget_day_reset = reconciliation["budget_day_reset"]
         base_used = int(scaling.get("base_actions_used", 0))
         base_ceiling = int(scaling.get("base_daily_ceiling", 100))
         overage_allowed = config.get("fixed_rules", {}).get("direct_reply_overage_allowed") is True
@@ -171,11 +243,14 @@ def main() -> int:
             raise ValueError("work-queue.json items must be an array")
         debts = active_stage_debt(ledger)
         pending_count = sum(
-            1 for item in items if isinstance(item, dict) and item.get("status") in ACTIVE_STATUSES
+            1 for item in items if isinstance(item, dict) and item.get("status") in UNFINISHED_STATUSES
         ) + len(debts)
 
         candidates: list[dict[str, Any]] = []
         rejected: list[dict[str, Any]] = []
+        existing_task_ids = {
+            item.get("task_id") for item in items if isinstance(item, dict) and item.get("task_id")
+        }
         for item in items:
             if not isinstance(item, dict):
                 continue
@@ -185,10 +260,13 @@ def main() -> int:
                 and item.get("task_type") == "publication-opportunity"
                 and item.get("engagement_queue_ready") is not True
             ):
+                derived_task_id = f"build-publication-queue-{item.get('task_id')}"
+                if derived_task_id in existing_task_ids:
+                    continue
                 queue_task = dict(item)
                 queue_task.update(
                     {
-                        "task_id": f"build-publication-queue-{item.get('task_id')}",
+                        "task_id": derived_task_id,
                         "task_type": "publication-queue-building",
                         "priority": min(int(item.get("priority", 3)), 3),
                         "source_publication_task_id": item.get("task_id"),
@@ -222,6 +300,26 @@ def main() -> int:
             elif item.get("status") in ACTIVE_STATUSES:
                 rejected.append({"task_id": item.get("task_id"), "reason": reason})
 
+        lane_circuit = dispatcher.get("lane_circuits", {}).get("linkedin", {})
+        next_probe = parse_time(lane_circuit.get("next_probe_at")) if isinstance(lane_circuit, dict) else None
+        if (
+            dispatcher.get("linkedin_lane") == "recovering"
+            and next_probe is not None
+            and next_probe <= now_dt
+        ):
+            candidates.append(
+                {
+                    "task_id": f"probe-linkedin-{current_budget_day}",
+                    "task_type": "lane-recovery-probe",
+                    "lane": "linkedin",
+                    "priority": 1,
+                    "status": "pending",
+                    "ready": True,
+                    "requires_linkedin": True,
+                    "idempotency_key": f"linkedin-probe:{lane_circuit.get('next_probe_at')}",
+                }
+            )
+
         candidate_recovery_stages = {
             item.get("stage_id")
             for item in candidates
@@ -247,21 +345,43 @@ def main() -> int:
         if (
             int(reserve.get("qualified_count", 0) or 0) < int(reserve.get("target_count", 0) or 0)
             and not any(item.get("task_type") == "adaptive-reserve" for item in candidates)
+            and not any(
+                isinstance(item, dict)
+                and item.get("task_type") == "adaptive-reserve"
+                and item.get("status") in UNFINISHED_STATUSES
+                for item in items
+            )
             and base_used < base_ceiling
-            and dispatcher.get("linkedin_lane", "ready") != "blocked"
+            and dispatcher.get("linkedin_lane", "ready") == "ready"
         ):
+            reserve_history = reserve.get("pass_history", [])
+            pass_number = len(reserve_history if isinstance(reserve_history, list) else []) + 1
             candidates.append(
                 {
-                    "task_id": "replenish-adaptive-reserve",
+                    "task_id": f"replenish-adaptive-reserve-{current_budget_day}-pass-{pass_number}",
                     "task_type": "adaptive-reserve",
                     "lane": "linkedin",
                     "priority": 6,
                     "status": "pending",
                     "ready": True,
                     "requires_linkedin": True,
+                    "content_day_ist": current_budget_day,
+                    "execution_limits": config.get("automation_reliability", {}).get("reserve", {}),
+                    "idempotency_key": f"reserve:{current_budget_day}:pass:{pass_number}",
                 }
             )
 
+        for item in candidates:
+            task_type = str(item.get("task_type", ""))
+            action_lane = str(item.get("action_lane", ""))
+            if action_lane == "direct-inbound":
+                item["priority"] = 1
+            elif action_lane == "soft-reciprocity":
+                item["priority"] = 4
+            else:
+                item["priority"] = PRIORITY_BY_TYPE.get(
+                    task_type, int(item.get("priority", 99))
+                )
         candidates.sort(
             key=lambda item: (
                 int(item.get("priority", 99)),
@@ -277,6 +397,29 @@ def main() -> int:
                 str(item.get("task_id", "")),
             )
         )
+
+        max_consecutive = int(
+            config.get("automation_reliability", {}).get("max_consecutive_same_task_type", 2) or 2
+        )
+        if candidates:
+            first_type = str(candidates[0].get("task_type", ""))
+            consecutive = int(dispatcher.get("consecutive_same_task_type", 0) or 0)
+            if (
+                first_type not in STARVATION_EXEMPT_TYPES
+                and dispatcher.get("last_selected_task_type") == first_type
+                and consecutive >= max_consecutive
+            ):
+                alternative = next(
+                    (
+                        item
+                        for item in candidates[1:]
+                        if str(item.get("task_type", "")) != first_type
+                    ),
+                    None,
+                )
+                if alternative is not None:
+                    candidates.remove(alternative)
+                    candidates.insert(0, alternative)
 
         if candidates:
             selected = dict(candidates[0])
@@ -362,7 +505,35 @@ def main() -> int:
                 }
         result["budget_day_ist"] = current_budget_day
         result["budget_day_reset"] = budget_day_reset
+        result["reconciliation"] = reconciliation
         if args.record:
+            if result.get("decision") == "execute" and isinstance(result.get("task"), dict):
+                selected = result["task"]
+                stored = next(
+                    (
+                        item
+                        for item in items
+                        if isinstance(item, dict) and item.get("task_id") == selected.get("task_id")
+                    ),
+                    None,
+                )
+                if stored is None:
+                    stored = dict(selected)
+                    items.append(stored)
+                lease_minutes = int(
+                    config.get("automation_reliability", {}).get("task_lease_minutes", 15) or 15
+                )
+                lease_task(
+                    stored,
+                    now_dt,
+                    lease_minutes=lease_minutes,
+                    lease_owner="adaptive-dispatcher",
+                )
+                result["task"] = dict(stored)
+            queue["updated_at"] = now
+            ledger["updated_at"] = now
+            atomic_write(state_dir / "work-queue.json", queue)
+            atomic_write(state_dir / "stage-ledger.json", ledger)
             record_decision(state_dir, state, result)
         print(json.dumps(result, indent=2, ensure_ascii=False))
     except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:

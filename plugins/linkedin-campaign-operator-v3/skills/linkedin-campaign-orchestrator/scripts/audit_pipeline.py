@@ -12,9 +12,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from runtime_state import parse_time
+
 
 ANALYTICS_OUTCOMES = {"experiment-registered", "no-change"}
 ANALYTICS_LEARNING_STATUSES = {"provisional", "validated"}
+TERMINAL_STAGE_STATUSES = {"completed", "missed-closed", "superseded", "cancelled"}
 
 
 def load_object(path: Path) -> dict[str, Any]:
@@ -83,12 +86,24 @@ def main() -> int:
                     analytics_errors.append("experiment_outcome")
                 if not stage.get("next_measurement_trigger"):
                     analytics_errors.append("next_measurement_trigger")
+            if stage.get("stage_type") == "publication" and stage.get("status") == "completed":
+                if stage.get("evidence_recorded") is not True:
+                    analytics_errors.append("publication_evidence_recorded")
             valid_completion = not missing and not analytics_errors
             claimed_complete = stage.get("status") == "completed"
             if claimed_complete and not valid_completion:
                 stage["status"] = "missed-recovering"
                 invalid_claims += 1
-            analytics_due = stage.get("stage_type") == "analytics" and stage.get("status") != "completed"
+            due_at = parse_time(stage.get("due_at"))
+            current_time = parse_time(now)
+            analytics_due = (
+                stage.get("stage_type") == "analytics"
+                and stage.get("status") != "completed"
+                and (
+                    stage.get("status") in {"recovering", "missed-recovering"}
+                    or (due_at is not None and current_time is not None and due_at <= current_time)
+                )
+            )
             if analytics_due and (missing or analytics_errors):
                 stage["status"] = "missed-recovering"
             if stage.get("status") == "missed-recovering" or (claimed_complete and not valid_completion):
@@ -118,7 +133,9 @@ def main() -> int:
         ledger["updated_at"] = now
         if args.write:
             atomic_write(ledger_path, ledger)
-        unfinished_stage_count = sum(1 for report in reports if report["status"] != "completed")
+        unfinished_stage_count = sum(
+            1 for report in reports if report["status"] not in TERMINAL_STAGE_STATUSES
+        )
         result = {
             "valid": invalid_claims == 0,
             "audited_at": now,

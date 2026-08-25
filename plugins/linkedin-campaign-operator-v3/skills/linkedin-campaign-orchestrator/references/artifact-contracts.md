@@ -26,9 +26,14 @@ Store mutable artifacts outside the plugin.
 - `stage-ledger.json`: mandatory-stage evidence and completion gates.
 - `signal-events.jsonl`: append-only inbound and soft-reciprocity signals.
 - `schedule-decisions.jsonl`: append-only dispatcher, burst, publication, and wake decisions.
+- `task-events.jsonl`: append-only task lease, start, checkpoint, completion, and failure events.
+- `recovery-events.jsonl`: append-only session restart, downtime, abandoned-lease, missed-task, and rollover recovery events.
+- `publication-evidence.jsonl`: verified post IDs, URLs, regions, content days, packages, and timestamps.
 - `logs/`: daily summaries and execution records.
 
 Every interaction event additionally records its lane, triggering signal, relationship strength, budget classification, and scheduling rationale.
+
+Every queue item records its lifecycle status, attempt count, idempotency key, lease ID and expiry while active, last heartbeat, latest checkpoint, retry eligibility, and evidence-backed terminal outcome. `campaign-state.json` records the consent fingerprint, pinned browser binding, reusable pre-flight evidence, lane circuits, last runtime heartbeat, detected downtime, and latest self-revival report.
 
 ## Pipeline artifacts
 

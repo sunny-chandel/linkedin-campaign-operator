@@ -7,8 +7,11 @@ import argparse
 import json
 import os
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from runtime_state import current_time, reconcile_runtime
 
 
 def merge_missing(current: Any, defaults: Any) -> tuple[Any, bool]:
@@ -52,6 +55,7 @@ def load_object(path: Path) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("state_dir", type=Path)
+    parser.add_argument("--now", help="ISO timestamp used in deterministic tests")
     args = parser.parse_args()
 
     state_dir = args.state_dir.expanduser().resolve()
@@ -76,7 +80,7 @@ def main() -> int:
         "max_actions_per_day",
         "min_proactive_cluster_gap_minutes",
     }
-    config["schema_version"] = "1.1"
+    config["schema_version"] = "1.2"
     fixed = config.setdefault("fixed_rules", {})
     for key in legacy_fixed_keys:
         fixed.pop(key, None)
@@ -105,7 +109,7 @@ def main() -> int:
     if state_path.is_file():
         state_defaults = load_object(assets_dir / "campaign-state.template.json")
         state = load_object(state_path)
-        state["schema_version"] = "1.1"
+        state["schema_version"] = "1.2"
         old_scaling = state.get("engagement_scaling", {})
         if not isinstance(old_scaling, dict):
             old_scaling = {}
@@ -150,6 +154,10 @@ def main() -> int:
                     "target_count": 0,
                     "qualified_count": 0,
                     "staleness_rate": None,
+                    "rejection_rate": None,
+                    "expected_burst_size": 5,
+                    "discovery_yield_per_page": None,
+                    "pass_history": [],
                     "last_replenished_at": None,
                 },
             ),
@@ -201,6 +209,9 @@ def main() -> int:
                 "fully-dynamic-publishing",
                 "automatic-profile-watermark",
                 "permanent-dominant-gif-learning-deletion",
+                "one-time-high-value-consent",
+                "campaign-lifetime-consent-reload",
+                "automatic-recovery-without-routine-questions",
             ]
             current_settings = consent.get("persistent_settings", [])
             if not isinstance(current_settings, list):
@@ -209,8 +220,12 @@ def main() -> int:
                 value for value in current_settings if value != "adaptive-80-action-ceiling"
             ]
             merged_settings = list(dict.fromkeys([*current_settings, *required_settings]))
-            if consent.get("consent_version") != "1.2" or merged_settings != current_settings:
-                consent["consent_version"] = "1.2"
+            receipt = consent.get("authorization_receipt", {})
+            receipt_missing = not isinstance(receipt, dict) or not receipt.get("receipt_id")
+            if consent.get("consent_version") != "2.0" or merged_settings != current_settings or receipt_missing:
+                consent["schema_version"] = "2.0"
+                consent["consent_version"] = "2.0"
+                consent["scope"] = "campaign-lifetime"
                 consent["persistent_settings"] = merged_settings
                 approved = consent.get("approved_action_classes", [])
                 if not isinstance(approved, list):
@@ -218,6 +233,26 @@ def main() -> int:
                 consent["approved_action_classes"] = list(
                     dict.fromkeys([*approved, "adaptive-scheduling", "signal-reciprocity"])
                 )
+                if consent.get("status") == "active" and receipt_missing:
+                    granted_at = consent.get("activated_at") or datetime.now(timezone.utc).isoformat()
+                    consent["activated_at"] = granted_at
+                    consent["authorization_receipt"] = {
+                        "receipt_id": f"consent-{campaign_id}-migrated",
+                        "granted_at": granted_at,
+                        "granted_by": "Sunny Chandel",
+                        "source": "migrated-existing-explicit-owner-consent",
+                        "automation_mode": "fully-automated",
+                        "portable_across_model_sessions": True,
+                    }
+                consent["reconfirmation_policy"] = {
+                    "routine_reconfirmation_required": False,
+                    "reload_on_every_session_start": True,
+                    "reask_only_when": [
+                        "owner-revoked",
+                        "consent-record-missing-or-invalid",
+                        "verified-account-identity-changed",
+                    ],
+                }
                 atomic_write_json(consent_path, consent)
                 consent_updated = True
 
@@ -299,7 +334,13 @@ def main() -> int:
     if not results.exists():
         results.touch()
         created.append(results.name)
-    for name in ("signal-events.jsonl", "schedule-decisions.jsonl"):
+    for name in (
+        "signal-events.jsonl",
+        "schedule-decisions.jsonl",
+        "publication-evidence.jsonl",
+        "task-events.jsonl",
+        "recovery-events.jsonl",
+    ):
         path = state_dir / name
         if not path.exists():
             path.touch()
@@ -411,6 +452,23 @@ def main() -> int:
         )
     ledger["stages"] = stages
     atomic_write_json(ledger_path, ledger)
+    runtime_reconciliation = None
+    if state_path.is_file():
+        state = load_object(state_path)
+        queue = load_object(queue_path)
+        ledger = load_object(ledger_path)
+        runtime_reconciliation = reconcile_runtime(
+            state_dir,
+            state,
+            config,
+            queue,
+            ledger,
+            current_time(args.now),
+            startup=False,
+        )
+        atomic_write_json(state_path, state)
+        atomic_write_json(queue_path, queue)
+        atomic_write_json(ledger_path, ledger)
     for directory in (state_dir / "brand" / "watermarks", state_dir / "gif-reference-captures"):
         if not directory.exists():
             directory.mkdir(parents=True)
@@ -424,6 +482,7 @@ def main() -> int:
                 "state_updated": state_updated,
                 "consent_updated": consent_updated,
                 "created": created,
+                "runtime_reconciliation": runtime_reconciliation,
             }
         )
     )

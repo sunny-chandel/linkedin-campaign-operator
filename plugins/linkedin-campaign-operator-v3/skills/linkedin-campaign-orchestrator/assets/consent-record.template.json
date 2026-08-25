@@ -1,10 +1,28 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "campaign_id": "replace-me",
-  "consent_version": "1.2",
+  "consent_version": "2.0",
   "owner": {"display_name": "Sunny Chandel", "expected_linkedin_identity": "Sunny Chandel"},
   "activated_at": null,
-  "status": "active",
+  "status": "pending",
+  "scope": "campaign-lifetime",
+  "authorization_receipt": {
+    "receipt_id": null,
+    "granted_at": null,
+    "granted_by": null,
+    "source": null,
+    "automation_mode": "fully-automated",
+    "portable_across_model_sessions": true
+  },
+  "reconfirmation_policy": {
+    "routine_reconfirmation_required": false,
+    "reload_on_every_session_start": true,
+    "reask_only_when": [
+      "owner-revoked",
+      "consent-record-missing-or-invalid",
+      "verified-account-identity-changed"
+    ]
+  },
   "accounts": [
     {
       "type": "linkedin-profile",
@@ -38,7 +56,10 @@
     "direct-inbound-overage",
     "fully-dynamic-publishing",
     "automatic-profile-watermark",
-    "permanent-dominant-gif-learning-deletion"
+    "permanent-dominant-gif-learning-deletion",
+    "one-time-high-value-consent",
+    "campaign-lifetime-consent-reload",
+    "automatic-recovery-without-routine-questions"
   ],
   "data_directory": "",
   "owner_stop_signals": ["stop", "pause", "cancel", "revoke", "end campaign"]

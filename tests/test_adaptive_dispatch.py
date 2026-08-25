@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Acceptance tests for the v0.5.0 adaptive dispatcher and state model."""
+"""Acceptance tests for the v0.6.0 reliable adaptive dispatcher and state model."""
 
 from __future__ import annotations
 
@@ -14,9 +14,13 @@ ROOT = Path(__file__).resolve().parents[1]
 PLUGIN = ROOT / "plugins" / "linkedin-campaign-operator-v3"
 ORCHESTRATOR = PLUGIN / "skills" / "linkedin-campaign-orchestrator" / "scripts"
 ENGAGEMENT = PLUGIN / "skills" / "linkedin-engagement-planning" / "scripts"
+TEST_NOW = "2026-08-25T12:00:00+05:30"
 
 
 def run_json(arguments: list[str]) -> dict:
+    script_name = Path(arguments[1]).name if len(arguments) > 1 else ""
+    if script_name in {"dispatch_next_work.py", "migrate_campaign.py", "audit_pipeline.py"} and "--now" not in arguments:
+        arguments = [*arguments, "--now", TEST_NOW]
     completed = subprocess.run(arguments, check=True, capture_output=True, text=True)
     return json.loads(completed.stdout)
 
@@ -36,10 +40,52 @@ class AdaptiveDispatchTests(unittest.TestCase):
     def init_campaign(self, root: Path) -> Path:
         state_dir = root / "campaign"
         run_json(["python3", str(ORCHESTRATOR / "init_campaign.py"), str(state_dir)])
+        logs = state_dir / "logs"
+        for region in ("india", "us-central"):
+            write_json(
+                logs / f"publication-package-{region}-2026-08-25.json",
+                {
+                    "content_day_ist": "2026-08-25",
+                    "target_region": region,
+                    "final_validation_status": "ready-to-publish",
+                },
+            )
+        run_json(
+            [
+                "python3",
+                str(ORCHESTRATOR / "runtime_control.py"),
+                str(state_dir),
+                "--now",
+                TEST_NOW,
+                "consent-grant",
+            ]
+        )
+        run_json(
+            [
+                "python3",
+                str(ORCHESTRATOR / "resume_campaign.py"),
+                str(state_dir),
+                "--now",
+                TEST_NOW,
+                "--session-id",
+                "test-session",
+            ]
+        )
         ledger_path = state_dir / "stage-ledger.json"
         ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
-        ledger["stages"][0]["status"] = "completed"
+        for stage in ledger["stages"]:
+            stage["status"] = "completed" if stage.get("stage_type") == "preflight" else "cancelled"
         write_json(ledger_path, ledger)
+        queue_path = state_dir / "work-queue.json"
+        queue = json.loads(queue_path.read_text(encoding="utf-8"))
+        for item in queue["items"]:
+            item["status"] = "completed"
+        write_json(queue_path, queue)
+        state_path = state_dir / "campaign-state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        state["publishing"]["posts_published"] = 2
+        state["publishing"]["published_post_ids"] = ["test-india", "test-us"]
+        write_json(state_path, state)
         return state_dir
 
     def test_prepared_post_without_queue_builds_queue_instead_of_waiting(self) -> None:
@@ -47,6 +93,8 @@ class AdaptiveDispatchTests(unittest.TestCase):
             state_dir = self.init_campaign(Path(temporary))
             state = json.loads((state_dir / "campaign-state.json").read_text(encoding="utf-8"))
             state["publishing"]["packages_ready"] = 2
+            state["publishing"]["posts_published"] = 0
+            state["publishing"]["published_post_ids"] = []
             write_json(state_dir / "campaign-state.json", state)
             queue = {
                 "schema_version": "1.0",
@@ -266,6 +314,9 @@ class AdaptiveDispatchTests(unittest.TestCase):
             self.assertNotEqual(failed.returncode, 0)
             self.assertIn("limit", failed.stderr)
             state_dir = self.init_campaign(root)
+            state = json.loads((state_dir / "campaign-state.json").read_text(encoding="utf-8"))
+            state["engagement_scaling"]["base_actions_used"] = 100
+            write_json(state_dir / "campaign-state.json", state)
             decision = run_json(
                 ["python3", str(ORCHESTRATOR / "dispatch_next_work.py"), str(state_dir)]
             )
@@ -307,6 +358,9 @@ class AdaptiveDispatchTests(unittest.TestCase):
     def test_wait_requires_empty_queue_and_evidence_backed_trigger(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             state_dir = self.init_campaign(Path(temporary))
+            state = json.loads((state_dir / "campaign-state.json").read_text(encoding="utf-8"))
+            state["engagement_scaling"]["base_actions_used"] = 100
+            write_json(state_dir / "campaign-state.json", state)
             first = run_json(["python3", str(ORCHESTRATOR / "dispatch_next_work.py"), str(state_dir)])
             self.assertEqual(first["decision"], "execute")
             state = json.loads((state_dir / "campaign-state.json").read_text(encoding="utf-8"))
@@ -368,12 +422,292 @@ class AdaptiveDispatchTests(unittest.TestCase):
             production_task = next(
                 item
                 for item in json.loads((state_dir / "work-queue.json").read_text(encoding="utf-8"))["items"]
-                if item["task_id"] == "prepare-two-packages"
+                if item["task_type"] == "two-package-production"
             )
             self.assertEqual(production_task["required_regions"], ["india", "us-central"])
             self.assertEqual(production_task["required_package_count"], 2)
             validated = run_json(["python3", str(ORCHESTRATOR / "validate_campaign.py"), str(state_dir)])
             self.assertTrue(validated["valid"])
+
+    def test_one_time_consent_persists_across_session_restart(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            state_dir = Path(temporary) / "campaign"
+            run_json(["python3", str(ORCHESTRATOR / "init_campaign.py"), str(state_dir)])
+            before = run_json(
+                ["python3", str(ORCHESTRATOR / "dispatch_next_work.py"), str(state_dir)]
+            )
+            self.assertEqual(before["decision"], "consent-required")
+            granted = run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "runtime_control.py"),
+                    str(state_dir),
+                    "--now",
+                    TEST_NOW,
+                    "consent-grant",
+                ]
+            )
+            restarted = run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "resume_campaign.py"),
+                    str(state_dir),
+                    "--now",
+                    "2026-08-25T13:00:00+05:30",
+                    "--session-id",
+                    "replacement-model-session",
+                ]
+            )
+            granted_again = run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "runtime_control.py"),
+                    str(state_dir),
+                    "--now",
+                    "2026-08-25T13:01:00+05:30",
+                    "consent-grant",
+                ]
+            )
+            self.assertTrue(restarted["self_revived"])
+            self.assertTrue(granted_again["already_active"])
+            self.assertEqual(granted["receipt_id"], granted_again["receipt_id"])
+
+    def test_browser_binding_is_reused_and_preflight_evidence_is_cached(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            state_dir = self.init_campaign(Path(temporary))
+            first = run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "runtime_control.py"),
+                    str(state_dir),
+                    "--now",
+                    TEST_NOW,
+                    "browser-bind",
+                    "--device-id",
+                    "local-mac",
+                    "--device-label",
+                    "Sunny Mac",
+                    "--platform",
+                    "macOS",
+                    "--identity-verified",
+                ]
+            )
+            failed = run_failure(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "runtime_control.py"),
+                    str(state_dir),
+                    "--now",
+                    TEST_NOW,
+                    "browser-bind",
+                    "--device-id",
+                    "remote-windows",
+                ]
+            )
+            run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "runtime_control.py"),
+                    str(state_dir),
+                    "--now",
+                    TEST_NOW,
+                    "preflight-record",
+                    "--component",
+                    "browser",
+                    "--status",
+                    "passed",
+                    "--evidence",
+                    "connected local macOS",
+                ]
+            )
+            cached = run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "runtime_control.py"),
+                    str(state_dir),
+                    "--now",
+                    "2026-08-25T12:15:00+05:30",
+                    "preflight-status",
+                ]
+            )
+            self.assertEqual(first["browser_binding"]["device_id"], "local-mac")
+            self.assertIn("already pinned", failed["error"])
+            self.assertIn("browser", cached["reusable_components"])
+
+    def test_restart_expires_lease_and_rolls_to_current_content_day(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            state_dir = self.init_campaign(Path(temporary))
+            logs = state_dir / "logs"
+            for region in ("india", "us-central"):
+                write_json(
+                    logs / f"publication-package-{region}-2026-08-26.json",
+                    {
+                        "content_day_ist": "2026-08-26",
+                        "target_region": region,
+                        "final_validation_status": "ready-to-publish",
+                    },
+                )
+            queue = {
+                "schema_version": "1.1",
+                "campaign_id": "sunny-linkedin-10k-10k",
+                "items": [
+                    {
+                        "task_id": "offline-checkpointed",
+                        "task_type": "analytics-and-investigation",
+                        "lane": "offline",
+                        "priority": 8,
+                        "status": "running",
+                        "ready": True,
+                        "requires_linkedin": False,
+                        "lease_id": "old-lease",
+                        "lease_expires_at": "2026-08-26T00:10:00+05:30",
+                        "checkpoint": {"sources_saved": 3},
+                    }
+                ],
+            }
+            write_json(state_dir / "work-queue.json", queue)
+            revived = run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "resume_campaign.py"),
+                    str(state_dir),
+                    "--now",
+                    "2026-08-26T01:00:00+05:30",
+                    "--session-id",
+                    "after-machine-restart",
+                ]
+            )
+            state = json.loads((state_dir / "campaign-state.json").read_text(encoding="utf-8"))
+            tasks = json.loads((state_dir / "work-queue.json").read_text(encoding="utf-8"))["items"]
+            recovered = next(item for item in tasks if item["task_id"] == "offline-checkpointed")
+            publication_ids = {item["task_id"] for item in tasks if item["task_type"] == "publication-opportunity"}
+            self.assertTrue(revived["content_day"]["rollover_performed"])
+            self.assertEqual(state["publishing"]["content_day_ist"], "2026-08-26")
+            self.assertEqual(state["publishing"]["posts_published"], 0)
+            self.assertEqual(recovered["status"], "recovering")
+            self.assertEqual(recovered["checkpoint"]["sources_saved"], 3)
+            self.assertIn("publish-india-2026-08-26", publication_ids)
+            self.assertIn("publish-us-central-2026-08-26", publication_ids)
+
+    def test_lane_circuit_breaker_routes_to_offline_work_and_auto_probe(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            state_dir = self.init_campaign(Path(temporary))
+            for minute in (0, 1):
+                run_json(
+                    [
+                        "python3",
+                        str(ORCHESTRATOR / "runtime_control.py"),
+                        str(state_dir),
+                        "--now",
+                        f"2026-08-25T12:0{minute}:00+05:30",
+                        "lane-event",
+                        "--lane",
+                        "linkedin",
+                        "--event",
+                        "transient-failure",
+                        "--reason",
+                        "page loading stalled",
+                    ]
+                )
+            queue = json.loads((state_dir / "work-queue.json").read_text(encoding="utf-8"))
+            queue["items"].append(
+                {
+                    "task_id": "offline-during-circuit",
+                    "task_type": "analytics-and-investigation",
+                    "lane": "offline",
+                    "priority": 8,
+                    "status": "pending",
+                    "ready": True,
+                    "requires_linkedin": False,
+                }
+            )
+            write_json(state_dir / "work-queue.json", queue)
+            during = run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "dispatch_next_work.py"),
+                    str(state_dir),
+                    "--now",
+                    "2026-08-25T12:02:00+05:30",
+                ]
+            )
+            probe = run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "dispatch_next_work.py"),
+                    str(state_dir),
+                    "--now",
+                    "2026-08-25T12:17:00+05:30",
+                ]
+            )
+            self.assertEqual(during["task"]["task_id"], "offline-during-circuit")
+            self.assertEqual(probe["task"]["task_type"], "lane-recovery-probe")
+
+    def test_reserve_target_is_adaptive_and_low_yield_pass_backs_off(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            state_dir = self.init_campaign(Path(temporary))
+            queue = json.loads((state_dir / "work-queue.json").read_text(encoding="utf-8"))
+            queue["items"].append(
+                {
+                    "task_id": "reserve-pass-test",
+                    "task_type": "adaptive-reserve",
+                    "lane": "linkedin",
+                    "priority": 6,
+                    "status": "running",
+                    "ready": True,
+                    "requires_linkedin": True,
+                }
+            )
+            write_json(state_dir / "work-queue.json", queue)
+            result = run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "runtime_control.py"),
+                    str(state_dir),
+                    "--now",
+                    TEST_NOW,
+                    "reserve-pass",
+                    "--task-id",
+                    "reserve-pass-test",
+                    "--pages",
+                    "5",
+                    "--elapsed-minutes",
+                    "8",
+                    "--inspected",
+                    "12",
+                    "--qualified-found",
+                    "1",
+                    "--qualified-total",
+                    "1",
+                    "--rejected",
+                    "0",
+                ]
+            )
+            self.assertNotEqual(result["reserve"]["target_count"], 20)
+            self.assertTrue(result["stopping_condition_reached"])
+            self.assertEqual(result["task"]["status"], "retry-wait")
+            self.assertTrue(result["task"]["next_eligible_at"])
+
+    def test_nonurgent_task_starvation_rotates_after_two_selections(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            state_dir = self.init_campaign(Path(temporary))
+            state = json.loads((state_dir / "campaign-state.json").read_text(encoding="utf-8"))
+            state["engagement_scaling"]["base_actions_used"] = 100
+            state["dispatcher"]["last_selected_task_type"] = "analytics-and-investigation"
+            state["dispatcher"]["consecutive_same_task_type"] = 2
+            write_json(state_dir / "campaign-state.json", state)
+            queue = json.loads((state_dir / "work-queue.json").read_text(encoding="utf-8"))
+            queue["items"].extend(
+                [
+                    {"task_id": "analytics-first", "task_type": "analytics-and-investigation", "lane": "offline", "priority": 8, "status": "pending", "ready": True, "requires_linkedin": False},
+                    {"task_id": "creator-alternative", "task_type": "creator-research", "lane": "offline", "priority": 9, "status": "pending", "ready": True, "requires_linkedin": False},
+                ]
+            )
+            write_json(state_dir / "work-queue.json", queue)
+            decision = run_json(
+                ["python3", str(ORCHESTRATOR / "dispatch_next_work.py"), str(state_dir)]
+            )
+            self.assertEqual(decision["task"]["task_id"], "creator-alternative")
 
 
 if __name__ == "__main__":

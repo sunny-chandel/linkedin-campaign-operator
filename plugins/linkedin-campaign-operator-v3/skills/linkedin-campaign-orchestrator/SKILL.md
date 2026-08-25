@@ -3,7 +3,7 @@ name: linkedin-campaign-orchestrator
 description: Run Sunny Chandel's persistent organic LinkedIn 10k/10k operating system with continuous 24-hour dispatch, adaptive engagement and reciprocity, dynamic publishing, live skill refresh, state recovery, and auditable execution. Use for complete content days and continued execution toward 10,000 followers and 10,000 connections; do not treat it as an advertising campaign builder.
 metadata:
   author: sunny
-  version: "0.5.0"
+  version: "0.6.0"
 ---
 
 # LinkedIn campaign orchestrator
@@ -15,7 +15,8 @@ This is a preconfigured organic profile-growth operating system for Sunny Chande
 ## Non-negotiable operating rules
 
 - Lock the target and automation envelope before entering automated mode.
-- Invoking this skill or telling it to start records the recognized owner's consent for the complete fixed system. Do not ask for another setup approval or routine action confirmation.
+- On the first run only, when no valid active authorization receipt exists, tell the recognized owner that the system will perform pre-flight checks and then operate the fixed campaign autonomously. Ask one direct consent question. After the owner agrees, immediately run `python scripts/runtime_control.py <state-dir> consent-grant --owner "Sunny Chandel" --source explicit-owner-confirmation`.
+- The resulting campaign-lifetime consent record is the durable authority for this campaign across context compression, model changes, Claude restarts, and later sessions. Reload it from disk instead of relying on conversation memory. Never ask for routine approval again while that receipt remains active and the verified account identity has not changed.
 - Use connected Chrome for LinkedIn pre-flight, reading, publishing, comments, replies, DMs, reactions, and other scheduled campaign actions.
 - Any interactive verification, technical signal, access message, wrong login, or identity mismatch blocks the LinkedIn lane. Stop LinkedIn mutations, tell Sunny exactly what must be corrected, and continue valid offline work. Mark the whole pipeline `hard-blocked` only when no authorized offline work can advance.
 - Keep system and skill instructions immutable during a campaign. Store learning in runtime state, not in this skill.
@@ -24,9 +25,9 @@ This is a preconfigured organic profile-growth operating system for Sunny Chande
 
 For exact state definitions and recovery rules, read [state and consent](references/state-and-consent.md).
 
-## Startup behavior
+## Startup and self-revival
 
-Start with Chrome pre-flight. Do not initialize a generic campaign, create a setup visualization, display an onboarding questionnaire, produce a marketing brief, or ask for configuration before checking Chrome.
+Start by recovering durable state, not by interpreting the visible chat transcript. Do not initialize a generic campaign, create a setup visualization, display an onboarding questionnaire, produce a marketing brief, or ask for configuration.
 
 The package already fixes these values; never ask for them during startup:
 
@@ -39,9 +40,13 @@ The package already fixes these values; never ask for them during startup:
 
 The fixed LinkedIn profile is `https://www.linkedin.com/in/sunny-chandel-6a05bb401/`. Use Chrome and visible profile information, recent content, analytics, and entitlement information to determine current follower and connection baselines, professional niche, content pillars, premium products, and usable capabilities. Never ask for the profile URL, niche, baselines, or premium plan before attempting to discover them.
 
-After Chrome pre-flight passes, continue the existing `sunny-linkedin-10k-10k` state when available. Otherwise initialize `campaign-data/sunny-linkedin-10k-10k/` with `python scripts/init_campaign.py <state-dir>`. For an existing state directory, run `python scripts/migrate_campaign.py <state-dir>` before validation so newly introduced artifacts and safe defaults are added without overwriting campaign data. Migrate any older blank or generic draft to these fixed defaults. Store discovered values when visible; record temporarily unavailable optional values as unknown and continue.
+Continue the existing `sunny-linkedin-10k-10k` state when available. Otherwise initialize `campaign-data/sunny-linkedin-10k-10k/` with `python scripts/init_campaign.py <state-dir>`. For an existing state directory, run `python scripts/migrate_campaign.py <state-dir>` before validation so newly introduced artifacts and safe defaults are added without overwriting campaign data. Migrate any older blank or generic draft to these fixed defaults.
 
-Run `python scripts/validate_campaign.py <state-dir>`. The initializer records active consent from the recognized owner. Do not present a consent questionnaire or activation summary. Ask the owner only for the exact action needed to clear a hard blocker.
+Then run `python scripts/resume_campaign.py <state-dir> --session-id <current-session-id>`. This is mandatory on every new or resumed Claude Code session and after a detected machine interruption. It reloads the consent receipt, detects downtime, expires abandoned leases, reconciles the IST content day, reconstructs missing daily tasks from artifacts and evidence, restores safe missed work, closes obsolete time-bound work explicitly, and preserves every confirmed external outcome. Immediately run `audit_pipeline.py --write` and `dispatch_next_work.py --record`, then execute the returned task.
+
+If self-revival reports `consent-required`, ask the single initial consent question and store the answer. If it loads an active receipt, do not mention consent as a question and do not seek confirmation again. Run `python scripts/validate_campaign.py <state-dir>` after consent is active. Store discovered optional values when visible; record temporarily unavailable values as `unknown` and continue.
+
+Self-revival catches up safe missed work after downtime but never fabricates activity, duplicates an ambiguous external mutation, publishes an obsolete prior-day package, or makes up missed engagement volume. Recover analytics, research, state, current-day publication, and still-valid signal work; close stale time-bound tasks with evidence and create the correct current-day replacement.
 
 ## Lifecycle
 
@@ -66,18 +71,20 @@ Read [runtime plugin refresh](references/runtime-refresh.md) for the exact versi
 
 Run once at the start of every content day and again whenever a capability or identity state must be revalidated, in this order:
 
-1. Call `list_connected_browsers` and confirm the intended Chrome device. If Chrome is unavailable or the device is wrong, block only the LinkedIn lane, ask Sunny only to connect or select the correct Chrome device, and continue valid offline work.
-2. Open LinkedIn in the connected Chrome session and confirm it is logged in as Sunny Chandel by matching the displayed identity and fixed profile URL. Read the current profile name, handle, headline, image, niche, and visible positioning. If logged out or on the wrong account, block LinkedIn execution, ask Sunny only to correct the login, and preserve offline work that does not depend on new identity evidence.
+Before using a browser tool, run `python scripts/runtime_control.py <state-dir> preflight-status`. Reuse every unexpired passed component. Recheck only missing or expired components, a changed browser connection, a navigation/authentication failure, a visible identity change, or a technical signal.
+
+1. Call `list_connected_browsers`. If a verified device is already stored in `dispatcher.browser_binding`, select that exact device automatically. Never ask which browser to use. If no binding exists, prefer the local macOS device, verify the fixed LinkedIn identity, and persist it with `runtime_control.py browser-bind`; if it does not match, test the remaining connected devices read-only and bind the first verified match. A different device may replace the binding only after an explicit owner reset.
+2. Open LinkedIn in the pinned Chrome session and confirm it is logged in as Sunny Chandel by matching the displayed identity and fixed profile URL. Record the passed checks with `runtime_control.py preflight-record`. If the pinned device is temporarily unavailable, retry through the configured circuit breaker, continue offline work, and probe it automatically later. Report a required login or connection correction as a blocker status, not as a routine consent or device-choice question.
 3. Open Claude Design and confirm its dashboard or projects load. If unavailable, block the creative lane, report that exact blocker, and continue work whose required artifacts can still be produced truthfully.
 4. Confirm the `file_upload` capability is loaded. Never click a native file-input button directly; locate the input with page-reading tools and use `file_upload` with the local path. The upload cap is 10 MB per call.
 5. Inspect the latest available Chrome, Claude Design, computer-use, and upload capabilities needed for the cycle and use the current supported workflow.
 6. Run `linkedin-brand-system`. Reuse a valid profile-matched watermark kit or create and validate it in Claude Design, then make it active automatically.
 7. Run `linkedin-premium-router` to inventory active LinkedIn paid entitlements, plan tiers, roles, limits, credits, and expiry information; calculate `subscription-utilization-plan.json`; and complete eligible setup for already-included features.
 8. Read current followers, connections, recent content, and available analytics from the connected account, and save discovered values to campaign state.
-9. Load or initialize campaign configuration, consent, current state, work queue, stage ledger, signal log, schedule-decision log, unresolved failures, runtime learning, active experiments, strategy weights, creator registry, GIF pattern library, and the Working Algorithm Model.
+9. Load campaign configuration, the persistent authorization receipt and state snapshot, current state, work queue, task-event log, recovery log, stage ledger, signal log, schedule-decision log, unresolved failures, runtime learning, active experiments, strategy weights, creator registry, GIF pattern library, and the Working Algorithm Model.
 10. Recalculate target progress. If achieved, save final evidence and mark `completed`; otherwise continue immediately from the next valid pipeline stage.
 
-An identity, warning, restriction, or Chrome failure stops the LinkedIn lane at that point. Continue research, analytics from stored data, queue scoring from saved evidence, content preparation, creative work, subscription analysis, and logging. Recoverable or optional gaps use automatic fallbacks, are recorded as `unknown` when necessary, and do not stop the offline lane. Do not replace a failed Chrome check with a generic questionnaire.
+An identity, warning, restriction, or Chrome failure stops the LinkedIn lane at that point. Record it through `runtime_control.py lane-event`, continue research, analytics from stored data, queue scoring from saved evidence, content preparation, creative work, subscription analysis, and logging, and let the circuit breaker schedule the next safe probe. Recoverable or optional gaps use automatic fallbacks, are recorded as `unknown` when necessary, and do not stop the offline lane. Do not replace a failed Chrome check with a generic questionnaire.
 
 Do not reopen a locked target during pre-flight. A missing optional goal-tracking feature is not a blocker.
 
@@ -101,7 +108,9 @@ If either required publication package is missing, incomplete, stale, or invalid
 
 Every supporting skill inherits the active consent and automation state from this parent. A subskill must never create an onboarding step, request routine approval, ask the owner to invoke another skill, or return a “what should I do next?” choice. Resolve missing non-sensitive inputs in this order: read persistent state, inspect the connected account or existing artifacts, derive from verified evidence, then use the fixed campaign default or record `unknown`. Regenerate missing or invalid artifacts from the nearest valid upstream artifact. Use a documented base-flow fallback when an optional tool, metric, source, or premium feature is unavailable. Return a structured result to this orchestrator after every stage, including partial results and recovery notes, so the pipeline always advances or enters an explicit lifecycle state.
 
-For recoverable failures, save state, verify the last observable outcome, retry safely up to the configured limit, select the best valid fallback, and continue without asking. Never terminate merely because a preferred source, candidate, metric, asset format, or premium feature is unavailable. At every wake and after every completed task, run `audit_pipeline.py` and `dispatch_next_work.py --record`. A wait is valid only when both scripts confirm that no executable or recoverable work exists and campaign state contains an evidence-backed next wake trigger. Never use repeated fixed-duration sleep loops. Use `campaign_status.py` for status reports so posting progress, engagement utilization, analytics debt, blockers, and true idle time remain distinct.
+For recoverable failures, save state, verify the last observable outcome, retry safely up to the configured limit, select the best valid fallback, and continue without asking. Never terminate merely because a preferred source, candidate, metric, asset format, or premium feature is unavailable. At every wake and after every completed task, run `audit_pipeline.py` and `dispatch_next_work.py --record`. A recorded dispatch leases the selected task. Immediately record `task-event start`; checkpoint every useful result; record `complete` with evidence or `fail` with the observed reason. Never modify queue status manually. Expired leases recover automatically after a crash or restart.
+
+Do not select the same non-urgent task type more than twice consecutively when another eligible type exists. Publication, direct inbound, pre-flight, lane recovery, and mandatory recovery are exempt. A wait is valid only when both scripts confirm that no executable or recoverable work exists and campaign state contains an evidence-backed next wake trigger. Never use repeated fixed-duration sleep loops. Use `campaign_status.py` for status reports so posting progress, engagement utilization, analytics debt, blockers, continuity, consent state, browser binding, and true idle time remain distinct.
 
 ## Continuous 24-hour pipeline
 
@@ -110,6 +119,8 @@ Run a continuous dispatcher in Asia/Kolkata time. LinkedIn and offline work may 
 Give 9:00 PM-2:00 AM priority to source research, learning-ledger maintenance, experiment registration, and production of exactly two validated packages for the next content day: one India and one US-Central. High-value inbound signals may still interrupt this production block. Do not stockpile a third package.
 
 At each dispatcher cycle, use this order: technical signal or identity blocker; genuine direct inbound; due publication opportunity; mandatory-stage or analytics recovery; qualified soft reciprocity; adaptive-reserve replenishment; two-package production; analytics and investigation. Read [continuous dispatch](references/continuous-dispatch.md) for signal routing, adaptive timing, budget accounting, completion gates, and lane-specific recovery.
+
+Reserve size is calculated from the next predicted bursts, recent executed burst size, staleness, rejection rate, remaining budget, and configured bounds. It is not a fixed 20-person requirement. Every reserve pass stops at five pages, eight minutes, the configured minimum qualified yield, target completion, or diminishing marginal value. Record the pass with `runtime_control.py reserve-pass`; a stopped low-yield pass enters backoff so publication, analytics, production, or another investigation path can run.
 
 Publishing has no fixed time or fixed separation. Run `select_publish_time.py <opportunities> --state-dir <state-dir> --record` against current regional activity, qualified-target activity, topic freshness, network velocity, the previous post's engagement velocity, historical equal-age performance, format/pillar fit, remaining-day opportunity, and cannibalization evidence. Guarantee exactly two verified publications per IST content day; if no strong opportunity appears, use the highest-scoring final remaining opportunity before the day closes.
 

@@ -3,12 +3,14 @@ name: linkedin-content-production
 description: Turn a completed, verified research brief into LinkedIn captions and Claude Design assets using the campaign's voices, active watermark kit, and per-post GIF creative specification. Use for daily post packages and response drafts.
 metadata:
   author: sunny
-  version: "0.5.0"
+  version: "0.6.0"
 ---
 
 # LinkedIn content production
 
 Create publication-ready packages from completed, verified research briefs. Read [voice and design](references/voice-and-design.md) before drafting. In automated mode, a valid brief is sufficient authorization to continue; do not ask the owner to approve the brief or to start production.
+
+Inherit the parent's active campaign-lifetime consent receipt and leased task. Never request a second approval after a restart or model change. Checkpoint the caption, design source, export, watermark validation, and final package separately so self-revival resumes from the last verified artifact without rebuilding completed work.
 
 For each IST content day, produce and validate exactly two packages: one India-focused package and one US-Central-focused package. Never create a third scheduled, backup, or stockpiled package. Treat 9:00 PM to 2:00 AM IST as the priority production period, but accept production work from the continuous dispatcher at any hour when it outranks other available offline work.
 

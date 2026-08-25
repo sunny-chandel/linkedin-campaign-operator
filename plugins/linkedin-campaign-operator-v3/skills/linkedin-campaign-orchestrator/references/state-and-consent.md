@@ -4,9 +4,13 @@
 
 The recognized owner is the person controlling the trusted Claude session and named in `consent-record.json`. The fixed LinkedIn identity is Sunny Chandel at `https://www.linkedin.com/in/sunny-chandel-6a05bb401/`.
 
-## Stored consent
+## One-time stored consent
 
-Invoking the parent skill or explicitly telling it to start activates and stores consent for the fixed system. The record identifies:
+When no valid active receipt exists, the parent tells the recognized owner that it will run pre-flight and then operate the fixed system autonomously, asks one direct consent question, and records the answer through `runtime_control.py consent-grant`. Invoking a child skill never creates a second consent step.
+
+`consent-record.json` is authoritative across context compression, model changes, application restarts, and later Claude Code sessions. Conversation memory is not authoritative. Every startup and dispatch reloads the record, validates its fingerprint, and mirrors its receipt into `campaign-state.json`. An active campaign-lifetime receipt disables routine reconfirmation until the owner revokes it, the record becomes invalid or unavailable, or the verified account identity changes.
+
+The record identifies:
 
 - campaign and owner;
 - target formula and completion evidence;
@@ -22,6 +26,12 @@ Invoking the parent skill or explicitly telling it to start activates and stores
 - consent version and activation timestamp.
 
 Research, design, LinkedIn reading, publishing, comments, replies, DMs, reactions, queue work, analytics, and logging need no repeated approval after the recognized owner starts the system.
+
+Do not describe a browser reconnect, pre-flight refresh, content preview, subskill transition, retry, recovery, or session restart as requiring fresh consent. A hard platform or identity blocker may require owner intervention, but clearing it does not create a new campaign-consent ceremony.
+
+## Restart recovery
+
+Every new or resumed session runs `resume_campaign.py` before ordinary dispatch. It reloads consent, calculates downtime from the last heartbeat, reopens abandoned task leases, reconciles the current IST day, discovers missing tasks from durable artifacts, and records a recovery event. Safe unfinished work resumes from its latest checkpoint. Completed external mutations remain completed. Obsolete prior-day publication or engagement work is closed with a reason instead of being replayed; current-day replacements are created automatically.
 
 ## Failure classification
 
@@ -49,7 +59,7 @@ Hard blocker:
 1. Save the last confirmed action and observed outcome.
 2. Verify whether an external mutation succeeded before retrying.
 3. Retry only idempotent or clearly failed operations.
-4. Use at most two safe retries for the same transient operation before choosing a fallback or classifying it as blocked.
+4. Use at most two safe retries for the same transient operation, then open the lane circuit and schedule an automatic probe while other work continues.
 5. Never repeat an ambiguous post, comment, message, or invitation.
 6. Keep offline work moving while the LinkedIn lane is unavailable, then resume that lane automatically when Chrome or LinkedIn is restored.
 7. Run the dispatcher immediately after recovery. Do not make up missed volume or manufacture actions.

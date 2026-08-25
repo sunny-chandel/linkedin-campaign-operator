@@ -78,6 +78,19 @@ class SubscriptionOptimizerTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
             )
+            subprocess.run(
+                [
+                    "python3",
+                    str(ORCHESTRATOR_SCRIPTS / "runtime_control.py"),
+                    str(state_dir),
+                    "--now",
+                    "2026-08-25T12:00:00+05:30",
+                    "consent-grant",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
             config_path = state_dir / "campaign-config.json"
             config = json.loads(config_path.read_text(encoding="utf-8"))
             config["audience"]["niche"] = "preserve-me"
@@ -94,7 +107,13 @@ class SubscriptionOptimizerTests(unittest.TestCase):
             ):
                 (state_dir / name).unlink()
             subprocess.run(
-                ["python3", str(ORCHESTRATOR_SCRIPTS / "migrate_campaign.py"), str(state_dir)],
+                [
+                    "python3",
+                    str(ORCHESTRATOR_SCRIPTS / "migrate_campaign.py"),
+                    str(state_dir),
+                    "--now",
+                    "2026-08-25T12:00:00+05:30",
+                ],
                 check=True,
                 capture_output=True,
                 text=True,
@@ -103,7 +122,9 @@ class SubscriptionOptimizerTests(unittest.TestCase):
             self.assertEqual(migrated["audience"]["niche"], "preserve-me")
             self.assertTrue(migrated["subscription_optimization"]["enabled"])
             consent = json.loads((state_dir / "consent-record.json").read_text(encoding="utf-8"))
-            self.assertEqual(consent["consent_version"], "1.2")
+            self.assertEqual(consent["consent_version"], "2.0")
+            self.assertEqual(consent["scope"], "campaign-lifetime")
+            self.assertFalse(consent["reconfirmation_policy"]["routine_reconfirmation_required"])
             self.assertIn("adaptive-100-base-action-ceiling", consent["persistent_settings"])
             self.assertNotIn("adaptive-80-action-ceiling", consent["persistent_settings"])
             migrated_state = json.loads(state_path.read_text(encoding="utf-8"))

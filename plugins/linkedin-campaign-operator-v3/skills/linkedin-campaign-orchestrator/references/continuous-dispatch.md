@@ -4,6 +4,10 @@
 
 Run `audit_pipeline.py <state-dir> --write` and `dispatch_next_work.py <state-dir> --record` at every wake and after every completed task. Execute the returned task, update its artifact and stage status, then dispatch again. A `wait` decision is valid only when the work queue contains no unfinished task, the mandatory stage ledger contains no unfinished stage, and the recorded wake trigger is supported by current evidence.
 
+`--record` leases the selected task for the configured duration. Record `task-event start` before work, checkpoint every durable result, and record either evidence-backed completion or a retryable failure. Task states are `pending`, `leased`, `running`, `retry-wait`, `recovering`, `missed-recovering`, and terminal outcomes. A restart expires abandoned leases and resumes from the latest checkpoint. Idempotency keys prevent the same daily package, publication, or recovery task from being created twice.
+
+The IST rollover is transactional and runs before selection. It archives the previous day's counters, activates valid packages for the new day, reconstructs region-specific publication tasks, creates the new mandatory stages, resets the base budget, and preserves verified publication evidence. It never carries yesterday's `2/2` publication count into today.
+
 Do not run repeated fixed-duration sleep commands. Compute the next wake from the earliest predicted inbound event, publication opportunity, queue-staleness event, analytics trigger, content deadline, recovery requirement, or subscription-capacity event. Record the evidence, predicted opportunity, unfinished-work count, and wake trigger in `schedule-decisions.jsonl`.
 
 ## Engagement lanes and accounting
@@ -18,7 +22,9 @@ Every action record includes lane, triggering signal, relationship strength, bud
 
 A proactive burst contains no more than 10 combined proactive and soft-reciprocal actions. Start a burst only when the Working Algorithm Model predicts positive marginal value from qualified-candidate density, regional opportunity, audience spillover, historical performance, remaining base capacity, and current concentration. There is no fixed interval. Recent concentration lowers the opportunity score and decays according to observed outcomes and platform feedback.
 
-Forecast the next two likely bursts and maintain an adaptive reserve based on expected burst size and recent candidate-staleness or rejection rates. If reserve coverage is weak, investigation and discovery outrank waiting. Do not force an action or lower the score threshold.
+Forecast the next two likely bursts and calculate the reserve target from recent executed burst size, candidate staleness, rejection rate, remaining budget, and the configured minimum and maximum. Do not default to two full 10-action bursts. Each discovery pass stops after five pages, eight minutes, low qualified yield, target completion, or declining marginal value. Persist candidates as they are found and record the pass immediately. A low-yield or limit-ending pass enters backoff so another work type can run. If reserve coverage is weak, investigation and discovery outrank waiting. Do not force an action or lower the score threshold.
+
+Prevent starvation: after two consecutive selections of the same non-urgent task type, select the highest-ranked different eligible type. Direct inbound, due publication, pre-flight, lane recovery, and mandatory recovery remain exempt.
 
 ## Dynamic publication
 
@@ -30,4 +36,4 @@ Evaluate publication opportunities without fixed times or spacing. Use `select_p
 
 A stage cannot be complete until `audit_pipeline.py` validates its required artifacts. Analytics completion requires a learning record, either an experiment registration or an explicit no-change decision, and a next measurement trigger. Raw snapshots alone are incomplete.
 
-Chrome loss, interactive verification, identity mismatch, warning, or restriction blocks the LinkedIn lane. Retry safely up to two times, preserve external-outcome evidence, and continue offline research, analytics, production, queue scoring from saved evidence, creative work, and logging. Resume LinkedIn automatically after verification. Mark the entire campaign hard-blocked only when neither lane can advance.
+Chrome loss or a transient page failure enters the LinkedIn circuit breaker. Retry safely up to two times, then open the circuit, preserve external-outcome evidence, continue offline research, analytics, production, queue scoring from saved evidence, creative work, and logging, and run an automatic probe after cooldown. interactive verification, identity mismatch, warning, or restriction blocks LinkedIn mutations and is reported as an intervention status. Resume LinkedIn automatically after verification. Mark the entire campaign hard-blocked only when neither lane can advance.

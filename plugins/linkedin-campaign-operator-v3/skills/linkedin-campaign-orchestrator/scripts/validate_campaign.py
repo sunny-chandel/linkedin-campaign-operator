@@ -16,6 +16,9 @@ REQUIRED_ARTIFACTS = (
     "working-algorithm-model.json",
     "signal-events.jsonl",
     "schedule-decisions.jsonl",
+    "publication-evidence.jsonl",
+    "task-events.jsonl",
+    "recovery-events.jsonl",
 )
 VALID_STATES = {"ready", "running", "recovering", "hard-blocked", "completed", "user-stopped"}
 
@@ -80,10 +83,23 @@ def main() -> int:
         errors.append("consent-record.json owner.expected_linkedin_identity must equal Sunny Chandel")
     if consent.get("status") != "active" and not args.allow_draft:
         errors.append("consent-record.json status must be active")
-    if consent.get("consent_version") != "1.2":
-        errors.append("consent-record.json consent_version must equal 1.2")
+    if consent.get("consent_version") != "2.0":
+        errors.append("consent-record.json consent_version must equal 2.0")
+    if consent.get("scope") != "campaign-lifetime":
+        errors.append("consent-record.json scope must equal campaign-lifetime")
     if not consent.get("activated_at") and not args.allow_draft:
         errors.append("consent-record.json activated_at must be set")
+    receipt = consent.get("authorization_receipt", {})
+    if not args.allow_draft and (
+        not isinstance(receipt, dict)
+        or not receipt.get("receipt_id")
+        or not receipt.get("granted_at")
+        or receipt.get("portable_across_model_sessions") is not True
+    ):
+        errors.append("consent-record.json must contain a persistent authorization receipt")
+    reconfirmation = consent.get("reconfirmation_policy", {})
+    if reconfirmation.get("routine_reconfirmation_required") is not False:
+        errors.append("consent-record.json routine reconfirmation must be disabled")
     accounts = consent.get("accounts", [])
     expected_url = "https://www.linkedin.com/in/sunny-chandel-6a05bb401/"
     if not any(account.get("url") == expected_url for account in accounts if isinstance(account, dict)):
@@ -101,12 +117,19 @@ def main() -> int:
         "fully-dynamic-publishing",
         "automatic-profile-watermark",
         "permanent-dominant-gif-learning-deletion",
+        "one-time-high-value-consent",
+        "campaign-lifetime-consent-reload",
+        "automatic-recovery-without-routine-questions",
     }
     if not isinstance(persistent_settings, list) or not required_settings.issubset(set(persistent_settings)):
         errors.append("consent-record.json persistent_settings must contain the active automation envelope")
     lifecycle = state.get("lifecycle_state")
     if lifecycle not in VALID_STATES:
         errors.append(f"campaign-state.json lifecycle_state must be one of {sorted(VALID_STATES)}")
+    if config.get("schema_version") != "1.2":
+        errors.append("campaign-config.json schema_version must equal 1.2")
+    if state.get("schema_version") != "1.2":
+        errors.append("campaign-state.json schema_version must equal 1.2")
 
     fixed = config.get("fixed_rules", {})
     expected = {
@@ -159,6 +182,29 @@ def main() -> int:
             errors.append(f"campaign-config.json adaptive_dispatch.{key} must equal {value}")
     if not isinstance(dispatch.get("priority_order"), list) or len(dispatch["priority_order"]) != 8:
         errors.append("campaign-config.json adaptive_dispatch.priority_order must contain eight priorities")
+
+    reliability = config.get("automation_reliability", {})
+    reliability_expected = {
+        "consent_mode": "single-owner-grant",
+        "consent_persistence": "campaign-lifetime",
+        "task_lease_minutes": 15,
+        "max_consecutive_same_task_type": 2,
+        "preflight_evidence_ttl_minutes": 30,
+    }
+    for key, value in reliability_expected.items():
+        if reliability.get(key) != value:
+            errors.append(f"campaign-config.json automation_reliability.{key} must equal {value}")
+    browser_rules = reliability.get("browser_binding", {})
+    if browser_rules.get("reuse_pinned_device") is not True:
+        errors.append("automation_reliability.browser_binding.reuse_pinned_device must equal true")
+    if browser_rules.get("routine_device_questions_allowed") is not False:
+        errors.append("automation_reliability.browser_binding.routine_device_questions_allowed must equal false")
+    circuit_rules = reliability.get("circuit_breaker", {})
+    if circuit_rules.get("max_safe_retries") != 2 or circuit_rules.get("continue_offline_lane") is not True:
+        errors.append("automation_reliability.circuit_breaker is invalid")
+    reserve_rules = reliability.get("reserve", {})
+    if reserve_rules.get("max_pages_per_pass") != 5 or reserve_rules.get("max_minutes_per_pass") != 8:
+        errors.append("automation_reliability.reserve pass limits are invalid")
 
     publishing_config = config.get("publishing_optimization", {})
     publishing_expected = {
@@ -219,6 +265,16 @@ def main() -> int:
     for lane in ("linkedin_lane", "offline_lane"):
         if dispatcher.get(lane) not in {"ready", "recovering", "blocked"}:
             errors.append(f"campaign-state.json dispatcher.{lane} is invalid")
+    browser_binding = dispatcher.get("browser_binding", {})
+    if browser_binding.get("selection_policy") != "reuse-pinned-device-without-question":
+        errors.append("campaign-state.json browser binding selection policy is invalid")
+    automation_consent = state.get("automation_consent", {})
+    if not args.allow_draft and (
+        automation_consent.get("status") != "active"
+        or automation_consent.get("reconfirmation_required") is not False
+        or not automation_consent.get("receipt_id")
+    ):
+        errors.append("campaign-state.json must contain a loaded active consent snapshot")
     publishing_state = state.get("publishing", {})
     for key in ("packages_ready", "posts_published"):
         value = publishing_state.get(key)
@@ -228,6 +284,28 @@ def main() -> int:
     work_queue = load_json(state_dir / "work-queue.json", errors)
     if work_queue and not isinstance(work_queue.get("items"), list):
         errors.append("work-queue.json items must be an array")
+    elif work_queue:
+        allowed_task_statuses = {
+            "pending",
+            "recovering",
+            "missed-recovering",
+            "retry-wait",
+            "leased",
+            "running",
+            "completed",
+            "blocked",
+            "superseded",
+            "expired",
+            "cancelled",
+        }
+        for position, item in enumerate(work_queue.get("items", [])):
+            if not isinstance(item, dict):
+                errors.append(f"work-queue.json items[{position}] must be an object")
+                continue
+            if item.get("status") not in allowed_task_statuses:
+                errors.append(f"work-queue.json items[{position}].status is invalid")
+            if item.get("status") in {"leased", "running"} and not item.get("lease_expires_at"):
+                errors.append(f"work-queue.json items[{position}] active lease must expire")
     stage_ledger = load_json(state_dir / "stage-ledger.json", errors)
     if stage_ledger and not isinstance(stage_ledger.get("stages"), list):
         errors.append("stage-ledger.json stages must be an array")
