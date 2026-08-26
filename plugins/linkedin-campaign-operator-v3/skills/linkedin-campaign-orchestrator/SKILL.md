@@ -3,7 +3,7 @@ name: linkedin-campaign-orchestrator
 description: Run a persistent organic LinkedIn growth operating system with continuous dispatch, adaptive engagement and reciprocity, dynamic publishing, live skill refresh, state recovery, and auditable execution. Use for complete content days and continued execution toward configurable follower and connection goals; do not treat it as an advertising campaign builder.
 metadata:
   author: sunny
-  version: "1.1.0"
+  version: "5.0.0"
 ---
 
 # LinkedIn campaign orchestrator

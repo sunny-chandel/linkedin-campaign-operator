@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "linkedin-campaign-operator-v3",
-      "version": "1.1.0",
+      "version": "5.0.0",
       "source": "./plugins/linkedin-campaign-operator-v3",
       "description": "Run a reusable LinkedIn growth system with durable consent, crash self-revival, adaptive dispatch, research, content production, engagement, analytics, branding, and persistent learning.",
       "author": {
