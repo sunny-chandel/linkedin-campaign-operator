@@ -3,7 +3,7 @@ name: linkedin-campaign-orchestrator
 description: Run a persistent organic LinkedIn growth operating system with continuous dispatch, adaptive engagement and reciprocity, dynamic publishing, live skill refresh, state recovery, and auditable execution. Use for complete content days and continued execution toward configurable follower and connection goals; do not treat it as an advertising campaign builder.
 metadata:
   author: sunny
-  version: "5.0.0"
+  version: "5.0.1"
 ---
 
 # LinkedIn campaign orchestrator
@@ -18,10 +18,10 @@ This is a reusable organic profile-growth operating system. It is not an adverti
 - On the first run only, when no valid active authorization receipt exists, tell the recognized owner that the system will perform pre-flight checks and then operate the configured campaign autonomously. Ask one direct consent question. After the owner agrees, immediately run `python scripts/runtime_control.py <state-dir> consent-grant --owner "<stored-owner-name>" --source explicit-owner-confirmation`.
 - The resulting campaign-lifetime consent record is the durable authority for this campaign across context compression, model changes, Claude restarts, and later sessions. Reload it from disk instead of relying on conversation memory. Never ask for routine approval again while that receipt remains active and the verified account identity has not changed.
 - Use connected Chrome for LinkedIn pre-flight, reading, publishing, comments, replies, DMs, reactions, and other scheduled campaign actions.
-- Any interactive verification, technical signal, access message, wrong login, or identity mismatch blocks the LinkedIn lane. Stop LinkedIn mutations, tell the recognized owner exactly what must be corrected, and continue valid offline work. Mark the whole pipeline `hard-blocked` only when no authorized offline work can advance.
+- Route missing Chrome connections, failed logins, account-identity mismatches, unavailable capabilities, and transient page failures through automatic technical recovery. Continue every unaffected work lane, preserve checkpoints, and resume the affected task as soon as its dependency is available.
 - Keep system and skill instructions immutable during a campaign. Store learning in runtime state, not in this skill.
-- Do not stop after one daily cycle. Continue until verified achievement, explicit user stop, or a hard blocker.
-- Persistent execution never overrides the 100-action base ceiling, 10-action proactive-burst cap, qualification gate, cooldowns, or technical rollback. Genuine direct inbound replies may exceed the base ceiling and must be counted separately.
+- Do not stop after one daily cycle. Continue until verified achievement or explicit user stop. Technical failures enter recovery and do not end the campaign while valid work remains.
+- Persistent execution retains the 100-action base ceiling, 10-action proactive-burst cap, qualification gate, and cooldowns. Genuine direct inbound replies may exceed the base ceiling and must be counted separately.
 
 For exact state definitions and recovery rules, read [state and consent](references/state-and-consent.md).
 
@@ -70,7 +70,7 @@ Read [runtime plugin refresh](references/runtime-refresh.md) for the exact versi
 
 Run once at the start of every content day and again whenever a capability or identity state must be revalidated, in this order:
 
-Before using a browser tool, run `python scripts/runtime_control.py <state-dir> preflight-status`. Reuse every unexpired passed component. Recheck only missing or expired components, a changed browser connection, a navigation/authentication failure, a visible identity change, or a technical signal.
+Before using a browser tool, run `python scripts/runtime_control.py <state-dir> preflight-status`. Reuse every unexpired passed component. Recheck only missing or expired components, a changed browser connection, a navigation/authentication failure, or a visible identity change.
 
 1. Call `list_connected_browsers`. If a verified device is stored in `dispatcher.browser_binding`, select that exact device automatically. Never ask the owner to choose repeatedly. If no binding exists, prefer the local macOS device, verify it against the profile identity stored in the consent record, and persist it with `runtime_control.py browser-bind`; if it does not match, test remaining connected devices read-only and bind the first verified match. Replace an existing binding only after an explicit owner reset. If Chrome is unavailable, block only the LinkedIn lane, request only the connection correction, and continue valid offline work.
 2. Open LinkedIn in the pinned Chrome session and confirm it matches the owner name and full profile URL stored in the consent record. On first initialization, discover and store those values. Read the current profile name, handle, headline, image, niche, and visible positioning. Record passed checks with `runtime_control.py preflight-record`. If the pinned device is temporarily unavailable, retry through the configured circuit breaker, continue offline work, and probe automatically later. If logged out or on the wrong account, request only the exact login correction.
@@ -83,7 +83,7 @@ Before using a browser tool, run `python scripts/runtime_control.py <state-dir> 
 9. Load campaign configuration, the persistent authorization receipt and state snapshot, current state, work queue, task-event log, recovery log, stage ledger, signal log, schedule-decision log, unresolved failures, runtime learning, active experiments, strategy weights, creator registry, GIF pattern library, and the Working Algorithm Model.
 10. Recalculate target progress. If achieved, save final evidence and mark `completed`; otherwise continue immediately from the next valid pipeline stage.
 
-An identity, warning, restriction, or Chrome failure stops the LinkedIn lane at that point. Record it through `runtime_control.py lane-event`, continue research, analytics from stored data, queue scoring from saved evidence, content preparation, creative work, subscription analysis, and logging, and let the circuit breaker schedule the next safe probe. Recoverable or optional gaps use automatic fallbacks, are recorded as `unknown` when necessary, and do not stop the offline lane. Do not replace a failed Chrome check with a generic questionnaire.
+A Chrome, login, account-identity, capability, network, or page failure enters automatic technical recovery. Record it through `runtime_control.py lane-event`, continue research, analytics from stored data, queue scoring from saved evidence, content preparation, creative work, subscription analysis, and logging, and let the circuit breaker schedule the next automatic probe. Recoverable or optional gaps use automatic fallbacks, are recorded as `unknown` when necessary, and do not stop the offline lane. Do not replace a failed Chrome check with a generic questionnaire.
 
 Do not reopen a locked target during pre-flight. A missing optional goal-tracking feature is not a blocker.
 
@@ -101,7 +101,7 @@ The owner invokes this parent skill for the complete system. Route to the instal
 
 Return control to this orchestrator after each supporting stage, update persistent state, and continue from the next valid pipeline stage.
 
-Automated mode is execution, not a planning conversation. Never ask whether to run a required supporting skill, prerequisite, pre-flight step, recovery step, queue, analysis, or content stage. Do not ask questions such as “want me to run research and production?” Announce the stage as a status update and execute it immediately. Ask the recognized owner only for the exact intervention required to clear a hard blocker defined in this skill.
+Automated mode is execution, not a planning conversation. Never ask whether to run a required supporting skill, prerequisite, pre-flight step, recovery step, queue, analysis, or content stage. Do not ask questions such as “want me to run research and production?” Announce the stage as a status update and execute it immediately. Request owner input only when a required technical dependency cannot be restored automatically and no other valid work can advance.
 
 If either required publication package is missing, incomplete, stale, or invalid, automatically run its missing prerequisites in dependency order: `linkedin-content-research` → `linkedin-content-production` → publication-package validation. Produce exactly the next India and US-Central pair and no third package. When a package becomes valid, route it through the dynamic publication selector rather than waiting for a fixed clock time.
 
@@ -117,7 +117,7 @@ Run a continuous dispatcher in the campaign-configured timezone. LinkedIn and of
 
 Give the configured production priority window to source research, learning-ledger maintenance, experiment registration, and production of exactly two validated packages for the next content day: one India and one US-Central. High-value inbound signals may still interrupt this production block. Do not stockpile a third package.
 
-At each dispatcher cycle, use this order: technical signal or identity blocker; genuine direct inbound; due publication opportunity; mandatory-stage or analytics recovery; qualified soft reciprocity; adaptive-reserve replenishment; two-package production; analytics and investigation. Read [continuous dispatch](references/continuous-dispatch.md) for signal routing, adaptive timing, budget accounting, completion gates, and lane-specific recovery.
+At each dispatcher cycle, use this order: technical session or identity recovery; genuine direct inbound; due publication opportunity; mandatory-stage or analytics recovery; qualified soft reciprocity; adaptive-reserve replenishment; two-package production; analytics and investigation. Read [continuous dispatch](references/continuous-dispatch.md) for signal routing, adaptive timing, budget accounting, completion gates, and lane-specific recovery.
 
 Reserve size is calculated from the next predicted bursts, recent executed burst size, staleness, rejection rate, remaining budget, and configured bounds. It is not a fixed 20-person requirement. Every reserve pass stops at five pages, eight minutes, the configured minimum qualified yield, target completion, or diminishing marginal value. Record the pass with `runtime_control.py reserve-pass`; a stopped low-yield pass enters backoff so publication, analytics, production, or another investigation path can run.
 
@@ -136,7 +136,6 @@ Publishing has no fixed time or fixed separation. Run `select_publish_time.py <o
 - Tier 2 and Tier 3 content rules remain active; load the content-production skill for their exact definitions.
 - Fact-check every public factual claim.
 - Chat previews are informational during active automated mode.
-- A technical signal blocks LinkedIn activity. After resolution, cap proactive bursts at five actions for two clean content days, cap the base total at 40 for three additional clean content days, then restore the adaptive 100-action ceiling. Genuine inbound replies remain separately logged.
 
 ## Recovery and completion
 

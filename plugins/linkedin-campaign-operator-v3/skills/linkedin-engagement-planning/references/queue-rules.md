@@ -27,7 +27,7 @@ Each queue item contains:
 
 ## Scoring
 
-Apply qualification, cooldown, availability, and base-budget capacity as hard gates for proactive and soft-reciprocal work. Direct-inbound work is exempt from the score, qualification, and cooldown gates, but remains subject to identity and platform blockers. Score eligible proactive and soft-reciprocal candidates with:
+Apply qualification, cooldown, availability, and base-budget capacity as hard gates for proactive and soft-reciprocal work. Direct-inbound work is exempt from the score, qualification, and cooldown gates, but still requires the correct verified account and a working connection. Score eligible proactive and soft-reciprocal candidates with:
 
 - 35 percent predicted qualified profile, follower, or connection growth;
 - 20 percent expected audience spillover;

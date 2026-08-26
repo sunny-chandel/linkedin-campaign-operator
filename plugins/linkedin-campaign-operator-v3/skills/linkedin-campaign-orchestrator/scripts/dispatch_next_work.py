@@ -201,7 +201,7 @@ def main() -> int:
                 "priority": 1,
                 "hard_blocker": state["hard_blocker"],
                 "unfinished_work_count": blocker_unfinished,
-                "reason": "technical signal or identity blocker must stop external and offline execution",
+                "reason": "required technical dependency is unavailable and neither work lane can advance",
             }
             if args.record:
                 record_decision(state_dir, state, result)

@@ -98,6 +98,13 @@ def main() -> int:
     )
     engagement = config.setdefault("engagement_optimization", {})
     engagement.pop("clusters", None)
+    adaptive_dispatch = config.setdefault("adaptive_dispatch", {})
+    priority_order = adaptive_dispatch.get("priority_order")
+    if isinstance(priority_order, list) and priority_order:
+        adaptive_dispatch["priority_order"] = [
+            "technical-session-or-identity-recovery",
+            *priority_order[1:],
+        ]
     merged, merged_missing = merge_missing(config, defaults)
     merged.setdefault("publishing_optimization", {}).setdefault(
         "production_priority_window", {}

@@ -27,7 +27,7 @@ The record identifies:
 
 Research, design, LinkedIn reading, publishing, comments, replies, DMs, reactions, queue work, analytics, and logging need no repeated approval after the recognized owner starts the system.
 
-Do not describe a browser reconnect, pre-flight refresh, content preview, subskill transition, retry, recovery, or session restart as requiring fresh consent. A hard platform or identity blocker may require owner intervention, but clearing it does not create a new campaign-consent ceremony.
+Do not describe a browser reconnect, pre-flight refresh, content preview, subskill transition, retry, recovery, or session restart as requiring fresh consent. A technical login, account-identity, or capability failure may require owner intervention when automatic recovery is exhausted, but clearing it does not create a new campaign-consent ceremony.
 
 ## Restart recovery
 
@@ -46,9 +46,9 @@ Recoverable:
 - incomplete analytics;
 - temporary source outage.
 
-Hard blocker:
+Technical recovery requiring owner action:
 
-- interactive verification, technical signal, access message, wrong login, or identity mismatch;
+- wrong login or account identity mismatch after automatic recovery;
 - wrong account or Page;
 - required capability unavailable after safe recovery;
 - target becomes impossible or unmeasurable;

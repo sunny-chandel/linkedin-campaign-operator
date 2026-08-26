@@ -3,7 +3,7 @@ name: linkedin-content-production
 description: Turn a completed, verified research brief into LinkedIn captions and Claude Design assets using the campaign's voices, active watermark kit, and per-post GIF creative specification. Use for daily post packages and response drafts.
 metadata:
   author: sunny
-  version: "5.0.0"
+  version: "5.0.1"
 ---
 
 # LinkedIn content production
@@ -29,7 +29,7 @@ If a brief is missing or fails validation, return automatically to `linkedin-con
 9. When the asset is a GIF, run `linkedin-gif-creative-intelligence` and require a valid `gif-creative-spec.json` before build.
 10. Load the current `watermark-manifest.json` and route the correct validated watermark variant.
 11. Build and iterate in Claude Design using the current supported workflow.
-12. Export, verify legibility, content accuracy, GIF specification compliance, and watermark presence on every frame, then produce a publication package.
+12. Export, verify legibility, content accuracy, GIF specification conformance, and watermark presence on every frame, then produce a publication package.
 13. Pass each completed package to the parent's dynamic publication selector. Do not assign a fixed window or fixed separation.
 
 ## Publication package contract

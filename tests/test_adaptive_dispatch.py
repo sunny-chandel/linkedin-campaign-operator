@@ -469,6 +469,10 @@ class AdaptiveDispatchTests(unittest.TestCase):
             migrated_config = json.loads(config_path.read_text(encoding="utf-8"))
             migrated_state = json.loads(state_path.read_text(encoding="utf-8"))
             self.assertEqual(migrated_config["fixed_rules"]["base_actions_per_day"], 100)
+            self.assertEqual(
+                migrated_config["adaptive_dispatch"]["priority_order"][0],
+                "technical-session-or-identity-recovery",
+            )
             self.assertNotIn("max_actions_per_day", migrated_config["fixed_rules"])
             self.assertNotIn("clusters", migrated_config["engagement_optimization"])
             self.assertEqual(migrated_state["engagement_scaling"]["base_actions_used"], 69)
@@ -487,6 +491,20 @@ class AdaptiveDispatchTests(unittest.TestCase):
             self.assertEqual(production_task["required_package_count"], 2)
             validated = run_json(["python3", str(ORCHESTRATOR / "validate_campaign.py"), str(state_dir)])
             self.assertTrue(validated["valid"])
+
+    def test_migration_normalizes_first_priority_to_technical_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            state_dir = self.init_campaign(Path(temporary))
+            config_path = state_dir / "campaign-config.json"
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+            config["adaptive_dispatch"]["priority_order"][0] = "legacy-first-priority"
+            write_json(config_path, config)
+            run_json(["python3", str(ORCHESTRATOR / "migrate_campaign.py"), str(state_dir)])
+            migrated = json.loads(config_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                migrated["adaptive_dispatch"]["priority_order"][0],
+                "technical-session-or-identity-recovery",
+            )
 
     def test_one_time_consent_persists_across_session_restart(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -58,7 +58,7 @@
     ],
     "direct_inbound_signals": ["comment", "reply", "direct-message"],
     "priority_order": [
-      "platform-or-identity-blocker",
+      "technical-session-or-identity-recovery",
       "direct-inbound",
       "publication-opportunity",
       "mandatory-stage-recovery",

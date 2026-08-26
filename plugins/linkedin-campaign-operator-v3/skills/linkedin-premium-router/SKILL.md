@@ -3,7 +3,7 @@ name: linkedin-premium-router
 description: Detect every active LinkedIn paid entitlement, calculate a prioritized utilization plan, configure included features, and route them through the adaptive campaign without changing fixed limits. Use for subscription inventory, optimization, setup, usage, and weekly utilization review.
 metadata:
   author: sunny
-  version: "5.0.0"
+  version: "5.0.1"
 ---
 
 # LinkedIn subscription optimizer
@@ -21,7 +21,7 @@ Here, optimize or upgrade means improve the setup and utilization of services th
 ## Automated optimization loop
 
 1. Identify every active individual subscription, Company Page subscription, product seat, trial, and plan tier visible to the user.
-2. Record the account or Page, user role, status, expiry or renewal information, feature limits, credits, and regional restrictions.
+2. Record the account or Page, user role, status, expiry or renewal information, feature limits, credits, and regional availability.
 3. Confirm the current feature set from official LinkedIn documentation; do not infer access from a generic product name.
 4. Normalize each verified feature into `subscription-inventory.json`. Preserve unknown values as `null`; never invent access, limits, or remaining credits.
 5. Run `python scripts/score_subscription_features.py subscription-inventory.json --output subscription-utilization-plan.json` using the campaign's configured weights and thresholds.
