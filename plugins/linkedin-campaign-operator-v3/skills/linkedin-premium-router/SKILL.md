@@ -3,7 +3,7 @@ name: linkedin-premium-router
 description: Detect every active LinkedIn paid entitlement, calculate a prioritized utilization plan, configure included features, and route them through the adaptive campaign without changing fixed limits. Use for subscription inventory, optimization, setup, usage, and weekly utilization review.
 metadata:
   author: sunny
-  version: "5.0.6"
+  version: "5.0.7"
 ---
 
 # LinkedIn subscription optimizer

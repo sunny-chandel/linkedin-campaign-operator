@@ -206,13 +206,35 @@ def future_wake_candidates(
     now_dt: datetime,
 ) -> list[dict[str, Any]]:
     wakes: list[dict[str, Any]] = []
+    circuits = dispatcher.get("lane_circuits", {})
+    linkedin_probe_at = None
+    if isinstance(circuits, dict):
+        linkedin_circuit = circuits.get("linkedin", {})
+        if isinstance(linkedin_circuit, dict):
+            candidate_probe = parse_time(linkedin_circuit.get("next_probe_at"))
+            if candidate_probe and candidate_probe > now_dt:
+                linkedin_probe_at = candidate_probe
     for item in items:
         if not isinstance(item, dict):
             continue
         status = item.get("status")
         next_eligible = parse_time(item.get("next_eligible_at"))
         due_at = parse_time(item.get("due_at"))
-        if status == "retry-wait" and next_eligible and next_eligible > now_dt:
+        requires_linkedin = item.get("requires_linkedin") is True or item.get("lane") == "linkedin"
+        if (
+            status in UNFINISHED_STATUSES
+            and requires_linkedin
+            and dispatcher.get("linkedin_lane", "ready") != "ready"
+            and linkedin_probe_at is not None
+        ):
+            wakes.append(
+                {
+                    "at": linkedin_probe_at,
+                    "trigger": f"lane-recovery-unblocks:{item.get('task_id')}",
+                    "task_id": item.get("task_id"),
+                }
+            )
+        elif status == "retry-wait" and next_eligible and next_eligible > now_dt:
             wakes.append(
                 {
                     "at": next_eligible,
@@ -228,7 +250,6 @@ def future_wake_candidates(
                     "task_id": item.get("task_id"),
                 }
             )
-    circuits = dispatcher.get("lane_circuits", {})
     if isinstance(circuits, dict):
         for lane, circuit in circuits.items():
             if not isinstance(circuit, dict):

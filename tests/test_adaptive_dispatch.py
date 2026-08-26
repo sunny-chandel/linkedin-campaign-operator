@@ -566,6 +566,51 @@ class AdaptiveDispatchTests(unittest.TestCase):
             self.assertEqual(decision["decision"], "execute")
             self.assertEqual(decision["task"]["task_id"], "reserve-due")
 
+    def test_linkedin_task_waits_for_automatic_lane_probe_without_question(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            state_dir = self.init_campaign(Path(temporary))
+            state = json.loads((state_dir / "campaign-state.json").read_text(encoding="utf-8"))
+            state["dispatcher"]["linkedin_lane"] = "recovering"
+            state["dispatcher"]["lane_circuits"]["linkedin"].update(
+                {
+                    "status": "half-open",
+                    "consecutive_failures": 1,
+                    "next_probe_at": "2026-08-25T12:05:00+05:30",
+                    "intervention_required": False,
+                }
+            )
+            write_json(state_dir / "campaign-state.json", state)
+            queue = json.loads((state_dir / "work-queue.json").read_text(encoding="utf-8"))
+            queue["items"].append(
+                {
+                    "task_id": "reserve-after-browser-recovery",
+                    "task_type": "adaptive-reserve",
+                    "lane": "linkedin",
+                    "priority": 6,
+                    "status": "recovering",
+                    "ready": True,
+                    "requires_linkedin": True,
+                }
+            )
+            write_json(state_dir / "work-queue.json", queue)
+            waited = run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "dispatch_next_work.py"),
+                    str(state_dir),
+                    "--record",
+                    "--now",
+                    TEST_NOW,
+                ]
+            )
+            self.assertEqual(waited["decision"], "wait")
+            self.assertEqual(waited["deferred_work_count"], 1)
+            self.assertEqual(
+                waited["wake_trigger"],
+                "lane-recovery-probe:linkedin",
+            )
+            self.assertFalse(waited["continuation"]["owner_input_required"])
+
     def test_continuation_adapter_is_persisted_without_owner_input(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             state_dir = self.init_campaign(Path(temporary))

@@ -1,5 +1,11 @@
 # Changelog
 
+## 5.0.7 — Lane-dependent wake routing
+
+- mapped LinkedIn tasks behind a recovering lane to the lane's scheduled probe;
+- prevented blocked-lane work from generating fake reconciliation tasks;
+- added live-outage regression coverage for zero-question probe continuation.
+
 ## 5.0.6 — Pinned-browser probe recovery
 
 - made a temporarily missing pinned browser an automatic transient lane recovery;
