@@ -40,6 +40,8 @@ Select only candidates scoring at least 65. Use observed campaign outcomes to up
 
 Follower count is a qualification gate for new additions, not a substitute for relevance.
 
+Run hard gates before drafting any action text. A failed hard gate or a score below 65 is a terminal rejection for that opportunity, not an approval checkpoint. Persist its machine-readable reason and continue discovery automatically. Never expose a failed candidate as “borderline,” request an exception, or ask the owner to choose whether to override a gate. If the selected set is empty, use the ranker's `continue-discovery` directive until the reserve pass reaches an evidence-backed stopping condition.
+
 ## Reciprocity routing
 
 - Comments, replies, and genuine DMs enter `direct-inbound`.

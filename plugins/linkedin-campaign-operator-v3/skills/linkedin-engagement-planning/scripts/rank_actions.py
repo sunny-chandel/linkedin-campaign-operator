@@ -198,6 +198,8 @@ def main() -> int:
                 "base_daily_ceiling": base_ceiling,
                 "direct_reply_overage": projected_overage,
             },
+            "owner_input_required": False,
+            "next_step": "execute-selected" if selected else "continue-discovery",
         }
         rendered = json.dumps(output, indent=2, ensure_ascii=False) + "\n"
         if args.output:

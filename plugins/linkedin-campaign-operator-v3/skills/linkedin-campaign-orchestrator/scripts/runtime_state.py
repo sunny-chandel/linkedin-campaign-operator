@@ -410,7 +410,7 @@ def reconcile_content_day(
         package_stage["completed_artifacts"] = list(packages.values())
 
     for region in regions:
-        upsert_stage(
+        publication_stage = upsert_stage(
             stages,
             {
                 "stage_id": f"publish-{region}-{day}",
@@ -423,6 +423,14 @@ def reconcile_content_day(
                 "evidence_recorded": region in evidence,
             },
         )
+        if region in evidence:
+            publication_stage["status"] = "completed"
+            publication_stage["completed_at"] = (
+                evidence[region].get("published_at") or iso_time(now)
+            )
+            publication_stage["completed_artifacts"] = ["publication-evidence.jsonl"]
+            publication_stage["evidence_recorded"] = True
+            publication_stage["completion_evidence"] = evidence[region]
     upsert_stage(
         stages,
         {

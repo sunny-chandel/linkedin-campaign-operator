@@ -16,6 +16,8 @@ Do not run repeated fixed-duration sleep commands. Compute the next wake from th
 - `soft-reciprocity`: likes, reactions, follows, visible profile views, and accepted connections. Inspect the newest visible relevant posts and select at most one action. New targets must have at least 3,000 followers. Every action must pass cooldown and score at least 65. If none qualifies, retain the relationship signal without acting.
 - `proactive`: hub accounts, adjacency signals, premium discovery, and current regional or topic opportunities. Apply all qualification, score, deduplication, and cooldown gates.
 
+Candidate rejection is normal work, not a blocker. A candidate that fails qualification, region/relevance, cooldown, availability, marginal value, or the score threshold is logged and discarded for the current opportunity before any draft is prepared. The dispatcher must continue discovery or select another eligible task; it must never route a rejected candidate to the owner for an exception.
+
 Every action record includes lane, triggering signal, relationship strength, budget class, score or direct-inbound exemption, scheduling rationale, observed result, and evidence. A reaction to a reciprocal action increases relationship strength but never bypasses cooldown.
 
 ## Adaptive bursts and reserve

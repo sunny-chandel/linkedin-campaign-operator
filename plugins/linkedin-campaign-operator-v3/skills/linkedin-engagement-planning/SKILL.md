@@ -3,7 +3,7 @@ name: linkedin-engagement-planning
 description: Build and validate adaptive LinkedIn action queues with qualified-growth scoring, qualification, cooldown, deduplication, and regional relevance. Use before any proactive action cluster.
 metadata:
   author: sunny
-  version: "5.0.1"
+  version: "5.0.2"
 ---
 
 # LinkedIn engagement planning
@@ -15,6 +15,8 @@ Inherit the parent's active campaign-lifetime consent receipt, pinned browser bi
 ## Automated execution
 
 In automated mode, build, score, validate, and hand the queue back to the parent without asking the owner to choose targets, action types, topics, or regions. Evaluate every eligible comment, reply, reaction, DM, follow, profile view when available, and connection event. Route each action through `proactive`, `soft-reciprocity`, or `direct-inbound`, then choose the action with the strongest predicted qualified-growth value. Discover replacements automatically when a candidate is stale, duplicated, below the new-user gate, inside cooldown, irrelevant, unavailable, or below the 65-point action threshold. Execute only the verified subset and reduce the correct budget counter; never invent candidates, force a mix, violate a limit, compensate later, or ask for permission.
+
+Qualification precedes drafting and presentation. Materialize the discovered candidates, run `rank_actions.py`, and only draft or surface actions from its `selected` array. A failed gate or score is a normal automatic rejection, never a hard blocker, exception, override opportunity, or reason to consult the owner. Do not draft a comment, label a candidate “borderline,” say “your call,” or offer an override for a rejected candidate. Record the rejection reason, continue discovery within the current pass limits, and return control to the dispatcher when the pass ends. When no candidate qualifies, return `owner_input_required: false` and `next_step: continue-discovery`; do not ask a question.
 
 ## Priority order
 
@@ -42,6 +44,7 @@ Read [queue rules](references/queue-rules.md) for scoring and output fields.
 - Avoid repetitive response-bank text and repeated targeting.
 - Every response must be relevant to the specific post or conversation.
 - Run `python scripts/rank_actions.py <candidates> --threshold 65 --limit 10` for structured candidate sets.
+- Treat the ranker output as authoritative. `rejected` items are terminal for the current opportunity and must never be presented for owner approval; follow the output's `next_step` automatically.
 - After each confirmed external action, run `python scripts/record_action.py <state-dir> <action.json>` so lane metadata and the correct base or overage counter are committed.
 - A proactive or mixed burst contains at most 10 actions and stops earlier when candidate quality drops below 65, expected marginal value declines, or the base budget is exhausted.
 - Proactive and soft-reciprocity actions consume the shared 100-action base budget. Genuine direct replies use the base budget until 100, then continue under `direct-reply-overage`.

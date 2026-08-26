@@ -1,5 +1,13 @@
 # Changelog
 
+## 5.0.2 — Deterministic rejection and restart reconciliation
+
+- made candidate qualification mandatory before drafting or surfacing an engagement action;
+- made failed gates and sub-65 scores automatic rejections that continue discovery without owner escalation;
+- added machine-readable `owner_input_required` and `next_step` ranker directives;
+- reconciled pending publication stages from verified publication evidence after a restart;
+- added regression coverage for below-gate autonomous rejection and evidence-backed publication recovery.
+
 ## 1.1.0 — Reliable autonomous recovery
 
 - added a campaign-lifetime consent receipt that reloads across model, client, and machine restarts;

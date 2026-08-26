@@ -157,6 +157,62 @@ class AdaptiveDispatchTests(unittest.TestCase):
             )
             self.assertEqual(decision["task"]["task_type"], "mandatory-stage-recovery")
 
+    def test_resume_promotes_pending_publication_stage_from_verified_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            state_dir = self.init_campaign(Path(temporary))
+            day = "2026-08-25"
+            ledger_path = state_dir / "stage-ledger.json"
+            ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+            ledger["stages"].append(
+                {
+                    "stage_id": f"publish-india-{day}",
+                    "stage_type": "publication",
+                    "status": "pending",
+                    "required_artifacts": ["publication-evidence.jsonl"],
+                    "completed_artifacts": [],
+                    "content_day_local": day,
+                    "region": "india",
+                    "evidence_recorded": False,
+                }
+            )
+            write_json(ledger_path, ledger)
+            evidence = {
+                "schema_version": "1.0",
+                "campaign_id": "linkedin-growth",
+                "content_day_local": day,
+                "region": "india",
+                "post_id": "verified-post",
+                "post_url": "https://www.linkedin.com/feed/update/verified-post/",
+                "published_at": "2026-08-25T04:00:00+00:00",
+                "verified": True,
+            }
+            (state_dir / "publication-evidence.jsonl").write_text(
+                json.dumps(evidence) + "\n", encoding="utf-8"
+            )
+
+            run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "resume_campaign.py"),
+                    str(state_dir),
+                    "--now",
+                    TEST_NOW,
+                    "--session-id",
+                    "replacement-session",
+                ]
+            )
+
+            reconciled = json.loads(ledger_path.read_text(encoding="utf-8"))
+            stage = next(
+                item
+                for item in reconciled["stages"]
+                if item["stage_id"] == f"publish-india-{day}"
+            )
+            self.assertEqual(stage["status"], "completed")
+            self.assertTrue(stage["evidence_recorded"])
+            self.assertEqual(stage["completed_artifacts"], ["publication-evidence.jsonl"])
+            self.assertEqual(stage["completion_evidence"]["post_id"], "verified-post")
+
     def test_soft_reciprocity_selects_one_qualified_post_and_rejects_cooldown(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             candidates = Path(temporary) / "candidates.json"
@@ -188,6 +244,8 @@ class AdaptiveDispatchTests(unittest.TestCase):
             )
             ranked = run_json(["python3", str(ENGAGEMENT / "rank_actions.py"), str(candidates)])
             self.assertEqual([item["candidate_id"] for item in ranked["selected"]], ["post-a"])
+            self.assertFalse(ranked["owner_input_required"])
+            self.assertEqual(ranked["next_step"], "execute-selected")
             rejected = {item["candidate_id"]: item for item in ranked["rejected"]}
             self.assertEqual(rejected["post-b"]["reason"], "soft-reciprocity-one-opportunity")
             self.assertIn("cooldown_passed", rejected["cooling"]["failed_gates"])
@@ -248,6 +306,40 @@ class AdaptiveDispatchTests(unittest.TestCase):
             )
             self.assertEqual(recorded["base_actions_used"], 100)
             self.assertEqual(recorded["direct_reply_overage"], 1)
+
+    def test_new_target_below_follower_gate_is_rejected_without_owner_input(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            candidates = Path(temporary) / "candidates.json"
+            write_json(
+                candidates,
+                {
+                    "new_target_min_followers": 3000,
+                    "candidates": [
+                        {
+                            "candidate_id": "strong-but-ineligible",
+                            "lane": "proactive",
+                            "target_status": "new",
+                            "follower_count": 2010,
+                            "action_available": True,
+                            "cooldown_passed": True,
+                            "qualified_growth": 1,
+                            "audience_spillover": 1,
+                            "conversation_probability": 1,
+                            "target_relevance": 1,
+                            "freshness_timing": 1,
+                            "historical_performance": 1,
+                        }
+                    ],
+                },
+            )
+
+            ranked = run_json(["python3", str(ENGAGEMENT / "rank_actions.py"), str(candidates)])
+
+            self.assertEqual(ranked["selected"], [])
+            self.assertFalse(ranked["owner_input_required"])
+            self.assertEqual(ranked["next_step"], "continue-discovery")
+            self.assertEqual(ranked["rejected"][0]["reason"], "hard-gate")
+            self.assertIn("new_target_min_followers", ranked["rejected"][0]["failed_gates"])
 
     def test_dynamic_publishing_requires_exact_pair_and_rejects_third(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -317,6 +409,8 @@ class AdaptiveDispatchTests(unittest.TestCase):
             )
             ranked = run_json(["python3", str(ENGAGEMENT / "rank_actions.py"), str(candidates)])
             self.assertEqual(ranked["selected"], [])
+            self.assertFalse(ranked["owner_input_required"])
+            self.assertEqual(ranked["next_step"], "continue-discovery")
             failed = subprocess.run(
                 ["python3", str(ENGAGEMENT / "rank_actions.py"), str(candidates), "--limit", "11"],
                 check=False,

@@ -3,7 +3,7 @@ name: linkedin-content-production
 description: Turn a completed, verified research brief into LinkedIn captions and Claude Design assets using the campaign's voices, active watermark kit, and per-post GIF creative specification. Use for daily post packages and response drafts.
 metadata:
   author: sunny
-  version: "5.0.1"
+  version: "5.0.2"
 ---
 
 # LinkedIn content production
