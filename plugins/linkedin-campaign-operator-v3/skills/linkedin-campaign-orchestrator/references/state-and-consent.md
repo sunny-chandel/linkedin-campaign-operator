@@ -58,6 +58,8 @@ Technical recovery requiring owner action:
 - target becomes impossible or unmeasurable;
 - authoritative consent or campaign state is lost.
 
+A temporarily missing pinned browser is recoverable, even when unrelated browsers are visible. Ignore those devices, retain the binding, record a transient lane failure, and arm automatic probes. It becomes an owner-action blocker only after at least three scheduled probe cycles fail and no offline or future scheduled work can advance.
+
 ## Recovery procedure
 
 1. Save the last confirmed action and observed outcome.

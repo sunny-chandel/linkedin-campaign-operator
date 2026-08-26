@@ -1,5 +1,11 @@
 # Changelog
 
+## 5.0.6 — Pinned-browser probe recovery
+
+- made a temporarily missing pinned browser an automatic transient lane recovery;
+- prohibited questions about unrelated connected devices while a binding exists;
+- required at least three scheduled probe cycles before browser absence can become a critical blocker.
+
 ## 5.0.5 — Zero-question automatic continuation
 
 - made future `retry-wait` tasks produce an exact wake instead of fake reconciliation work;
