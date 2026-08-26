@@ -22,7 +22,7 @@ Claude LinkedIn is the public interface for LinkedIn Campaign Operator: a free, 
 
 **Website:** [linkedin-campaign-operator.sunnychandel73.chatgpt.site](https://linkedin-campaign-operator.sunnychandel73.chatgpt.site)
 
-Version 5.0.8 adds one-time campaign-lifetime consent, automatic consent reload across model and session changes, pinned-browser reuse, expiring task leases and checkpoints, crash self-revival, campaign-local day rollover, lane circuit breakers, adaptive reserve sizing and pass limits, starvation prevention, reusable pre-flight evidence, deterministic skill entry, and bounded plugin-path resolution. After a machine or client restart, it reconciles missed work and resumes from durable evidence instead of relying on the visible chat transcript.
+Version 5.0.9 adds one-time campaign-lifetime consent, automatic consent reload across model and session changes, pinned-browser reuse, expiring task leases and checkpoints, crash self-revival, campaign-local day rollover, lane circuit breakers, adaptive reserve sizing and pass limits, starvation prevention, reusable pre-flight evidence, deterministic skill entry, bounded plugin-path resolution, and post-recovery state reconciliation. After a machine or client restart, it reconciles missed work and resumes from durable evidence instead of relying on the visible chat transcript.
 
 It runs in Claude Code and Codex, keeps mutable campaign data outside the plugin, and resumes from verified state instead of starting over every day.
 

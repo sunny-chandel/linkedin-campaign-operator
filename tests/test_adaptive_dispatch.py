@@ -993,6 +993,17 @@ class AdaptiveDispatchTests(unittest.TestCase):
                     "identity unavailable",
                 ]
             )
+            state_path = state_dir / "campaign-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["dispatcher"]["continuation"].update(
+                {
+                    "status": "wake-required",
+                    "next_wake_at": "2026-08-25T12:04:00+05:30",
+                    "wake_trigger": "lane-recovery-probe:linkedin",
+                    "action": "arm-or-update-single-host-wake",
+                }
+            )
+            write_json(state_path, state)
             recovered = run_json(
                 [
                     "python3",
@@ -1020,6 +1031,54 @@ class AdaptiveDispatchTests(unittest.TestCase):
             self.assertEqual(classification["contract"], "agent-neutral-runtime-v1")
             self.assertTrue(classification["agent_neutral"])
             self.assertEqual(recovered["runtime_classification"], classification)
+            continuation = state["dispatcher"]["continuation"]
+            self.assertEqual(continuation["status"], "active")
+            self.assertIsNone(continuation["next_wake_at"])
+            self.assertIsNone(continuation["wake_trigger"])
+
+    def test_migration_reconciles_stale_runtime_classification(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            state_dir = self.init_campaign(Path(temporary))
+            state_path = state_dir / "campaign-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["dispatcher"]["linkedin_lane"] = "ready"
+            state["dispatcher"]["offline_lane"] = "ready"
+            state["dispatcher"]["lane_circuits"]["linkedin"].update(
+                {"status": "closed", "intervention_required": False}
+            )
+            state["lifecycle_state"] = "recovering"
+            state["runtime_classification"] = {
+                "contract": "agent-neutral-runtime-v1",
+                "state": "recovering",
+                "reasons": ["linkedin-lane:recovering"],
+            }
+            state["dispatcher"]["continuation"].update(
+                {
+                    "status": "wake-required",
+                    "next_wake_at": "2026-08-25T11:59:00+05:30",
+                    "wake_trigger": "lane-recovery-probe:linkedin",
+                }
+            )
+            write_json(state_path, state)
+            run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "migrate_campaign.py"),
+                    str(state_dir),
+                    "--now",
+                    "2026-08-25T12:10:00+05:30",
+                ]
+            )
+            reconciled = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertEqual(reconciled["lifecycle_state"], "running")
+            self.assertEqual(reconciled["runtime_classification"]["state"], "running")
+            self.assertEqual(
+                reconciled["runtime_classification"]["reasons"],
+                ["all-required-lanes-ready"],
+            )
+            continuation = reconciled["dispatcher"]["continuation"]
+            self.assertEqual(continuation["status"], "active")
+            self.assertIsNone(continuation["next_wake_at"])
 
     def test_reserve_target_is_adaptive_and_low_yield_pass_backs_off(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

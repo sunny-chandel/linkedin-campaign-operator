@@ -1,5 +1,11 @@
 # Changelog
 
+## 5.0.9 — Recovery-state reconciliation
+
+- recomputed agent-neutral lifecycle classification during every runtime reconciliation;
+- cleared obsolete lane-probe wakes automatically after the recovered lane became ready;
+- added migration regression coverage for stale recovery metadata.
+
 ## 5.0.8 — Deterministic skill entry
 
 - made direct `/linkedin-campaign-orchestrator` invocation the canonical launch path;

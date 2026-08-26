@@ -80,6 +80,42 @@ def apply_lifecycle_classification(
     return classification
 
 
+def reconcile_recovered_lane_continuation(
+    state: dict[str, Any],
+    now: datetime,
+) -> bool:
+    """Clear an obsolete lane-probe wake after its dependency is healthy again."""
+    dispatcher = state.get("dispatcher", {})
+    if not isinstance(dispatcher, dict):
+        return False
+    continuation = dispatcher.get("continuation", {})
+    if not isinstance(continuation, dict):
+        return False
+    trigger = str(continuation.get("wake_trigger") or "")
+    prefix = "lane-recovery-probe:"
+    if not trigger.startswith(prefix):
+        return False
+    lane = trigger[len(prefix):]
+    circuits = dispatcher.get("lane_circuits", {})
+    circuit = circuits.get(lane, {}) if isinstance(circuits, dict) else {}
+    lane_ready = dispatcher.get(f"{lane}_lane") == "ready"
+    circuit_closed = isinstance(circuit, dict) and circuit.get("status", "closed") == "closed"
+    if not (lane_ready and circuit_closed):
+        return False
+    continuation.update(
+        {
+            "status": "active",
+            "owner_input_required": False,
+            "next_wake_at": None,
+            "wake_trigger": None,
+            "action": None,
+            "last_woke_at": iso_time(now),
+            "last_completion_reason": f"{lane}-lane-recovered",
+        }
+    )
+    return True
+
+
 def load_object(path: Path) -> dict[str, Any]:
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
@@ -638,6 +674,12 @@ def reconcile_runtime(
     lifecycle = reconcile_task_lifecycle(queue, now, startup=startup)
     publishing = reconcile_content_day(state_dir, state, config, queue, ledger, now)
     reserve = recalculate_adaptive_reserve(state, config, now)
+    continuation_reconciled = reconcile_recovered_lane_continuation(state, now)
+    runtime_classification = apply_lifecycle_classification(
+        state,
+        now,
+        consent_valid=consent_valid,
+    )
     continuity = state.setdefault("runtime_continuity", {})
     previous_heartbeat = parse_time(continuity.get("last_heartbeat_at"))
     if startup:
@@ -665,6 +707,8 @@ def reconcile_runtime(
         "budget_day_reset": budget_reset,
         "consent_valid": consent_valid,
         "consent_reason": consent_reason,
+        "continuation_reconciled": continuation_reconciled,
+        "runtime_classification": runtime_classification,
     }
 
 

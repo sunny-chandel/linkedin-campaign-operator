@@ -20,6 +20,7 @@ from runtime_state import (
     load_object,
     parse_time,
     recalculate_adaptive_reserve,
+    reconcile_recovered_lane_continuation,
     required_regions,
     sync_consent_snapshot,
 )
@@ -290,6 +291,7 @@ def lane_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, A
             }
         )
         dispatcher[f"{args.lane}_lane"] = "ready"
+        reconcile_recovered_lane_continuation(state, now)
     elif args.event == "hard-blocker":
         circuit.update(
             {
