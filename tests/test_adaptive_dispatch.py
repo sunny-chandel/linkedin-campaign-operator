@@ -491,6 +491,109 @@ class AdaptiveDispatchTests(unittest.TestCase):
             self.assertEqual(persisted["dispatcher"]["unfinished_work_count"], 0)
             self.assertEqual(persisted["engagement_scaling"]["budget_day_local"], "2026-08-25")
 
+    def test_future_retry_wait_arms_automatic_continuation_without_question(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            state_dir = self.init_campaign(Path(temporary))
+            queue = json.loads((state_dir / "work-queue.json").read_text(encoding="utf-8"))
+            queue["items"].append(
+                {
+                    "task_id": "reserve-retry",
+                    "task_type": "adaptive-reserve",
+                    "lane": "linkedin",
+                    "priority": 6,
+                    "status": "retry-wait",
+                    "ready": False,
+                    "requires_linkedin": True,
+                    "next_eligible_at": "2026-08-25T12:30:00+05:30",
+                }
+            )
+            write_json(state_dir / "work-queue.json", queue)
+            waited = run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "dispatch_next_work.py"),
+                    str(state_dir),
+                    "--record",
+                    "--now",
+                    TEST_NOW,
+                ]
+            )
+            self.assertEqual(waited["decision"], "wait")
+            self.assertEqual(waited["unfinished_work_count"], 1)
+            self.assertEqual(waited["deferred_work_count"], 1)
+            self.assertEqual(
+                waited["predicted_next_opportunity"],
+                "2026-08-25T07:00:00+00:00",
+            )
+            self.assertFalse(waited["continuation"]["owner_input_required"])
+            self.assertEqual(waited["continuation"]["mode"], "automatic")
+            self.assertEqual(
+                waited["continuation"]["action"],
+                "arm-or-update-single-host-wake",
+            )
+            persisted = json.loads((state_dir / "campaign-state.json").read_text(encoding="utf-8"))
+            self.assertEqual(persisted["dispatcher"]["continuation"]["status"], "wake-required")
+            self.assertFalse(
+                persisted["dispatcher"]["continuation"]["owner_input_required"]
+            )
+
+    def test_due_retry_wait_executes_instead_of_asking_for_continuation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            state_dir = self.init_campaign(Path(temporary))
+            queue = json.loads((state_dir / "work-queue.json").read_text(encoding="utf-8"))
+            queue["items"].append(
+                {
+                    "task_id": "reserve-due",
+                    "task_type": "adaptive-reserve",
+                    "lane": "linkedin",
+                    "priority": 6,
+                    "status": "retry-wait",
+                    "ready": False,
+                    "requires_linkedin": True,
+                    "next_eligible_at": "2026-08-25T11:59:00+05:30",
+                }
+            )
+            write_json(state_dir / "work-queue.json", queue)
+            decision = run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "dispatch_next_work.py"),
+                    str(state_dir),
+                    "--now",
+                    TEST_NOW,
+                ]
+            )
+            self.assertEqual(decision["decision"], "execute")
+            self.assertEqual(decision["task"]["task_id"], "reserve-due")
+
+    def test_continuation_adapter_is_persisted_without_owner_input(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            state_dir = self.init_campaign(Path(temporary))
+            armed = run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "runtime_control.py"),
+                    str(state_dir),
+                    "--now",
+                    TEST_NOW,
+                    "continuation-event",
+                    "--event",
+                    "armed",
+                    "--adapter",
+                    "host-native-scheduled-wake",
+                    "--automation-id",
+                    "campaign-wake-1",
+                    "--next-wake-at",
+                    "2026-08-25T12:30:00+05:30",
+                ]
+            )
+            self.assertEqual(armed["continuation"]["status"], "armed")
+            self.assertFalse(armed["continuation"]["owner_input_required"])
+            self.assertEqual(
+                armed["continuation"]["active_adapter"],
+                "host-native-scheduled-wake",
+            )
+
     def test_public_initializer_accepts_custom_identity_timezone_and_goals(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             state_dir = Path(temporary) / "public-campaign"

@@ -3,7 +3,7 @@ name: linkedin-campaign-orchestrator
 description: Run a persistent organic LinkedIn growth operating system with continuous dispatch, adaptive engagement and reciprocity, dynamic publishing, live skill refresh, state recovery, and auditable execution. Use for complete content days and continued execution toward configurable follower and connection goals; do not treat it as an advertising campaign builder.
 metadata:
   author: sunny
-  version: "5.0.4"
+  version: "5.0.5"
 ---
 
 # LinkedIn campaign orchestrator
@@ -111,7 +111,9 @@ Every supporting skill inherits the active consent and automation state from thi
 
 For recoverable failures, save state, verify the last observable outcome, retry safely up to the configured limit, select the best valid fallback, and continue without asking. Never terminate merely because a preferred source, candidate, metric, asset format, or premium feature is unavailable. At every wake and after every completed task, run `audit_pipeline.py` and `dispatch_next_work.py --record`. A recorded dispatch leases the selected task. Immediately record `task-event start`; checkpoint every useful result; record `complete` with evidence or `fail` with the observed reason. Never modify queue status manually. Expired leases recover automatically after a crash or restart.
 
-Do not select the same non-urgent task type more than twice consecutively when another eligible type exists. Publication, direct inbound, pre-flight, lane recovery, and mandatory recovery are exempt. A wait is valid only when both scripts confirm that no executable or recoverable work exists and campaign state contains an evidence-backed next wake trigger. Never use repeated fixed-duration sleep loops. Use `campaign_status.py` for status reports so posting progress, engagement utilization, analytics debt, blockers, continuity, consent state, browser binding, and true idle time remain distinct.
+Do not select the same non-urgent task type more than twice consecutively when another eligible type exists. Publication, direct inbound, pre-flight, lane recovery, and mandatory recovery are exempt. A wait is valid only when both scripts confirm that no work is executable now and campaign state contains an evidence-backed next wake trigger. Future `retry-wait` work is deferred work, not reconciliation debt. Never use repeated fixed-duration sleep commands. Use `campaign_status.py` for status reports so posting progress, engagement utilization, analytics debt, blockers, continuity, consent state, browser binding, continuation state, and true idle time remain distinct.
+
+Every `wait` result includes an automatic continuation contract. Before ending the turn, arm or update exactly one deduplicated host wake for the returned `predicted_next_opportunity`, then record it with `runtime_control.py continuation-event --event armed`. Select the first available adapter in the returned priority list: a host-native scheduled wake, a host-native heartbeat, then a dynamic in-session loop. If one adapter fails, record `--event failed` and try the next automatically. Never ask the owner to choose between a scheduled agent, heartbeat, loop, or manual check-back. Never expose continuation setup as a question. On wake, record `--event woke`, run self-revival, audit, and dispatch immediately. Reuse the existing automation for later wake times instead of creating duplicates.
 
 ## Continuous 24-hour pipeline
 

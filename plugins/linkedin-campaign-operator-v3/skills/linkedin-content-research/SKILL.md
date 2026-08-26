@@ -3,7 +3,7 @@ name: linkedin-content-research
 description: Research fresh LinkedIn campaign topics, primary sources, platform changes, and credible trends. Use when creating research briefs or checking claims and algorithm advice.
 metadata:
   author: sunny
-  version: "5.0.4"
+  version: "5.0.5"
 ---
 
 # LinkedIn content research

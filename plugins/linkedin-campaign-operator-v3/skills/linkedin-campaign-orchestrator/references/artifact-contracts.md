@@ -33,7 +33,7 @@ Store mutable artifacts outside the plugin.
 
 Every interaction event additionally records its lane, triggering signal, relationship strength, budget classification, and scheduling rationale.
 
-Every queue item records its lifecycle status, attempt count, idempotency key, lease ID and expiry while active, last heartbeat, latest checkpoint, retry eligibility, and evidence-backed terminal outcome. `campaign-state.json` records the consent fingerprint, pinned browser binding, reusable pre-flight evidence, lane circuits, last runtime heartbeat, detected downtime, latest self-revival report, and an agent-neutral `runtime_classification` derived only from those durable fields.
+Every queue item records its lifecycle status, attempt count, idempotency key, lease ID and expiry while active, last heartbeat, latest checkpoint, retry eligibility, and evidence-backed terminal outcome. `campaign-state.json` records the consent fingerprint, pinned browser binding, reusable pre-flight evidence, lane circuits, last runtime heartbeat, detected downtime, latest self-revival report, agent-neutral `runtime_classification`, and the active automatic-continuation adapter, automation identifier, exact next wake, and deduplication key.
 
 ## Pipeline artifacts
 

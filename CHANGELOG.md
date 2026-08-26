@@ -1,5 +1,12 @@
 # Changelog
 
+## 5.0.5 — Zero-question automatic continuation
+
+- made future `retry-wait` tasks produce an exact wake instead of fake reconciliation work;
+- added a host-neutral automatic-continuation contract with one deduplicated campaign wake;
+- prohibited scheduled-agent, heartbeat, loop, and manual-check-back choice prompts;
+- persisted continuation adapter state and added due-wake regression coverage.
+
 ## 5.0.4 — Agent-neutral runtime classification
 
 - made Claude, Codex, and other compatible agents use one durable lifecycle-classification contract;

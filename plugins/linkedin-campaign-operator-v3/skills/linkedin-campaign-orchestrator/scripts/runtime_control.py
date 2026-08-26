@@ -327,6 +327,54 @@ def lane_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, A
     }
 
 
+def continuation_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, Any]:
+    require_active_consent(state_dir, state, now)
+    dispatcher = state.setdefault("dispatcher", {})
+    continuation = dispatcher.setdefault("continuation", {})
+    timestamp = iso_time(now)
+    if args.event == "armed":
+        continuation.update(
+            {
+                "mode": "automatic",
+                "status": "armed",
+                "owner_input_required": False,
+                "active_adapter": args.adapter,
+                "automation_id": args.automation_id,
+                "next_wake_at": args.next_wake_at or dispatcher.get("next_wake_at"),
+                "armed_at": timestamp,
+                "last_error": None,
+            }
+        )
+    elif args.event == "woke":
+        continuation.update(
+            {
+                "mode": "automatic",
+                "status": "active",
+                "owner_input_required": False,
+                "active_adapter": args.adapter or continuation.get("active_adapter"),
+                "automation_id": args.automation_id or continuation.get("automation_id"),
+                "last_woke_at": timestamp,
+                "last_error": None,
+            }
+        )
+    else:
+        failed_adapters = continuation.setdefault("failed_adapters", [])
+        if args.adapter and args.adapter not in failed_adapters:
+            failed_adapters.append(args.adapter)
+        continuation.update(
+            {
+                "mode": "automatic",
+                "status": "fallback-required",
+                "owner_input_required": False,
+                "last_failed_at": timestamp,
+                "last_error": args.reason,
+            }
+        )
+    state["updated_at"] = timestamp
+    write_runtime(state_dir, state)
+    return {"valid": True, "continuation": continuation}
+
+
 def task_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, Any]:
     require_active_consent(state_dir, state, now)
     queue = load_object(state_dir / "work-queue.json")
@@ -574,6 +622,13 @@ def main() -> int:
     lane.add_argument("--event", choices=("transient-failure", "hard-blocker", "recovered"), required=True)
     lane.add_argument("--reason", required=True)
 
+    continuation = subparsers.add_parser("continuation-event")
+    continuation.add_argument("--event", choices=("armed", "woke", "failed"), required=True)
+    continuation.add_argument("--adapter")
+    continuation.add_argument("--automation-id")
+    continuation.add_argument("--next-wake-at")
+    continuation.add_argument("--reason")
+
     event = subparsers.add_parser("task-event")
     event.add_argument("--task-id", required=True)
     event.add_argument("--event", choices=("start", "checkpoint", "complete", "fail"), required=True)
@@ -607,6 +662,8 @@ def main() -> int:
             result = preflight_status(state_dir, state, now)
         elif args.command == "lane-event":
             result = lane_event(args, state_dir, state, now)
+        elif args.command == "continuation-event":
+            result = continuation_event(args, state_dir, state, now)
         elif args.command == "task-event":
             result = task_event(args, state_dir, state, now)
         elif args.command == "reserve-pass":

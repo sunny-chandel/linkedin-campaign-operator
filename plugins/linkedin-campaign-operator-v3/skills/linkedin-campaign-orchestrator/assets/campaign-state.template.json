@@ -18,9 +18,9 @@
   },
   "progress": {},
   "runtime_instructions": {
-    "session_version": "5.0.4",
-    "active_version": "5.0.4",
-    "detected_version": "5.0.4",
+    "session_version": "5.0.5",
+    "active_version": "5.0.5",
+    "detected_version": "5.0.5",
     "install_path": null,
     "last_checked_at": null,
     "activated_at": null,
@@ -79,6 +79,16 @@
     "last_decision_at": null,
     "next_wake_at": null,
     "next_wake_reason": null,
+    "continuation": {
+      "mode": "automatic",
+      "status": "unbound",
+      "owner_input_required": false,
+      "active_adapter": null,
+      "automation_id": null,
+      "next_wake_at": null,
+      "dedupe_key": null,
+      "failed_adapters": []
+    },
     "unfinished_work_count": 0
   },
   "automation_consent": {

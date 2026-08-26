@@ -115,6 +115,7 @@ def main() -> int:
                 "preflight_evidence": state.get("preflight_evidence", {}),
                 "runtime_continuity": state.get("runtime_continuity", {}),
                 "runtime_classification": state.get("runtime_classification", {}),
+                "continuation": dispatcher.get("continuation", {}),
             },
             "unfinished_work_count": len(unfinished),
             "unfinished_stage_count": len(unfinished_stages),

@@ -48,6 +48,19 @@
     "operating_span": "24h",
     "burst_gap_mode": "fully-adaptive",
     "wait_requires_empty_validated_queue": true,
+    "continuation": {
+      "mode": "automatic",
+      "owner_choice_required": false,
+      "single_automation_per_campaign": true,
+      "reuse_existing_automation": true,
+      "host_adapter_priority": [
+        "host-native-scheduled-wake",
+        "host-native-heartbeat",
+        "dynamic-session-loop"
+      ],
+      "fallback_heartbeat_minutes": 15,
+      "maximum_wake_lateness_minutes": 5
+    },
     "reserve_mode": "adaptive-next-two-bursts",
     "soft_reciprocity_signals": [
       "like",

@@ -27,6 +27,8 @@ The record identifies:
 
 Research, design, LinkedIn reading, publishing, comments, replies, DMs, reactions, queue work, analytics, and logging need no repeated approval after the recognized owner starts the system.
 
+The same receipt also authorizes automatic continuation of this already-configured campaign through one deduplicated host wake, heartbeat, or in-session loop. Choosing among available continuation adapters is a runtime implementation detail and never requires another owner question.
+
 Do not describe a browser reconnect, pre-flight refresh, content preview, subskill transition, retry, recovery, or session restart as requiring fresh consent. A technical login, account-identity, or capability failure may require owner intervention when automatic recovery is exhausted, but clearing it does not create a new campaign-consent ceremony.
 
 ## Restart recovery

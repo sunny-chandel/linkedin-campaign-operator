@@ -112,9 +112,18 @@ def record_decision(state_dir: Path, state: dict[str, Any], result: dict[str, An
     if result.get("decision") == "wait":
         dispatcher["next_wake_at"] = result.get("predicted_next_opportunity")
         dispatcher["next_wake_reason"] = result.get("wake_trigger")
+        requested = result.get("continuation", {})
+        continuation = dispatcher.setdefault("continuation", {})
+        if isinstance(requested, dict):
+            continuation.update(requested)
+        continuation["status"] = "wake-required"
+        continuation["requested_at"] = result.get("decided_at")
     elif result.get("decision") == "execute":
         dispatcher["next_wake_at"] = None
         dispatcher["next_wake_reason"] = None
+        continuation = dispatcher.setdefault("continuation", {})
+        continuation["status"] = "active"
+        continuation["last_woke_at"] = result.get("decided_at")
     state["updated_at"] = result.get("decided_at")
     atomic_write(state_dir / "campaign-state.json", state)
 
@@ -157,6 +166,92 @@ def task_is_eligible(
     if task_type == "two-package-production" and packages_ready >= 2:
         return False, "two-packages-ready"
     return True, None
+
+
+def automatic_continuation(
+    state_dir: Path,
+    config: dict[str, Any],
+    wake_at: str,
+    wake_trigger: str,
+) -> dict[str, Any]:
+    configured = config.get("adaptive_dispatch", {}).get("continuation", {})
+    if not isinstance(configured, dict):
+        configured = {}
+    adapters = configured.get(
+        "host_adapter_priority",
+        ["host-native-scheduled-wake", "host-native-heartbeat", "dynamic-session-loop"],
+    )
+    if not isinstance(adapters, list) or not adapters:
+        adapters = ["host-native-scheduled-wake", "host-native-heartbeat", "dynamic-session-loop"]
+    campaign_id = str(config.get("campaign_id") or state_dir.name)
+    return {
+        "mode": "automatic",
+        "owner_input_required": False,
+        "action": "arm-or-update-single-host-wake",
+        "dedupe_key": f"linkedin-campaign-continuation:{campaign_id}",
+        "host_adapter_priority": [str(adapter) for adapter in adapters],
+        "next_wake_at": wake_at,
+        "wake_trigger": wake_trigger,
+        "state_dir": str(state_dir),
+        "resume_instruction": (
+            "Resume this campaign from durable state, run self-revival, audit, dispatch, "
+            "and execute the returned work autonomously."
+        ),
+    }
+
+
+def future_wake_candidates(
+    items: list[dict[str, Any]],
+    dispatcher: dict[str, Any],
+    now_dt: datetime,
+) -> list[dict[str, Any]]:
+    wakes: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        status = item.get("status")
+        next_eligible = parse_time(item.get("next_eligible_at"))
+        due_at = parse_time(item.get("due_at"))
+        if status == "retry-wait" and next_eligible and next_eligible > now_dt:
+            wakes.append(
+                {
+                    "at": next_eligible,
+                    "trigger": f"retry-wait-ready:{item.get('task_id')}",
+                    "task_id": item.get("task_id"),
+                }
+            )
+        elif status in UNFINISHED_STATUSES and item.get("ready") is False and due_at and due_at > now_dt:
+            wakes.append(
+                {
+                    "at": due_at,
+                    "trigger": f"task-due:{item.get('task_id')}",
+                    "task_id": item.get("task_id"),
+                }
+            )
+    circuits = dispatcher.get("lane_circuits", {})
+    if isinstance(circuits, dict):
+        for lane, circuit in circuits.items():
+            if not isinstance(circuit, dict):
+                continue
+            probe_at = parse_time(circuit.get("next_probe_at"))
+            if probe_at and probe_at > now_dt:
+                wakes.append(
+                    {
+                        "at": probe_at,
+                        "trigger": f"lane-recovery-probe:{lane}",
+                        "task_id": None,
+                    }
+                )
+    recorded_at = parse_time(dispatcher.get("next_wake_at"))
+    if recorded_at and recorded_at > now_dt and dispatcher.get("next_wake_reason"):
+        wakes.append(
+            {
+                "at": recorded_at,
+                "trigger": str(dispatcher["next_wake_reason"]),
+                "task_id": None,
+            }
+        )
+    return sorted(wakes, key=lambda wake: (wake["at"], str(wake["trigger"])))
 
 
 def main() -> int:
@@ -244,6 +339,17 @@ def main() -> int:
         debts = active_stage_debt(ledger)
         pending_count = sum(
             1 for item in items if isinstance(item, dict) and item.get("status") in UNFINISHED_STATUSES
+        ) + len(debts)
+        future_wakes = future_wake_candidates(items, dispatcher, now_dt)
+        deferred_task_ids = {
+            wake.get("task_id") for wake in future_wakes if wake.get("task_id")
+        }
+        reconcilable_count = sum(
+            1
+            for item in items
+            if isinstance(item, dict)
+            and item.get("status") in UNFINISHED_STATUSES
+            and item.get("task_id") not in deferred_task_ids
         ) + len(debts)
 
         candidates: list[dict[str, Any]] = []
@@ -448,6 +554,26 @@ def main() -> int:
                 "rejected": rejected,
                 "reason": "highest-priority eligible work",
             }
+        elif pending_count and reconcilable_count == 0 and future_wakes:
+            wake = future_wakes[0]
+            wake_at = iso_time(wake["at"])
+            wake_trigger = str(wake["trigger"])
+            result = {
+                "valid": True,
+                "decision": "wait",
+                "decided_at": now,
+                "unfinished_work_count": pending_count,
+                "deferred_work_count": len(deferred_task_ids),
+                "evidence": "all unfinished work is validly time-gated; no executable stage debt exists",
+                "predicted_next_opportunity": wake_at,
+                "wake_trigger": wake_trigger,
+                "continuation": automatic_continuation(
+                    state_dir,
+                    config,
+                    wake_at,
+                    wake_trigger,
+                ),
+            }
         elif pending_count:
             offline_available = dispatcher.get("offline_lane", "ready") != "blocked"
             if offline_available:
@@ -479,6 +605,12 @@ def main() -> int:
             next_wake_at = dispatcher.get("next_wake_at")
             next_wake_reason = dispatcher.get("next_wake_reason")
             if next_wake_at and next_wake_reason:
+                continuation = automatic_continuation(
+                    state_dir,
+                    config,
+                    str(next_wake_at),
+                    str(next_wake_reason),
+                )
                 result = {
                     "valid": True,
                     "decision": "wait",
@@ -487,6 +619,7 @@ def main() -> int:
                     "evidence": "validated work queue and stage ledger are empty",
                     "predicted_next_opportunity": next_wake_at,
                     "wake_trigger": next_wake_reason,
+                    "continuation": continuation,
                 }
             else:
                 result = {
