@@ -24,21 +24,21 @@ def frontmatter(path: Path) -> dict:
     return value
 
 
-def test_all_eight_skills_are_public_v1_1_packages() -> None:
+def test_all_eight_skills_share_the_public_release_version() -> None:
     skill_files = sorted(SKILLS.glob("*/SKILL.md"))
     assert len(skill_files) == 8
     for skill_file in skill_files:
         metadata = frontmatter(skill_file)
         assert metadata["name"] == skill_file.parent.name
         assert metadata["description"]
-        assert metadata["metadata"]["version"] == "5.0.7"
+        assert metadata["metadata"]["version"] == "5.0.8"
 
 
 def test_claude_and_codex_manifests_are_aligned() -> None:
     claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
     codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
     assert claude["name"] == codex["name"] == PLUGIN.name
-    assert claude["version"] == codex["version"] == "5.0.7"
+    assert claude["version"] == codex["version"] == "5.0.8"
     assert claude["license"] == codex["license"] == "MIT"
     assert claude["homepage"] == codex["homepage"] == PUBLIC_SITE
     assert codex["skills"] == "./skills/"
@@ -63,6 +63,13 @@ def test_continuation_never_becomes_an_owner_choice() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
     assert "Never ask the owner to choose between a scheduled agent" in text
     assert "Never expose continuation setup as a question" in text
+
+
+def test_orchestrator_uses_deterministic_plugin_path_resolution() -> None:
+    text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
+    assert "Invoke this installed skill directly as `/linkedin-campaign-orchestrator`" in text
+    assert "Never locate this plugin with `find /`" in text
+    assert "runtime_instructions.install_path" in text
 
 
 def test_public_package_contains_no_fixed_owner_identity() -> None:

@@ -1,5 +1,11 @@
 # Changelog
 
+## 5.0.8 — Deterministic skill entry
+
+- made direct `/linkedin-campaign-orchestrator` invocation the canonical launch path;
+- prohibited unbounded filesystem scans when resolving the installed plugin;
+- aligned all skill metadata, Claude and Codex manifests, state templates, and public release copy.
+
 ## 5.0.7 — Lane-dependent wake routing
 
 - mapped LinkedIn tasks behind a recovering lane to the lane's scheduled probe;

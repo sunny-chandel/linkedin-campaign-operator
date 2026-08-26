@@ -3,7 +3,7 @@ name: linkedin-campaign-orchestrator
 description: Run a persistent organic LinkedIn growth operating system with continuous dispatch, adaptive engagement and reciprocity, dynamic publishing, live skill refresh, state recovery, and auditable execution. Use for complete content days and continued execution toward configurable follower and connection goals; do not treat it as an advertising campaign builder.
 metadata:
   author: sunny
-  version: "5.0.7"
+  version: "5.0.8"
 ---
 
 # LinkedIn campaign orchestrator
@@ -11,6 +11,12 @@ metadata:
 Run the campaign as a stateful pipeline. Treat this skill as the governing layer; use the other installed LinkedIn campaign skills when their descriptions match the current stage.
 
 This is a reusable organic profile-growth operating system. It is not an advertising or lead-generation campaign builder. Its defaults target 10,000 followers and 10,000 connections, while initialization can set the owner, profile, timezone, niche, baselines, and goals. India, US-Central, and UK/EU are the default operating regions.
+
+## Deterministic entry and path resolution
+
+Invoke this installed skill directly as `/linkedin-campaign-orchestrator`; natural-language launchers and parent agents must route to that same skill entry point before investigating the filesystem. Once loaded, use the campaign state's `runtime_instructions.install_path`, `${CLAUDE_SKILL_DIR}`, or the install path returned by `claude plugin list --json`, in that order. Never locate this plugin with `find /`, `find ~`, a recursive scan of `/Users`, Spotlight, or another broad filesystem search. If no deterministic installed path resolves, record an offline runtime-capability blocker and continue work that does not require plugin files.
+
+The normal start command is `/linkedin-campaign-orchestrator Resume <state-dir> from durable state and execute the dispatcher.` Do not replace it with a generic campaign conversation, a marketing questionnaire, or a search for repository copies.
 
 ## Non-negotiable operating rules
 
