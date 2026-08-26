@@ -264,7 +264,11 @@ class AdaptiveGifRefreshTests(unittest.TestCase):
 
             activated = run_json([*base_arguments, "--activate"])
             self.assertEqual(activated["runtime_state"]["active_version"], "0.5.0")
+            self.assertEqual(activated["runtime_state"]["session_version"], "0.5.0")
+            self.assertEqual(activated["session_version"], "0.5.0")
+            self.assertFalse(activated["update_available"])
             active = json.loads(state_path.read_text(encoding="utf-8"))["runtime_instructions"]
+            self.assertEqual(active["session_version"], "0.5.0")
             self.assertEqual(active["active_version"], "0.5.0")
             self.assertEqual(active["install_path"], str(install.resolve()))
             self.assertEqual(active["refresh_mode"], "direct-loaded")

@@ -18,7 +18,7 @@ The resolver validates the installed registry, selected cache path, plugin manif
 
 1. If `update_available` is false, continue normally.
 2. In Claude Desktop, directly read the returned `orchestrator_skill` completely, then read every returned supporting `SKILL.md`. Treat those files as the active operating instructions for the remainder of the session.
-3. After all files load, rerun the returned resolver with the same arguments plus `--activate`. This records the installed version, active instruction version, newest install path, detection time, activation time, and `direct-loaded` refresh mode.
+3. After all files load, rerun the returned resolver with the same arguments plus `--activate`. This normalizes `session_version`, `active_version`, and `detected_version` to the installed version, records the newest install path, detection time, activation time, and `direct-loaded` refresh mode, and clears the update-pending result.
 4. Use scripts, references, and assets only from that newest returned install path. Revalidate mutable state and resume from the last confirmed stage. Never repeat an external action merely because instructions changed.
 5. If the active client explicitly lists `/reload-plugins` as an available command, it may be used before direct verification. Never assume the command exists; Claude Desktop Code sessions may not expose it.
 

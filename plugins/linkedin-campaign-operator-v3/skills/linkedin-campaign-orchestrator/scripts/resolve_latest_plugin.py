@@ -62,7 +62,10 @@ def update_runtime_state(
     if not isinstance(runtime, dict):
         raise ValueError("campaign-state.json runtime_instructions must be an object")
     now = datetime.now(timezone.utc).isoformat()
-    runtime["session_version"] = session_version
+    # Once direct loading succeeds, the running session is operating with the
+    # installed instructions. Normalize every current-version field so stale
+    # bootstrap versions cannot be mistaken for the active runtime version.
+    runtime["session_version"] = installed_version if activate else session_version
     runtime["detected_version"] = installed_version
     runtime["install_path"] = str(install_path)
     runtime["last_checked_at"] = now
@@ -116,23 +119,25 @@ def main() -> int:
         if not orchestrator.is_file():
             raise ValueError("latest orchestrator SKILL.md is missing")
         update_available = version_key(installed_version) > version_key(args.session_version)
+        effective_session_version = installed_version if args.activate else args.session_version
+        effective_update_available = False if args.activate else update_available
         runtime_state = None
         if args.state_dir:
             runtime_state = update_runtime_state(
                 args.state_dir,
-                session_version=args.session_version,
+                session_version=effective_session_version,
                 installed_version=installed_version,
                 install_path=install_path,
-                update_available=update_available,
+                update_available=effective_update_available,
                 activate=args.activate,
             )
         print(
             json.dumps(
                 {
                     "valid": True,
-                    "session_version": args.session_version,
+                    "session_version": effective_session_version,
                     "installed_version": installed_version,
-                    "update_available": update_available,
+                    "update_available": effective_update_available,
                     "install_path": str(install_path),
                     "orchestrator_skill": str(orchestrator),
                     "skill_files": skill_files,
