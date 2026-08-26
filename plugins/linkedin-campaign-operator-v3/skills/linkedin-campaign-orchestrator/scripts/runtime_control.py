@@ -12,6 +12,7 @@ from typing import Any
 
 from runtime_state import (
     ACTIVE_TASK_STATUSES,
+    apply_lifecycle_classification,
     append_jsonl,
     atomic_write,
     current_time,
@@ -285,6 +286,7 @@ def lane_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, A
                 "next_probe_at": None,
                 "last_recovered_at": iso_time(now),
                 "last_reason": args.reason,
+                "intervention_required": False,
             }
         )
         dispatcher[f"{args.lane}_lane"] = "ready"
@@ -300,7 +302,6 @@ def lane_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, A
             }
         )
         dispatcher[f"{args.lane}_lane"] = "blocked"
-        state["lifecycle_state"] = "recovering"
     else:
         failures = int(circuit.get("consecutive_failures", 0) or 0) + 1
         opened = failures >= max_retries
@@ -315,10 +316,15 @@ def lane_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, A
             }
         )
         dispatcher[f"{args.lane}_lane"] = "recovering"
-        state["lifecycle_state"] = "recovering"
+    classification = apply_lifecycle_classification(state, now, consent_valid=True)
     state["updated_at"] = iso_time(now)
     write_runtime(state_dir, state)
-    return {"valid": True, "lane": args.lane, "circuit": circuit}
+    return {
+        "valid": True,
+        "lane": args.lane,
+        "circuit": circuit,
+        "runtime_classification": classification,
+    }
 
 
 def task_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, Any]:

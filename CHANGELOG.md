@@ -1,5 +1,12 @@
 # Changelog
 
+## 5.0.4 — Agent-neutral runtime classification
+
+- made Claude, Codex, and other compatible agents use one durable lifecycle-classification contract;
+- made lane recovery clear stale intervention requirements and recalculate the lifecycle state;
+- exposed persisted runtime classification in campaign status and self-revival results;
+- added regression coverage for identical recovered-state interpretation across agents.
+
 ## 5.0.3 — Pinned-browser continuity
 
 - made an exact stored Chrome device ID authoritative across fresh sessions;

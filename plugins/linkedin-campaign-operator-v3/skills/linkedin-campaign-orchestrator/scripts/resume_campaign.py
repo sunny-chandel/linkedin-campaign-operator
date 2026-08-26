@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Self-revive a campaign after Claude, the machine, or the browser was unavailable."""
+"""Self-revive a campaign after an agent, the machine, or the browser was unavailable."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 from runtime_state import (
+    apply_lifecycle_classification,
     append_jsonl,
     atomic_write,
     current_time,
@@ -48,7 +49,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("state_dir", type=Path)
     parser.add_argument("--now", help="ISO timestamp used in deterministic tests")
-    parser.add_argument("--session-id", default="claude-code-session")
+    parser.add_argument("--session-id", default="compatible-agent-session")
     args = parser.parse_args()
     state_dir = args.state_dir.expanduser().resolve()
     try:
@@ -76,10 +77,10 @@ def main() -> int:
         continuity["active_session_id"] = args.session_id
         continuity["recovery_status"] = "ready-to-dispatch" if report["consent_valid"] else "consent-required"
         continuity["last_recovery_report"].update(missed)
-        state["lifecycle_state"] = (
-            "running"
-            if report["consent_valid"] and state.get("lifecycle_state") not in {"completed", "user-stopped"}
-            else state.get("lifecycle_state", "ready")
+        classification = apply_lifecycle_classification(
+            state,
+            now,
+            consent_valid=report["consent_valid"],
         )
         atomic_write(state_dir / "campaign-state.json", state)
         atomic_write(state_dir / "work-queue.json", queue)
@@ -92,6 +93,7 @@ def main() -> int:
             "content_day": report["content_day"],
             "expired_leases": report["task_lifecycle"]["expired_leases"],
             "missed_tasks": report["task_lifecycle"]["missed_tasks"],
+            "runtime_classification": classification,
             **missed,
         }
         append_jsonl(state_dir / "recovery-events.jsonl", event)
@@ -103,6 +105,7 @@ def main() -> int:
             "content_day": report["content_day"],
             "expired_leases": report["task_lifecycle"]["expired_leases"],
             "missed_tasks": report["task_lifecycle"]["missed_tasks"],
+            "runtime_classification": classification,
             **missed,
             "next_step": (
                 "run audit_pipeline.py --write, then dispatch_next_work.py --record and execute without asking"

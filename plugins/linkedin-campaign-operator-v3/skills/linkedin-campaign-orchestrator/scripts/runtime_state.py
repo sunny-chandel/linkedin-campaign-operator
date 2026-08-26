@@ -17,6 +17,67 @@ from zoneinfo import ZoneInfo
 ACTIVE_TASK_STATUSES = {"pending", "recovering", "missed-recovering", "retry-wait"}
 LEASED_TASK_STATUSES = {"leased", "running"}
 TERMINAL_TASK_STATUSES = {"completed", "blocked", "superseded", "expired", "cancelled"}
+RUNTIME_CLASSIFICATION_CONTRACT = "agent-neutral-runtime-v1"
+
+
+def classify_lifecycle(
+    state: dict[str, Any],
+    *,
+    consent_valid: bool | None = None,
+) -> tuple[str, list[str]]:
+    """Derive one lifecycle state from durable evidence for every compatible agent."""
+    current = str(state.get("lifecycle_state") or "ready")
+    if current in {"completed", "user-stopped"}:
+        return current, [f"terminal-state:{current}"]
+    if consent_valid is False:
+        return "ready", ["consent-not-active"]
+
+    dispatcher = state.get("dispatcher", {})
+    if not isinstance(dispatcher, dict):
+        dispatcher = {}
+    linkedin_lane = str(dispatcher.get("linkedin_lane") or "ready")
+    offline_lane = str(dispatcher.get("offline_lane") or "ready")
+    if state.get("hard_blocker") and offline_lane == "blocked":
+        return "hard-blocked", ["global-hard-blocker", "offline-lane-blocked"]
+
+    recovering_reasons: list[str] = []
+    if linkedin_lane != "ready":
+        recovering_reasons.append(f"linkedin-lane:{linkedin_lane}")
+    if offline_lane != "ready":
+        recovering_reasons.append(f"offline-lane:{offline_lane}")
+    circuits = dispatcher.get("lane_circuits", {})
+    if isinstance(circuits, dict):
+        for lane, circuit in sorted(circuits.items()):
+            if not isinstance(circuit, dict):
+                continue
+            circuit_status = str(circuit.get("status") or "closed")
+            if circuit_status != "closed":
+                recovering_reasons.append(f"{lane}-circuit:{circuit_status}")
+            if circuit.get("intervention_required") is True:
+                recovering_reasons.append(f"{lane}-intervention-required")
+    if recovering_reasons:
+        return "recovering", recovering_reasons
+    return "running", ["all-required-lanes-ready"]
+
+
+def apply_lifecycle_classification(
+    state: dict[str, Any],
+    now: datetime,
+    *,
+    consent_valid: bool | None = None,
+) -> dict[str, Any]:
+    lifecycle, reasons = classify_lifecycle(state, consent_valid=consent_valid)
+    state["lifecycle_state"] = lifecycle
+    classification = {
+        "contract": RUNTIME_CLASSIFICATION_CONTRACT,
+        "agent_neutral": True,
+        "source_of_truth": "durable-runtime-evidence",
+        "state": lifecycle,
+        "reasons": reasons,
+        "evaluated_at": iso_time(now),
+    }
+    state["runtime_classification"] = classification
+    return classification
 
 
 def load_object(path: Path) -> dict[str, Any]:

@@ -6,11 +6,21 @@
   "last_confirmed_action": null,
   "recoverable_failures": [],
   "hard_blocker": null,
+  "runtime_classification": {
+    "contract": "agent-neutral-runtime-v1",
+    "agent_neutral": true,
+    "source_of_truth": "durable-runtime-evidence",
+    "state": "ready",
+    "reasons": [
+      "campaign-not-started"
+    ],
+    "evaluated_at": null
+  },
   "progress": {},
   "runtime_instructions": {
-    "session_version": "5.0.3",
-    "active_version": "5.0.3",
-    "detected_version": "5.0.3",
+    "session_version": "5.0.4",
+    "active_version": "5.0.4",
+    "detected_version": "5.0.4",
     "install_path": null,
     "last_checked_at": null,
     "activated_at": null,

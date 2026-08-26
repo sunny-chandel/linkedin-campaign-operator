@@ -114,6 +114,7 @@ def main() -> int:
                 "browser_binding": dispatcher.get("browser_binding", {}),
                 "preflight_evidence": state.get("preflight_evidence", {}),
                 "runtime_continuity": state.get("runtime_continuity", {}),
+                "runtime_classification": state.get("runtime_classification", {}),
             },
             "unfinished_work_count": len(unfinished),
             "unfinished_stage_count": len(unfinished_stages),

@@ -8,7 +8,7 @@ The recognized owner is the person controlling the trusted agent session and nam
 
 When no valid active receipt exists, the parent tells the recognized owner that it will run pre-flight and then operate the fixed system autonomously, asks one direct consent question, and records the answer through `runtime_control.py consent-grant`. Invoking a child skill never creates a second consent step.
 
-`consent-record.json` is authoritative across context compression, model changes, application restarts, and later Claude Code sessions. Conversation memory is not authoritative. Every startup and dispatch reloads the record, validates its fingerprint, and mirrors its receipt into `campaign-state.json`. An active campaign-lifetime receipt disables routine reconfirmation until the owner revokes it, the record becomes invalid or unavailable, or the verified account identity changes.
+`consent-record.json` is authoritative across context compression, model changes, application restarts, and later compatible-agent sessions. Conversation memory is not authoritative. Every startup and dispatch reloads the record, validates its fingerprint, and mirrors its receipt into `campaign-state.json`. An active campaign-lifetime receipt disables routine reconfirmation until the owner revokes it, the record becomes invalid or unavailable, or the verified account identity changes.
 
 The record identifies:
 
@@ -34,6 +34,8 @@ Do not describe a browser reconnect, pre-flight refresh, content preview, subski
 Every new or resumed session runs `resume_campaign.py` before ordinary dispatch. It reloads consent, calculates downtime from the last heartbeat, reopens abandoned task leases, reconciles the current campaign-local day, discovers missing tasks from durable artifacts, and records a recovery event. Safe unfinished work resumes from its latest checkpoint. Completed external mutations remain completed. Obsolete prior-day publication or engagement work is closed with a reason instead of being replayed; current-day replacements are created automatically.
 
 ## Failure classification
+
+Classification is runtime-neutral. Claude, Codex, and any other compatible agent use the same deterministic state transition and the persisted `runtime_classification` record. Model identity, client name, transcript phrasing, and an agent's subjective caution cannot change the result. A recovered lane must be `ready`, have a `closed` circuit, zero consecutive failures, and `intervention_required: false`; stale contradictory flags are invalid state and must be reconciled before dispatch.
 
 Recoverable:
 

@@ -826,6 +826,53 @@ class AdaptiveDispatchTests(unittest.TestCase):
             self.assertEqual(during["task"]["task_id"], "offline-during-circuit")
             self.assertEqual(probe["task"]["task_type"], "lane-recovery-probe")
 
+    def test_recovered_lane_clears_intervention_and_classifies_identically(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            state_dir = self.init_campaign(Path(temporary))
+            run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "runtime_control.py"),
+                    str(state_dir),
+                    "--now",
+                    "2026-08-25T12:00:00+05:30",
+                    "lane-event",
+                    "--lane",
+                    "linkedin",
+                    "--event",
+                    "hard-blocker",
+                    "--reason",
+                    "identity unavailable",
+                ]
+            )
+            recovered = run_json(
+                [
+                    "python3",
+                    str(ORCHESTRATOR / "runtime_control.py"),
+                    str(state_dir),
+                    "--now",
+                    "2026-08-25T12:05:00+05:30",
+                    "lane-event",
+                    "--lane",
+                    "linkedin",
+                    "--event",
+                    "recovered",
+                    "--reason",
+                    "verified identity restored",
+                ]
+            )
+            state = json.loads((state_dir / "campaign-state.json").read_text(encoding="utf-8"))
+            circuit = state["dispatcher"]["lane_circuits"]["linkedin"]
+            classification = state["runtime_classification"]
+            self.assertEqual(circuit["status"], "closed")
+            self.assertEqual(circuit["consecutive_failures"], 0)
+            self.assertFalse(circuit["intervention_required"])
+            self.assertEqual(state["dispatcher"]["linkedin_lane"], "ready")
+            self.assertEqual(state["lifecycle_state"], "running")
+            self.assertEqual(classification["contract"], "agent-neutral-runtime-v1")
+            self.assertTrue(classification["agent_neutral"])
+            self.assertEqual(recovered["runtime_classification"], classification)
+
     def test_reserve_target_is_adaptive_and_low_yield_pass_backs_off(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             state_dir = self.init_campaign(Path(temporary))

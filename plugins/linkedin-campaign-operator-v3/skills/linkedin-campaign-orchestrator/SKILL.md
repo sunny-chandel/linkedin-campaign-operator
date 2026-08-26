@@ -3,7 +3,7 @@ name: linkedin-campaign-orchestrator
 description: Run a persistent organic LinkedIn growth operating system with continuous dispatch, adaptive engagement and reciprocity, dynamic publishing, live skill refresh, state recovery, and auditable execution. Use for complete content days and continued execution toward configurable follower and connection goals; do not treat it as an advertising campaign builder.
 metadata:
   author: sunny
-  version: "5.0.3"
+  version: "5.0.4"
 ---
 
 # LinkedIn campaign orchestrator
@@ -41,13 +41,15 @@ Use Chrome and visible profile information, recent content, analytics, and entit
 
 After Chrome pre-flight passes, continue an existing campaign state when available. Otherwise initialize `campaign-data/linkedin-growth/` with `python scripts/init_campaign.py <state-dir> --owner-name <name> --profile-url <url> --timezone <iana-timezone>`, passing discovered values. Optional flags set the niche, baselines, campaign ID, and follower or connection goals. For an existing state directory, run `python scripts/migrate_campaign.py <state-dir>` before validation so newly introduced artifacts and defaults are added without overwriting campaign data. Store discovered values when visible; record temporarily unavailable optional values as unknown and continue.
 
-Then run `python scripts/resume_campaign.py <state-dir> --session-id <current-session-id>`. This is mandatory on every new or resumed Claude Code session and after a detected machine interruption. It reloads the consent receipt, detects downtime, expires abandoned leases, reconciles the campaign-local content day, reconstructs missing daily tasks from artifacts and evidence, restores safe missed work, closes obsolete time-bound work explicitly, and preserves every confirmed external outcome. Immediately run `audit_pipeline.py --write` and `dispatch_next_work.py --record`, then execute the returned task.
+Then run `python scripts/resume_campaign.py <state-dir> --session-id <current-session-id>`. This is mandatory on every new or resumed compatible-agent session and after a detected machine interruption. It reloads the consent receipt, detects downtime, expires abandoned leases, reconciles the campaign-local content day, reconstructs missing daily tasks from artifacts and evidence, restores safe missed work, closes obsolete time-bound work explicitly, and preserves every confirmed external outcome. Immediately run `audit_pipeline.py --write` and `dispatch_next_work.py --record`, then execute the returned task.
 
 If self-revival reports `consent-required`, ask the single initial consent question and store the answer. If it loads an active receipt, do not mention consent as a question and do not seek confirmation again. Run `python scripts/validate_campaign.py <state-dir>` after consent is active. Store discovered optional values when visible; record temporarily unavailable values as `unknown` and continue.
 
 Self-revival catches up safe missed work after downtime but never fabricates activity, duplicates an ambiguous external mutation, publishes an obsolete prior-day package, or makes up missed engagement volume. Recover analytics, research, state, current-day publication, and still-valid signal work; close stale time-bound tasks with evidence and create the correct current-day replacement.
 
 ## Lifecycle
+
+Lifecycle and blocker classification is agent-neutral. Claude, Codex, and every compatible agent must derive it from the same durable runtime evidence, never from model identity, chat wording, or private interpretation. Run the deterministic runtime controls and treat `runtime_classification` in `campaign-state.json` as authoritative: identical evidence must always produce the same state and next-action eligibility.
 
 Use exactly these states:
 
