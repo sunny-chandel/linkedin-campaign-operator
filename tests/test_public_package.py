@@ -31,17 +31,24 @@ def test_all_eight_skills_are_public_v1_1_packages() -> None:
         metadata = frontmatter(skill_file)
         assert metadata["name"] == skill_file.parent.name
         assert metadata["description"]
-        assert metadata["metadata"]["version"] == "5.0.2"
+        assert metadata["metadata"]["version"] == "5.0.3"
 
 
 def test_claude_and_codex_manifests_are_aligned() -> None:
     claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
     codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
     assert claude["name"] == codex["name"] == PLUGIN.name
-    assert claude["version"] == codex["version"] == "5.0.2"
+    assert claude["version"] == codex["version"] == "5.0.3"
     assert claude["license"] == codex["license"] == "MIT"
     assert claude["homepage"] == codex["homepage"] == PUBLIC_SITE
     assert codex["skills"] == "./skills/"
+
+
+def test_orchestrator_selects_exact_pinned_browser_without_question() -> None:
+    text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
+    assert "immediately call the browser-selection tool with that ID as an explicit argument" in text
+    assert "never use an owner-question tool for device selection" in text
+    assert "ignore other connected devices and do not present them as choices" in text
 
 
 def test_public_package_contains_no_fixed_owner_identity() -> None:

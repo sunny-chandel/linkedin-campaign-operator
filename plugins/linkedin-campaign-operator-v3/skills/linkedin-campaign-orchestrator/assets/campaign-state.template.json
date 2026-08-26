@@ -8,9 +8,9 @@
   "hard_blocker": null,
   "progress": {},
   "runtime_instructions": {
-    "session_version": "5.0.2",
-    "active_version": "5.0.2",
-    "detected_version": "5.0.2",
+    "session_version": "5.0.3",
+    "active_version": "5.0.3",
+    "detected_version": "5.0.3",
     "install_path": null,
     "last_checked_at": null,
     "activated_at": null,

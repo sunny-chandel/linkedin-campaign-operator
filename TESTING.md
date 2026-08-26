@@ -13,6 +13,7 @@ Expected behavior:
 - Later restarts reload that receipt and never ask for routine consent again.
 - `list_connected_browsers` is the first uncached browser operation.
 - The verified browser device is pinned and reused automatically; the system never asks the user to choose repeatedly between the same devices.
+- When several browsers are connected, an exact stored `device_id` match is selected directly and other devices are ignored; no interactive device question is shown.
 - If Chrome is disconnected, the LinkedIn circuit retries, then continues offline work and probes automatically.
 - With Chrome connected, LinkedIn is opened and checked against the owner name and full profile URL in the consent record.
 - Claude Design and `file_upload` are checked next.

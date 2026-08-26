@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "linkedin-campaign-operator-v3",
   "displayName": "LinkedIn Campaign Operator",
-  "version": "5.0.2",
+  "version": "5.0.3",
   "description": "Run a reusable LinkedIn growth operating system with durable consent, crash self-revival, reliable task leases, adaptive engagement, dynamic publishing, analytics, and persistent learning.",
   "author": {
     "name": "Sunny Chandel",

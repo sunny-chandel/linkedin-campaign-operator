@@ -1,5 +1,12 @@
 # Changelog
 
+## 5.0.3 — Pinned-browser continuity
+
+- made an exact stored Chrome device ID authoritative across fresh sessions;
+- required direct browser selection with the pinned ID instead of an interactive device picker;
+- made display-label changes and unrelated connected devices non-ambiguous;
+- added release-contract coverage for zero-question pinned-browser reuse.
+
 ## 5.0.2 — Deterministic rejection and restart reconciliation
 
 - made candidate qualification mandatory before drafting or surfacing an engagement action;
