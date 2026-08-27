@@ -36,18 +36,18 @@ Apply qualification, cooldown, availability, and base-budget capacity as hard ga
 - 10 percent freshness and regional timing;
 - 5 percent historical performance for the action, target layer, region, and current opportunity state.
 
-Select only candidates scoring at least 65. Use observed campaign outcomes to update inputs without changing the fixed weights outside the weekly learning rules.
+Select candidates at the active tier floor: 65 normal, 60 expansion, or 55 intensive. New-target follower gates are respectively 3,000, 2,000, and 1,000; cooldowns are 72, 48, and 24 hours. Never go below intensive and always retain the twice-per-seven-days limit.
 
 Follower count is a qualification gate for new additions, not a substitute for relevance.
 
-Run hard gates before drafting any action text. A failed hard gate or a score below 65 is a terminal rejection for that opportunity, not an approval checkpoint. Persist its machine-readable reason and continue discovery automatically. Never expose a failed candidate as “borderline,” request an exception, or ask the owner to choose whether to override a gate. If the selected set is empty, use the ranker's `continue-discovery` directive until the reserve pass reaches an evidence-backed stopping condition.
+Run hard gates before drafting any action text. A failed hard gate or score below the active tier is a terminal rejection for that opportunity, not an approval checkpoint. Persist its machine-readable reason in the canonical queue and continue discovery automatically. If selected is empty, rotate to the next measured-yield source; if selected contains even one candidate, dispatch it without waiting for a batch of ten.
 
 ## Reciprocity routing
 
 - Comments, replies, and genuine DMs enter `direct-inbound`.
 - Likes, reactions, follows, profile views when available, and connection acceptances create `soft-reciprocity` candidates.
 - For a soft signal, inspect the person's newest visible relevant posts and retain at most one qualifying opportunity.
-- Apply the 3,000-follower gate only to new targets, plus cooldown, relevance, and the score threshold.
+- Apply the active tier's new-target follower gate, cooldown, relevance, and score threshold.
 - If no post qualifies, retain the relationship signal without forcing an action.
 - A response to a reciprocal action updates relationship strength but does not reset or bypass cooldown.
 

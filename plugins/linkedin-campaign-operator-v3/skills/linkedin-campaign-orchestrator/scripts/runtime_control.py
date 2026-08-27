@@ -24,6 +24,11 @@ from runtime_state import (
     required_regions,
     sync_consent_snapshot,
 )
+from opportunity_recovery import (
+    eligible_opportunities,
+    next_discovery_source,
+    opportunity_document,
+)
 
 
 PREFLIGHT_COMPONENTS = {
@@ -430,20 +435,77 @@ def task_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, A
                 "verified": True,
                 "task_id": item.get("task_id"),
                 "package_path": item.get("package_path"),
+                "publication_kind": item.get("publication_kind", "normal"),
             }
             append_jsonl(state_dir / "publication-evidence.jsonl", evidence)
             ids = publishing.setdefault("published_post_ids", [])
             if payload["post_id"] not in ids:
                 ids.append(payload["post_id"])
             config = load_object(state_dir / "campaign-config.json")
-            publishing["posts_published"] = min(len(required_regions(config)), len(ids))
+            maximum = int(config.get("publishing_optimization", {}).get("maximum_posts_per_day", 6) or 6)
+            publishing["posts_published"] = min(maximum, len(ids))
             publishing["last_publication_at"] = evidence["published_at"]
+            if item.get("publication_kind") == "recovery":
+                publishing["recovery_posts_published"] = int(
+                    publishing.get("recovery_posts_published", 0) or 0
+                ) + 1
+                publishing["recovery_package"] = None
+                analytics_id = f"recovery-analytics-{day}-{payload['post_id']}"
+                if not any(
+                    isinstance(candidate, dict) and candidate.get("task_id") == analytics_id
+                    for candidate in queue.get("items", [])
+                ):
+                    queue["items"].append(
+                        {
+                            "task_id": analytics_id,
+                            "task_type": "performance-recovery-analytics",
+                            "lane": "offline",
+                            "priority": 3,
+                            "status": "pending",
+                            "ready": True,
+                            "requires_linkedin": False,
+                            "content_day_local": day,
+                            "post_id": payload["post_id"],
+                            "required_artifacts": ["daily-analytics.jsonl", "opportunity-health.jsonl"],
+                            "idempotency_key": f"recovery-analytics:{day}:{payload['post_id']}",
+                        }
+                    )
+            else:
+                publishing["normal_posts_published"] = min(
+                    len(required_regions(config)),
+                    int(publishing.get("normal_posts_published", 0) or 0) + 1,
+                )
         if item.get("task_type") == "preflight" and payload.get("preflight_passed") is not True:
             raise ValueError("preflight completion requires preflight_passed=true")
         if item.get("task_type") == "publication-queue-building":
             source_id = item.get("source_publication_task_id")
             if source_id:
                 find_task(queue, str(source_id))["engagement_queue_ready"] = True
+        if item.get("task_type") == "performance-recovery-content":
+            required = {"package_path", "publication_score", "fresh_source", "distinct_angle", "distinct_pillar_or_format"}
+            missing = [key for key in required if payload.get(key) in (None, "", False)]
+            if missing:
+                raise ValueError(
+                    "recovery content completion requires package, score, fresh source, distinct angle, and distinct pillar or format"
+                )
+            score = float(payload["publication_score"])
+            if score < 65:
+                raise ValueError("recovery publication score must be at least 65")
+            publishing = state.setdefault("publishing", {})
+            existing_package = publishing.get("recovery_package")
+            if isinstance(existing_package, dict) and existing_package.get("status") == "ready":
+                raise ValueError("only one unpublished recovery package may exist")
+            publishing["recovery_package"] = {
+                "status": "ready",
+                "package_path": payload["package_path"],
+                "publication_score": score,
+                "fresh_source": payload["fresh_source"],
+                "distinct_angle": payload["distinct_angle"],
+                "distinct_pillar_or_format": payload["distinct_pillar_or_format"],
+                "region": payload.get("region", "adaptive-recovery"),
+                "prepared_at": timestamp,
+                "content_day_local": item.get("content_day_local"),
+            }
         item.update(
             {
                 "status": "completed",
@@ -512,6 +574,306 @@ def task_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, A
     return {"valid": True, "task": item}
 
 
+def opportunity_pass(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, Any]:
+    """Persist one source attempt and canonical candidates, then rotate on low yield."""
+    require_active_consent(state_dir, state, now)
+    config = load_object(state_dir / "campaign-config.json")
+    queue = load_object(state_dir / "work-queue.json")
+    item = find_task(queue, args.task_id)
+    source = args.source or item.get("discovery_source")
+    if not source:
+        raise ValueError("opportunity pass requires a discovery source")
+    document = opportunity_document(state_dir, str(state.get("campaign_id") or ""))
+    incoming: list[dict[str, Any]] = []
+    if args.candidates_file:
+        payload = load_object(args.candidates_file.expanduser().resolve())
+        incoming = payload.get("opportunities", payload.get("candidates", []))
+        if not isinstance(incoming, list):
+            raise ValueError("candidate input must contain an opportunities or candidates array")
+    records = document.setdefault("opportunities", [])
+    by_id = {
+        str(record.get("candidate_id")): record
+        for record in records
+        if isinstance(record, dict) and record.get("candidate_id")
+    }
+    accepted = 0
+    rejection_reasons: dict[str, int] = {}
+    for candidate in incoming:
+        if not isinstance(candidate, dict) or not candidate.get("candidate_id"):
+            continue
+        candidate_id = str(candidate["candidate_id"])
+        current = by_id.get(candidate_id)
+        if current and current.get("status") == "executed":
+            continue
+        lane = candidate.get("lane", "proactive")
+        score = candidate.get("score", candidate.get("action_score"))
+        identity = (
+            candidate.get("candidate_identity")
+            or candidate.get("target_id")
+            or candidate.get("profile_url")
+            or candidate_id
+        )
+        complete = bool(
+            identity
+            and candidate.get("action_available", True) is True
+            and (lane == "direct-inbound" or (
+                isinstance(score, (int, float))
+                and not isinstance(score, bool)
+                and candidate.get("cooldown_passed") is True
+                and candidate.get("action_type")
+                and (
+                    candidate.get("target_status") != "new"
+                    or isinstance(candidate.get("follower_count"), (int, float))
+                    and not isinstance(candidate.get("follower_count"), bool)
+                )
+            ))
+        )
+        requested_status = candidate.get("status", "qualified")
+        lifecycle_status = requested_status if requested_status not in {"qualified", "ready"} or complete else "needs-revalidation"
+        normalized = {
+            **(current or {}),
+            **candidate,
+            "candidate_id": candidate_id,
+            "candidate_identity": identity,
+            "source": candidate.get("source") or source,
+            "lane": lane,
+            "score": score,
+            "active_gate_tier": state.get("opportunity_recovery", {}).get("mode", "normal"),
+            "post_freshness": candidate.get("post_freshness"),
+            "cooldown_passed": candidate.get("cooldown_passed") is True,
+            "follower_count": candidate.get("follower_count"),
+            "action_type": candidate.get("action_type"),
+            "status": lifecycle_status,
+            "lifecycle_status": lifecycle_status,
+            "discovered_at": candidate.get("discovered_at") or iso_time(now),
+            "expires_at": candidate.get("expires_at") or candidate.get("expiry"),
+            "evidence": candidate.get("evidence", {}),
+        }
+        if current:
+            current.update(normalized)
+        else:
+            records.append(normalized)
+            by_id[candidate_id] = normalized
+        if normalized["status"] in {"qualified", "ready"}:
+            accepted += 1
+        else:
+            reason = str(
+                candidate.get("rejection_reason")
+                or candidate.get("excluded_reason")
+                or normalized["status"]
+            )
+            rejection_reasons[reason] = rejection_reasons.get(reason, 0) + 1
+    document["updated_at"] = iso_time(now)
+    atomic_write(state_dir / "engagement-opportunities.json", document)
+    inspected = max(0, args.inspected)
+    rejected = max(0, args.rejected)
+    stale = max(0, args.stale)
+    yield_rate = accepted / max(1, inspected)
+    recovery = state.setdefault("opportunity_recovery", {})
+    source_history = recovery.setdefault("source_performance", {})
+    stats = source_history.setdefault(str(source), {})
+    stats["attempts"] = int(stats.get("attempts", 0) or 0) + 1
+    stats["inspected"] = int(stats.get("inspected", 0) or 0) + inspected
+    stats["accepted_candidates"] = int(stats.get("accepted_candidates", 0) or 0) + accepted
+    stats["rejected"] = int(stats.get("rejected", 0) or 0) + rejected
+    recorded_reasons = stats.setdefault("rejection_reasons", {})
+    for reason, count in rejection_reasons.items():
+        recorded_reasons[reason] = int(recorded_reasons.get(reason, 0) or 0) + count
+    stats["stale"] = int(stats.get("stale", 0) or 0) + stale
+    stats["last_yield"] = round(yield_rate, 4)
+    stats["last_attempt_at"] = iso_time(now)
+    recovery["last_discovery_source"] = str(source)
+    low_yield = yield_rate < float(
+        config.get("automation_reliability", {}).get("reserve", {}).get("min_qualified_yield_per_page", 0.25)
+    )
+    cooldown = int(
+        config.get("automation_reliability", {}).get("reserve", {}).get("low_yield_backoff_minutes", 30)
+        or 30
+    )
+    not_before = now + timedelta(minutes=cooldown if low_yield else 1)
+    recovery["source_not_before"] = iso_time(not_before)
+    recovery["next_discovery_source"] = next_discovery_source(state, config)
+    reserve = state.setdefault("engagement_scaling", {}).setdefault("adaptive_reserve", {})
+    eligible = eligible_opportunities(document, state, config, now)
+    reserve["qualified_count"] = len(eligible)
+    reserve["count_source"] = "engagement-opportunities.json"
+    reserve["discovery_yield_per_page"] = round(yield_rate, 4)
+    reserve["staleness_rate"] = round(stale / max(1, inspected), 4)
+    reserve["rejection_rate"] = round(rejected / max(1, inspected), 4)
+    reserve.setdefault("pass_history", []).append(
+        {
+            "completed_at": iso_time(now),
+            "source": source,
+            "inspected": inspected,
+            "accepted_candidates": accepted,
+            "rejected": rejected,
+            "rejection_reasons": rejection_reasons,
+            "stale": stale,
+            "yield": round(yield_rate, 4),
+            "not_before": iso_time(not_before),
+            "next_source": recovery["next_discovery_source"],
+        }
+    )
+    item.update(
+        {
+            "status": "completed",
+            "ready": False,
+            "completed_at": iso_time(now),
+            "completion_reason": "opportunity-generation-pass-recorded",
+            "not_before": iso_time(not_before),
+            "next_discovery_source": recovery["next_discovery_source"],
+            "lease_id": None,
+            "lease_expires_at": None,
+        }
+    )
+    state["current_stage"] = "dispatch"
+    state["updated_at"] = iso_time(now)
+    queue["updated_at"] = iso_time(now)
+    write_runtime(state_dir, state, queue)
+    append_jsonl(
+        state_dir / "signal-events.jsonl",
+        {
+            "event": "engagement-opportunity-generation",
+            "recorded_at": iso_time(now),
+            "source": source,
+            "inspected": inspected,
+            "accepted": accepted,
+            "rejected": rejected,
+            "stale": stale,
+            "not_before": iso_time(not_before),
+        },
+    )
+    return {
+        "valid": True,
+        "source": source,
+        "accepted": accepted,
+        "canonical_eligible_count": len(eligible),
+        "low_yield": low_yield,
+        "not_before": iso_time(not_before),
+        "next_source": recovery["next_discovery_source"],
+        "task": item,
+    }
+
+
+def burst_complete(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, Any]:
+    """Atomically close a burst, candidate lifecycles, and budget accounting."""
+    require_active_consent(state_dir, state, now)
+    queue = load_object(state_dir / "work-queue.json")
+    item = find_task(queue, args.task_id)
+    if item.get("status") == "completed":
+        return {"valid": True, "idempotent": True, "task": item}
+    executed_ids = [value for value in args.executed_candidate_ids.split(",") if value]
+    document = opportunity_document(state_dir, str(state.get("campaign_id") or ""))
+    by_id = {
+        str(record.get("candidate_id")): record
+        for record in document.get("opportunities", [])
+        if isinstance(record, dict) and record.get("candidate_id")
+    }
+    scaling = state.setdefault("engagement_scaling", {})
+    base_used = int(scaling.get("base_actions_used", 0) or 0)
+    overage = int(scaling.get("direct_reply_overage", 0) or 0)
+    source_history = state.setdefault("opportunity_recovery", {}).setdefault("source_performance", {})
+    executed: list[str] = []
+    executed_sources: list[str] = []
+    for candidate_id in executed_ids:
+        record = by_id.get(candidate_id)
+        if record is None or record.get("status") == "executed":
+            continue
+        lane = record.get("lane", "proactive")
+        if lane == "direct-inbound" and base_used >= 100:
+            overage += 1
+            budget_class = "direct-reply-overage"
+        elif base_used < 100:
+            base_used += 1
+            budget_class = "base"
+        else:
+            continue
+        record.update(
+            {
+                "status": "executed",
+                "executed_at": iso_time(now),
+                "budget_class": budget_class,
+                "lifecycle_status": "executed",
+                "relationship_strength": min(
+                    1.0,
+                    float(record.get("relationship_strength", 0) or 0)
+                    + (0.10 if args.replies_generated else 0.03),
+                ),
+                "relationship_evidence": {
+                    "last_burst_id": args.task_id,
+                    "last_action_at": iso_time(now),
+                },
+            }
+        )
+        source = str(record.get("source") or "unknown")
+        stats = source_history.setdefault(source, {})
+        stats["actions_executed"] = int(stats.get("actions_executed", 0) or 0) + 1
+        executed_sources.append(source)
+        executed.append(candidate_id)
+    if executed_sources:
+        primary_stats = source_history.setdefault(executed_sources[0], {})
+        primary_stats["replies_generated"] = int(primary_stats.get("replies_generated", 0) or 0) + args.replies_generated
+        primary_stats["profile_views"] = int(primary_stats.get("profile_views", 0) or 0) + args.profile_views
+        primary_stats["follower_outcomes"] = int(primary_stats.get("follower_outcomes", 0) or 0) + args.follower_outcomes
+    scaling["base_actions_used"] = min(100, base_used)
+    scaling["direct_reply_overage"] = overage
+    scaling.setdefault("burst_history", []).append(
+        {
+            "burst_id": args.task_id,
+            "completed_at": iso_time(now),
+            "actions_executed": len(executed),
+            "candidate_ids": executed,
+            "replies_generated": args.replies_generated,
+            "profile_views": args.profile_views,
+            "follower_outcomes": args.follower_outcomes,
+        }
+    )
+    scaling["concentration_state"] = {
+        "current_penalty": min(1.0, len(executed) / 10),
+        "last_burst_at": iso_time(now),
+        "decay_trigger": "observed-engagement-and-platform-feedback",
+    }
+    recovery = state.setdefault("opportunity_recovery", {})
+    recovery["next_reevaluation_trigger"] = "immediate-after-engagement-burst"
+    recovery["next_opportunity_prediction"] = {
+        "basis": "canonical-remaining-supply-and-source-yield",
+        "canonical_remaining": sum(
+            1 for record in document.get("opportunities", [])
+            if isinstance(record, dict) and record.get("status") in {"qualified", "ready"}
+        ),
+        "predicted_at": iso_time(now),
+    }
+    item.update(
+        {
+            "status": "completed",
+            "completed_at": iso_time(now),
+            "completion_reason": "engagement-burst-recorded",
+            "executed_candidate_ids": executed,
+            "lease_id": None,
+            "lease_expires_at": None,
+        }
+    )
+    document["updated_at"] = iso_time(now)
+    atomic_write(state_dir / "engagement-opportunities.json", document)
+    config = load_object(state_dir / "campaign-config.json")
+    reserve = scaling.setdefault("adaptive_reserve", {})
+    reserve["qualified_count"] = len(eligible_opportunities(document, state, config, now))
+    reserve["count_source"] = "engagement-opportunities.json"
+    state["current_stage"] = "dispatch"
+    state["last_confirmed_action"] = f"burst:{args.task_id}"
+    state["updated_at"] = iso_time(now)
+    queue["updated_at"] = iso_time(now)
+    write_runtime(state_dir, state, queue)
+    return {
+        "valid": True,
+        "executed_candidate_ids": executed,
+        "base_actions_used": scaling["base_actions_used"],
+        "direct_reply_overage": overage,
+        "canonical_eligible_count": reserve["qualified_count"],
+        "task": item,
+    }
+
+
 def reserve_pass(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, Any]:
     require_active_consent(state_dir, state, now)
     config = load_object(state_dir / "campaign-config.json")
@@ -528,7 +890,9 @@ def reserve_pass(args, state_dir: Path, state: dict[str, Any], now) -> dict[str,
     rejected = max(0, args.rejected)
     staleness = rejected / inspected if inspected else float(reserve.get("staleness_rate", 0) or 0)
     yield_per_page = args.qualified_found / max(1, args.pages)
-    reserve["qualified_count"] = max(0, args.qualified_total)
+    canonical = opportunity_document(state_dir, str(state.get("campaign_id") or ""))
+    reserve["qualified_count"] = len(eligible_opportunities(canonical, state, config, now))
+    reserve["count_source"] = "engagement-opportunities.json"
     reserve["staleness_rate"] = round(staleness, 4)
     reserve["rejection_rate"] = round(rejected / inspected, 4) if inspected else 0
     reserve["discovery_yield_per_page"] = round(yield_per_page, 4)
@@ -546,8 +910,8 @@ def reserve_pass(args, state_dir: Path, state: dict[str, Any], now) -> dict[str,
             "yield_per_page": round(yield_per_page, 4),
         }
     )
-    reserve = recalculate_adaptive_reserve(state, config, now)
-    target_reached = args.qualified_total >= int(reserve.get("target_count", 0) or 0)
+    reserve = recalculate_adaptive_reserve(state, config, now, state_dir)
+    target_reached = reserve["qualified_count"] >= int(reserve.get("target_count", 0) or 0)
     low_yield = yield_per_page < min_yield
     low_yield_streak = int(reserve.get("low_yield_streak", 0) or 0) + 1 if low_yield else 0
     reserve["low_yield_streak"] = low_yield_streak
@@ -646,6 +1010,21 @@ def main() -> int:
     reserve.add_argument("--qualified-total", type=int, required=True)
     reserve.add_argument("--rejected", type=int, required=True)
 
+    opportunity = subparsers.add_parser("opportunity-pass")
+    opportunity.add_argument("--task-id", required=True)
+    opportunity.add_argument("--source")
+    opportunity.add_argument("--inspected", type=int, required=True)
+    opportunity.add_argument("--rejected", type=int, default=0)
+    opportunity.add_argument("--stale", type=int, default=0)
+    opportunity.add_argument("--candidates-file", type=Path)
+
+    burst = subparsers.add_parser("burst-complete")
+    burst.add_argument("--task-id", required=True)
+    burst.add_argument("--executed-candidate-ids", required=True)
+    burst.add_argument("--replies-generated", type=int, default=0)
+    burst.add_argument("--profile-views", type=int, default=0)
+    burst.add_argument("--follower-outcomes", type=int, default=0)
+
     subparsers.add_parser("heartbeat")
     args = parser.parse_args()
     state_dir = args.state_dir.expanduser().resolve()
@@ -670,6 +1049,10 @@ def main() -> int:
             result = task_event(args, state_dir, state, now)
         elif args.command == "reserve-pass":
             result = reserve_pass(args, state_dir, state, now)
+        elif args.command == "opportunity-pass":
+            result = opportunity_pass(args, state_dir, state, now)
+        elif args.command == "burst-complete":
+            result = burst_complete(args, state_dir, state, now)
         else:
             require_active_consent(state_dir, state, now)
             state.setdefault("runtime_continuity", {})["last_heartbeat_at"] = iso_time(now)

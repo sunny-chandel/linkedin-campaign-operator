@@ -3,7 +3,7 @@ name: linkedin-campaign-orchestrator
 description: Run a persistent organic LinkedIn growth operating system with continuous dispatch, adaptive engagement and reciprocity, dynamic publishing, live skill refresh, state recovery, and auditable execution. Use for complete content days and continued execution toward configurable follower and connection goals; do not treat it as an advertising campaign builder.
 metadata:
   author: sunny
-  version: "5.0.9"
+  version: "5.1.0"
 ---
 
 # LinkedIn campaign orchestrator
@@ -66,7 +66,7 @@ Use exactly these states:
 - `completed`: target achievement is verified with evidence.
 - `user-stopped`: the recognized owner revoked or paused consent.
 
-Completing two verified publications and their required daily learning ends a content day, not the campaign.
+Completing the required minimum two verified publications and their daily learning ends the normal content obligation, not the campaign. Opportunity recovery may add up to four measured recovery posts, never exceeding six total publications in a content day.
 
 ## Live instruction refresh
 
@@ -111,7 +111,7 @@ Return control to this orchestrator after each supporting stage, update persiste
 
 Automated mode is execution, not a planning conversation. Never ask whether to run a required supporting skill, prerequisite, pre-flight step, recovery step, queue, analysis, or content stage. Do not ask questions such as “want me to run research and production?” Announce the stage as a status update and execute it immediately. Request owner input only when a required technical dependency cannot be restored automatically and no other valid work can advance.
 
-If either required publication package is missing, incomplete, stale, or invalid, automatically run its missing prerequisites in dependency order: `linkedin-content-research` → `linkedin-content-production` → publication-package validation. Produce exactly the next India and US-Central pair and no third package. When a package becomes valid, route it through the dynamic publication selector rather than waiting for a fixed clock time.
+If either required normal publication package is missing, incomplete, stale, or invalid, automatically run its missing prerequisites in dependency order: `linkedin-content-research` → `linkedin-content-production` → publication-package validation. Produce exactly the next India and US-Central normal pair. A recovery package is separate, is generated only after both normal posts are live, and is limited to one unpublished package at a time. Route every valid package through the dynamic publication selector rather than waiting for a fixed clock time.
 
 Every supporting skill inherits the active consent and automation state from this parent. A subskill must never create an onboarding step, request routine approval, ask the owner to invoke another skill, or return a “what should I do next?” choice. Resolve missing non-sensitive inputs in this order: read persistent state, inspect the connected account or existing artifacts, derive from verified evidence, then use the fixed campaign default or record `unknown`. Regenerate missing or invalid artifacts from the nearest valid upstream artifact. Use a documented base-flow fallback when an optional tool, metric, source, or premium feature is unavailable. Return a structured result to this orchestrator after every stage, including partial results and recovery notes, so the pipeline always advances or enters an explicit lifecycle state.
 
@@ -125,22 +125,26 @@ Every `wait` result includes an automatic continuation contract. Before ending t
 
 Run a continuous dispatcher in the campaign-configured timezone. LinkedIn and offline work may occur throughout the day when evidence supports it. The system alternates short adaptive LinkedIn bursts with investigation, queue replenishment, production, analytics, learning, and recovery. It is never a continuous clicking loop.
 
-Give the configured production priority window to source research, learning-ledger maintenance, experiment registration, and production of exactly two validated packages for the next content day: one India and one US-Central. High-value inbound signals may still interrupt this production block. Do not stockpile a third package.
+Give the configured production priority window to source research, learning-ledger maintenance, experiment registration, and production of the two normal validated packages for the next content day: one India and one US-Central. High-value inbound signals may still interrupt this production block. Do not stockpile extra normal posts or more than one unpublished recovery package.
 
-At each dispatcher cycle, use this order: technical session or identity recovery; genuine direct inbound; due publication opportunity; mandatory-stage or analytics recovery; qualified soft reciprocity; adaptive-reserve replenishment; two-package production; analytics and investigation. Read [continuous dispatch](references/continuous-dispatch.md) for signal routing, adaptive timing, budget accounting, completion gates, and lane-specific recovery.
+At every wake, publication, burst, analytics checkpoint, and discovery pass, evaluate opportunity health and persist the active tier. Then use this order: technical recovery; genuine direct inbound; due publication; mandatory-stage recovery; canonical engagement burst; opportunity generation; normal or recovery content; recovery analytics; general analytics and investigation. Read [continuous dispatch](references/continuous-dispatch.md) for the exact controller, source ladder, adaptive timing, budget accounting, completion gates, and lane-specific recovery.
 
-Reserve size is calculated from the next predicted bursts, recent executed burst size, staleness, rejection rate, remaining budget, and configured bounds. It is not a fixed 20-person requirement. Every reserve pass stops at five pages, eight minutes, the configured minimum qualified yield, target completion, or diminishing marginal value. Record the pass with `runtime_control.py reserve-pass`; a stopped low-yield pass enters backoff so publication, analytics, production, or another investigation path can run.
+`engagement-opportunities.json` is the only source of truth for executable candidates. Its currently eligible records determine reserve coverage; a numeric checkpoint can never claim supply. If one candidate is eligible, create an `engagement-burst` immediately instead of searching for a full batch. Each burst contains at most ten actions. Record discovery with `runtime_control.py opportunity-pass` and execution with `runtime_control.py burst-complete`. A low-yield pass receives an exact `not_before`, rotates to a different source, and allows offline work; never create a generic queue-reconciliation loop.
 
-Publishing has no fixed time or fixed separation. Run `select_publish_time.py <opportunities> --state-dir <state-dir> --record` against current regional activity, qualified-target activity, topic freshness, network velocity, the previous post's engagement velocity, historical equal-age performance, format/pillar fit, remaining-day opportunity, and cannibalization evidence. Guarantee exactly two verified publications per local content day; if no strong opportunity appears, use the highest-scoring final remaining opportunity before the day closes.
+Publishing has no fixed clock time. Guarantee the two normal regional posts, then allow recovery posts one at a time only while recovery is active. A recovery publication requires at least 120 minutes since the prior post, either preceding velocity below 85 percent of its equal-age baseline or cannibalization risk below 0.35, fresh source evidence, a distinct topic angle and pillar or format, and a publication score of at least 65. Collect analytics and reevaluate health after each recovery post. Publish at least two and never more than six posts per local content day.
 
 ## Fixed campaign invariants
 
-- Exactly two prepared packages and two verified posts per complete local content day. Never stockpile a third package.
+The opportunity-health score uses trailing seven-day comparable medians: equal-age impressions 25 percent, engagement rate 20, profile-view velocity 20, follower and connection growth 10, action pace 15, and canonical reserve coverage plus discovery yield 10. Exclude unavailable metrics and renormalize the remaining weights. Until three comparable observations exist, retain a reduced-confidence score. Activate recovery after two scores below 70 or whenever actions are below half the expected pace. Exit only after two consecutive scores at least 80 with pace at least 90 percent.
+
+Rotate discovery by measured yield through: direct inbound and notifications; own-post signals; existing targets and hubs; qualified participants on strong hub posts; regional and topic search; available premium signals; relevant second-degree and newly accepted connections; then creator registry, adjacency, trends, and fresh primary-source discussions. Allocate discovery 70/20/10 across proven, promising, and exploratory sources. Rejections and staleness change source allocation, never the canonical count or the quality floor.
+
+- Exactly two normal prepared packages and at least two verified posts per complete local content day. Opportunity recovery may raise the daily publication total to six; never store more than one unpublished recovery package and never publish a seventh.
 - Proactive work runs in fully adaptive bursts of at most 10 actions. There is no fixed burst count or fixed interval; opportunity and learned concentration determine the next burst.
-- Proactive and soft-reciprocal actions share a 100-action base ceiling. This is a ceiling, not a quota. Execute only candidates scoring at least 65 and never lower quality to fill capacity.
+- Proactive and soft-reciprocal actions share a 100-action daily target and hard ceiling. The opportunity controller tracks 20 actions by 25 percent of the day, 45 by half, 70 by three quarters, and 100 by close. Never exceed 100 or force invalid actions to fill a deficit.
 - Genuine direct inbound replies use the base budget until 100, then continue through a separately logged `direct_reply_overage` counter.
-- The 3,000-follower qualification gate applies only to new target additions, not direct replies or existing targets.
-- Do not initiate proactive engagement with the same person more than once in 72 hours or twice in seven days. Direct inbound conversations are exempt but logged.
+- Recovery gates are exact: normal uses score 65, 3,000 new-target followers, and 72 hours; expansion uses 60, 2,000, and 48 hours; intensive uses 55, 1,000, and 24 hours. Never go below the intensive tier. New-target follower gates do not apply to direct replies or existing targets.
+- Do not initiate proactive engagement with the same person more than twice in seven days. Apply the active tier cooldown. Direct inbound conversations are exempt but logged.
 - Premium actions count toward the same totals.
 - Subscription optimization can reprioritize and configure already-included features, but it cannot purchase, upgrade, start a paid trial, change billing, accept a contract, or alter any fixed campaign invariant.
 - Tier 2 and Tier 3 content rules remain active; load the content-production skill for their exact definitions.

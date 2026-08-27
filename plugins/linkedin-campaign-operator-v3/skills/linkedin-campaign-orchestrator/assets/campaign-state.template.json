@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.2",
+  "schema_version": "1.3",
   "campaign_id": "replace-me",
   "lifecycle_state": "ready",
   "current_stage": "preflight",
@@ -18,13 +18,35 @@
   },
   "progress": {},
   "runtime_instructions": {
-    "session_version": "5.0.9",
-    "active_version": "5.0.9",
-    "detected_version": "5.0.9",
+    "session_version": "5.1.0",
+    "active_version": "5.1.0",
+    "detected_version": "5.1.0",
     "install_path": null,
     "last_checked_at": null,
     "activated_at": null,
     "refresh_mode": "session-loaded"
+  },
+  "opportunity_recovery": {
+    "mode": "normal",
+    "active": false,
+    "health_score": null,
+    "health_confidence": null,
+    "low_health_streak": 0,
+    "exit_streak": 0,
+    "expected_actions": 0,
+    "actual_actions": 0,
+    "pace_ratio": 1,
+    "trigger_evidence": {},
+    "active_score_floor": 65,
+    "active_follower_floor": 3000,
+    "active_cooldown_hours": 72,
+    "canonical_candidate_count": 0,
+    "source_performance": {},
+    "last_discovery_source": null,
+    "next_discovery_source": "direct-inbound-and-notifications",
+    "source_not_before": null,
+    "last_evaluated_at": null,
+    "next_reevaluation_trigger": null
   },
   "engagement_scaling": {
     "budget_day_local": null,
@@ -116,9 +138,13 @@
     "packages_required": 2,
     "packages_ready": 0,
     "posts_published": 0,
+    "normal_posts_published": 0,
+    "recovery_posts_published": 0,
     "published_post_ids": [],
     "last_publication_at": null,
-    "current_cannibalization_signal": null
+    "current_cannibalization_signal": null,
+    "preceding_post_velocity_ratio": null,
+    "recovery_package": null
   },
   "brand_system": {
     "identity_hash": null,

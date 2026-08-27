@@ -60,14 +60,19 @@ def main() -> int:
         opportunities = data.get("opportunities", [])
         if not isinstance(posts, list) or not isinstance(opportunities, list):
             raise ValueError("posts and opportunities must be arrays")
-        if len(posts) != 2:
-            raise ValueError("exactly two prepared post records are required")
+        if not 2 <= len(posts) <= 6:
+            raise ValueError("between two and six post records are required")
         required_regions = {"india", "us-central"}
-        regions = {post.get("region") for post in posts if isinstance(post, dict)}
-        if regions != required_regions:
-            raise ValueError("prepared posts must contain exactly India and US-Central")
+        normal_posts = [post for post in posts if isinstance(post, dict) and post.get("publication_kind", "normal") == "normal"]
+        recovery_posts = [post for post in posts if isinstance(post, dict) and post.get("publication_kind") == "recovery"]
+        regions = {post.get("region") for post in normal_posts}
+        if len(normal_posts) != 2 or regions != required_regions:
+            raise ValueError("normal posts must contain exactly India and US-Central")
+        unpublished_recovery = [post for post in recovery_posts if post.get("published") is not True]
+        if len(unpublished_recovery) > 1:
+            raise ValueError("at most one unpublished recovery package may be stored")
         published = [post for post in posts if post.get("published") is True]
-        if len(published) >= 2:
+        if len(published) >= 6:
             result = {
                 "valid": True,
                 "decision": "daily-publications-complete",
@@ -102,6 +107,23 @@ def main() -> int:
                 post_id = opportunity.get("post_id")
                 if post_id not in ready_ids:
                     continue
+                post = next((item for item in posts if item.get("post_id") == post_id), {})
+                if post.get("publication_kind") == "recovery":
+                    if len([item for item in normal_posts if item.get("published") is True]) < 2:
+                        continue
+                    if float(opportunity.get("minutes_since_previous_publication", 0) or 0) < 120:
+                        continue
+                    velocity = opportunity.get("preceding_post_velocity_ratio")
+                    risk_value = opportunity.get("cannibalization_risk", 1)
+                    velocity_low = isinstance(velocity, (int, float)) and not isinstance(velocity, bool) and velocity < 0.85
+                    risk_low = isinstance(risk_value, (int, float)) and not isinstance(risk_value, bool) and risk_value < 0.35
+                    if not (velocity_low or risk_low):
+                        continue
+                    if not all(
+                        opportunity.get(key) is True
+                        for key in ("fresh_source", "different_topic_angle", "different_pillar_or_format")
+                    ):
+                        continue
                 components = {
                     key: bounded(opportunity.get(key, 0), f"{post_id}.{key}")
                     for key in weights
@@ -143,6 +165,8 @@ def main() -> int:
                 "learning_allocation": learning_allocation,
                 "fixed_publish_time_used": False,
                 "fixed_spacing_used": False,
+                "minimum_recovery_spacing_minutes": 120,
+                "publication_range": {"minimum": 2, "maximum": 6},
             }
         rendered = json.dumps(result, indent=2, ensure_ascii=False) + "\n"
         if args.output:

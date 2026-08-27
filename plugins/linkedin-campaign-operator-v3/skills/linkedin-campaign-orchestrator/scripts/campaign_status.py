@@ -39,6 +39,8 @@ def main() -> int:
         publishing = state.get("publishing", {})
         scaling = state.get("engagement_scaling", {})
         dispatcher = state.get("dispatcher", {})
+        recovery = state.get("opportunity_recovery", {})
+        opportunities = load_object(state_dir / "engagement-opportunities.json")
         items = queue.get("items", [])
         stages = ledger.get("stages", [])
         if not isinstance(items, list) or not isinstance(stages, list):
@@ -89,7 +91,11 @@ def main() -> int:
                 "packages_ready": int(publishing.get("packages_ready", 0)),
                 "packages_required": int(publishing.get("packages_required", 2)),
                 "posts_published": int(publishing.get("posts_published", 0)),
-                "posts_required": 2,
+                "minimum_posts_required": 2,
+                "maximum_posts_allowed": 6,
+                "normal_posts_published": int(publishing.get("normal_posts_published", 0)),
+                "recovery_posts_published": int(publishing.get("recovery_posts_published", 0)),
+                "unpublished_recovery_package": publishing.get("recovery_package"),
             },
             "engagement": {
                 "budget_day_local": scaling.get("budget_day_local"),
@@ -98,6 +104,8 @@ def main() -> int:
                 "base_remaining": max(0, base_ceiling - base_used),
                 "direct_reply_overage": int(scaling.get("direct_reply_overage", 0)),
                 "adaptive_reserve": scaling.get("adaptive_reserve", {}),
+                "canonical_opportunity_records": len(opportunities.get("opportunities", [])),
+                "opportunity_health": recovery,
             },
             "analytics_debt": {
                 "count": len(analytics_debt),

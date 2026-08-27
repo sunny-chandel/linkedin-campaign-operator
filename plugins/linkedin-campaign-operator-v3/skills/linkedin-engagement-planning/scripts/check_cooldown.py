@@ -22,6 +22,7 @@ def main() -> int:
     parser.add_argument("interaction_log", type=Path)
     parser.add_argument("person_id")
     parser.add_argument("--now", help="ISO-8601 timestamp; defaults to current UTC")
+    parser.add_argument("--mode", choices=("normal", "expansion", "intensive"), default="normal")
     args = parser.parse_args()
 
     now = parse_time(args.now) if args.now else datetime.now(timezone.utc)
@@ -42,19 +43,22 @@ def main() -> int:
             event["_time"] = parse_time(event["occurred_at"])
             events.append(event)
 
-    in_72h = [e for e in events if e["_time"] > now - timedelta(hours=72)]
+    cooldown_hours = {"normal": 72, "expansion": 48, "intensive": 24}[args.mode]
+    in_cooldown = [e for e in events if e["_time"] > now - timedelta(hours=cooldown_hours)]
     in_7d = [e for e in events if e["_time"] > now - timedelta(days=7)]
-    allowed = len(in_72h) == 0 and len(in_7d) < 2
+    allowed = len(in_cooldown) == 0 and len(in_7d) < 2
     next_allowed = now
-    if in_72h:
-        next_allowed = max(e["_time"] + timedelta(hours=72) for e in in_72h)
+    if in_cooldown:
+        next_allowed = max(e["_time"] + timedelta(hours=cooldown_hours) for e in in_cooldown)
     if len(in_7d) >= 2:
         next_allowed = max(next_allowed, sorted(e["_time"] for e in in_7d)[-2] + timedelta(days=7))
 
     print(json.dumps({
         "person_id": args.person_id,
         "allowed": allowed,
-        "proactive_actions_last_72h": len(in_72h),
+        "active_recovery_mode": args.mode,
+        "cooldown_hours": cooldown_hours,
+        "proactive_actions_in_cooldown": len(in_cooldown),
         "proactive_actions_last_7d": len(in_7d),
         "next_allowed_at": next_allowed.isoformat(),
     }, indent=2))

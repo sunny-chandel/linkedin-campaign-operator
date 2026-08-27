@@ -21,6 +21,11 @@ WEIGHTS = {
 }
 HARD_GATES = ("action_available",)
 VALID_LANES = {"proactive", "soft-reciprocity", "direct-inbound"}
+RECOVERY_TIERS = {
+    "normal": {"threshold": 65.0, "followers": 3000, "cooldown_hours": 72},
+    "expansion": {"threshold": 60.0, "followers": 2000, "cooldown_hours": 48},
+    "intensive": {"threshold": 55.0, "followers": 1000, "cooldown_hours": 24},
+}
 
 
 def bounded(value: Any, field: str) -> float:
@@ -36,6 +41,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("candidates", type=Path)
     parser.add_argument("--threshold", type=float, default=65.0)
+    parser.add_argument("--mode", choices=tuple(RECOVERY_TIERS), default="normal")
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
@@ -59,7 +65,9 @@ def main() -> int:
         if not 0 <= base_used <= base_ceiling or base_ceiling != 100:
             raise ValueError("budget must use a 100-action base ceiling with valid usage")
         direct_overage_allowed = budget.get("direct_reply_overage_allowed", True) is True
-        new_target_min_followers = int(data.get("new_target_min_followers", 3000))
+        tier = RECOVERY_TIERS[args.mode]
+        threshold = max(55.0, tier["threshold"], args.threshold if "--threshold" in sys.argv else tier["threshold"])
+        new_target_min_followers = max(1000, tier["followers"])
         concentration_penalty = bounded(data.get("concentration_penalty", 0), "concentration_penalty")
         concentration_penalty_weight = bounded(
             data.get("concentration_penalty_weight", 0.20), "concentration_penalty_weight"
@@ -138,7 +146,7 @@ def main() -> int:
                 "concentration_penalty_applied": round(applied_penalty * 100, 2),
                 "action_score": score,
             }
-            if lane == "direct-inbound" or score >= args.threshold:
+            if lane == "direct-inbound" or score >= threshold:
                 eligible.append(ranked)
             else:
                 rejected.append({"candidate_id": candidate_id, "reason": "below-threshold", "action_score": score})
@@ -186,7 +194,14 @@ def main() -> int:
         output = {
             "schema_version": "1.0",
             "campaign_id": data.get("campaign_id"),
-            "threshold": args.threshold,
+            "threshold": threshold,
+            "active_recovery_mode": args.mode,
+            "active_gates": {
+                "minimum_score": threshold,
+                "new_target_min_followers": new_target_min_followers,
+                "cooldown_hours": tier["cooldown_hours"],
+                "max_proactive_actions_per_person_per_7d": 2,
+            },
             "limit": args.limit,
             "concentration_penalty": concentration_penalty,
             "concentration_penalty_weight": concentration_penalty_weight,

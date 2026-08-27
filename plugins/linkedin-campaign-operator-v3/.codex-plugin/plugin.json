@@ -1,7 +1,7 @@
 {
   "name": "linkedin-campaign-operator-v3",
-  "version": "5.0.9",
-  "description": "A stateful, crash-recoverable LinkedIn content, engagement, publishing, analytics, and learning operating system for AI agents.",
+  "version": "5.1.0",
+  "description": "A stateful LinkedIn operating system with canonical opportunity recovery, adaptive engagement bursts, measured recovery publishing, analytics, and crash recovery.",
   "author": {
     "name": "Sunny Chandel",
     "url": "https://github.com/sunny-chandel"

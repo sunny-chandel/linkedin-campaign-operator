@@ -140,9 +140,9 @@ def main() -> int:
             "summary": {},
         },
         "working-algorithm-model.json": {
-            "schema_version": "1.1",
+            "schema_version": "1.2",
             "campaign_id": args.campaign_id,
-            "version": "0.2",
+            "version": "0.3",
             "strategy_weights": {"proven": 70, "promising": 20, "exploration": 10},
             "scheduling_models": {
                 "publication_timing": {"mode": "evidence-adaptive", "observations": []},
@@ -150,6 +150,11 @@ def main() -> int:
                 "regional_opportunity": {"mode": "evidence-adaptive", "observations": []},
                 "concentration": {"mode": "evidence-adaptive", "observations": []},
                 "candidate_staleness": {"mode": "evidence-adaptive", "observations": []},
+                "source_yield": {"mode": "evidence-adaptive", "observations": []},
+                "gate_tier": {"mode": "evidence-adaptive", "observations": []},
+                "action_type": {"mode": "evidence-adaptive", "observations": []},
+                "recovery_post": {"mode": "evidence-adaptive", "observations": []},
+                "action_to_profile_view": {"mode": "evidence-adaptive", "observations": []},
             },
             "hypotheses": [],
         },
@@ -166,6 +171,12 @@ def main() -> int:
             "updated_at": now,
             "stages": [],
         },
+        "engagement-opportunities.json": {
+            "schema_version": "1.0",
+            "campaign_id": args.campaign_id,
+            "updated_at": now,
+            "opportunities": [],
+        },
     }.items():
         (state_dir / name).write_text(
             json.dumps(initial, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
@@ -181,6 +192,7 @@ def main() -> int:
         "publication-evidence.jsonl",
         "task-events.jsonl",
         "recovery-events.jsonl",
+        "opportunity-health.jsonl",
     ):
         (state_dir / name).touch()
     (state_dir / "logs").mkdir()

@@ -1,5 +1,14 @@
 # Changelog
 
+## 5.1.0 — Adaptive Opportunity Recovery
+
+- Added a weighted opportunity-health controller with missing-metric renormalization, confidence, daily action milestones, and persisted activation/exit streaks.
+- Replaced reserve counters with canonical `engagement-opportunities.json` lifecycle records and immediate 1–10 action bursts.
+- Added source-yield rotation, exact low-yield `not_before` decisions, and eliminated generic reconciliation loops.
+- Added normal, expansion, and intensive score/follower/cooldown tiers while retaining the twice-per-seven-days person limit and 100-action hard ceiling.
+- Expanded publishing from exactly two to a measured range of two through six, with one recovery package at a time, 120-minute spacing, velocity/cannibalization gates, and mandatory post-recovery analytics.
+- Added migration of legacy candidates, opportunity-health history, expanded Working Algorithm Model dimensions, crash-restored recovery state, and acceptance coverage for the 9/100 incident replay.
+
 ## 5.0.9 — Recovery-state reconciliation
 
 - recomputed agent-neutral lifecycle classification during every runtime reconciliation;

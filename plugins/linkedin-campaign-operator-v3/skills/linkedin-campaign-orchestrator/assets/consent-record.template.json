@@ -45,6 +45,8 @@
     "linkedin-connection-request",
     "adaptive-scheduling",
     "signal-reciprocity",
+    "opportunity-recovery",
+    "performance-recovery-content",
     "analytics",
     "state-and-log-updates"
   ],
@@ -59,7 +61,9 @@
     "permanent-dominant-gif-learning-deletion",
     "one-time-high-value-consent",
     "campaign-lifetime-consent-reload",
-    "automatic-recovery-without-routine-questions"
+    "automatic-recovery-without-routine-questions",
+    "opportunity-recovery-controller",
+    "adaptive-two-to-six-publications"
   ],
   "data_directory": "",
   "owner_stop_signals": ["stop", "pause", "cancel", "revoke", "end campaign"]

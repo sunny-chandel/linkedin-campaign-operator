@@ -17,7 +17,7 @@ The record identifies:
 - accounts and Pages;
 - action classes;
 - continuous 24-hour adaptive dispatch, a shared 100-action base ceiling, a 10-action burst cap, and direct-inbound reply overage;
-- exactly two prepared and published packages per local content day with dynamic timing and no fixed separation;
+- exactly two normal prepared packages and two through six total publications per local content day, with at most one unpublished recovery package and a 120-minute recovery-publication floor;
 - automatic profile-derived watermark creation and application;
 - per-post GIF-pattern promotion and permanent dominant-pattern deletion;
 - premium products and persistent settings;
@@ -33,7 +33,7 @@ Do not describe a browser reconnect, pre-flight refresh, content preview, subski
 
 ## Restart recovery
 
-Every new or resumed session runs `resume_campaign.py` before ordinary dispatch. It reloads consent, calculates downtime from the last heartbeat, reopens abandoned task leases, reconciles the current campaign-local day, discovers missing tasks from durable artifacts, and records a recovery event. Safe unfinished work resumes from its latest checkpoint. Completed external mutations remain completed. Obsolete prior-day publication or engagement work is closed with a reason instead of being replayed; current-day replacements are created automatically.
+Every new or resumed session runs `resume_campaign.py` before ordinary dispatch. It reloads consent, calculates downtime, reopens abandoned task leases, restores the active opportunity-recovery tier and action deficit, recalculates supply from `engagement-opportunities.json`, reconciles the content day, discovers missing tasks, and records recovery. Completed external mutations remain completed. Executed and stale candidates remain unavailable; recovery packages expire at rollover; current-day replacements are created without duplication.
 
 ## Failure classification
 

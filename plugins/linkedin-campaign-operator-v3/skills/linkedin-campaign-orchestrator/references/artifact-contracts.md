@@ -26,6 +26,8 @@ Store mutable artifacts outside the plugin.
 - `stage-ledger.json`: mandatory-stage evidence and completion gates.
 - `signal-events.jsonl`: append-only inbound and soft-reciprocity signals.
 - `schedule-decisions.jsonl`: append-only dispatcher, burst, publication, and wake decisions.
+- `engagement-opportunities.json`: canonical candidate identities, sources, lanes, gate tiers, scores, freshness, cooldowns, follower evidence, lifecycle, expiry, and action evidence. All reserve counts derive from its eligible records.
+- `opportunity-health.jsonl`: append-only health scores, normalized weights, missing metrics, confidence, expected and actual action pace, active tier, and trigger evidence.
 - `task-events.jsonl`: append-only task lease, start, checkpoint, completion, and failure events.
 - `recovery-events.jsonl`: append-only session restart, downtime, abandoned-lease, missed-task, and rollover recovery events.
 - `publication-evidence.jsonl`: verified post IDs, URLs, regions, content days, packages, and timestamps.
@@ -37,7 +39,7 @@ Every queue item records its lifecycle status, attempt count, idempotency key, l
 
 ## Pipeline artifacts
 
-`research-brief.json` → `content-plan.json` → `gif-creative-spec.json` when applicable → exactly two `publication-package.json` records → `work-queue.json` → `daily-results.json` → `learning-update.json` → mandatory-stage completion
+`research-brief.json` → `content-plan.json` → `gif-creative-spec.json` when applicable → two normal `publication-package.json` records → optional single recovery package → `work-queue.json` → `daily-results.json` → `opportunity-health.jsonl` → `learning-update.json` → mandatory-stage completion
 
 Every artifact should contain:
 

@@ -20,6 +20,8 @@ REQUIRED_ARTIFACTS = (
     "publication-evidence.jsonl",
     "task-events.jsonl",
     "recovery-events.jsonl",
+    "engagement-opportunities.json",
+    "opportunity-health.jsonl",
 )
 VALID_STATES = {"ready", "running", "recovering", "hard-blocked", "completed", "user-stopped"}
 
@@ -139,20 +141,23 @@ def main() -> int:
         "one-time-high-value-consent",
         "campaign-lifetime-consent-reload",
         "automatic-recovery-without-routine-questions",
+        "opportunity-recovery-controller",
+        "adaptive-two-to-six-publications",
     }
     if not isinstance(persistent_settings, list) or not required_settings.issubset(set(persistent_settings)):
         errors.append("consent-record.json persistent_settings must contain the active automation envelope")
     lifecycle = state.get("lifecycle_state")
     if lifecycle not in VALID_STATES:
         errors.append(f"campaign-state.json lifecycle_state must be one of {sorted(VALID_STATES)}")
-    if config.get("schema_version") != "1.2":
-        errors.append("campaign-config.json schema_version must equal 1.2")
-    if state.get("schema_version") != "1.2":
-        errors.append("campaign-state.json schema_version must equal 1.2")
+    if config.get("schema_version") != "1.3":
+        errors.append("campaign-config.json schema_version must equal 1.3")
+    if state.get("schema_version") != "1.3":
+        errors.append("campaign-state.json schema_version must equal 1.3")
 
     fixed = config.get("fixed_rules", {})
     expected = {
-        "posts_per_day": 2,
+        "minimum_posts_per_day": 2,
+        "maximum_posts_per_day": 6,
         "prepared_packages_per_content_day": 2,
         "max_actions_per_burst": 10,
         "base_actions_per_day": 100,
@@ -199,8 +204,37 @@ def main() -> int:
     for key, value in dispatch_expected.items():
         if dispatch.get(key) != value:
             errors.append(f"campaign-config.json adaptive_dispatch.{key} must equal {value}")
-    if not isinstance(dispatch.get("priority_order"), list) or len(dispatch["priority_order"]) != 8:
-        errors.append("campaign-config.json adaptive_dispatch.priority_order must contain eight priorities")
+    required_task_priorities = {
+        "engagement-burst",
+        "engagement-opportunity-generation",
+        "performance-recovery-content",
+        "performance-recovery-analytics",
+    }
+    if not isinstance(dispatch.get("priority_order"), list) or not required_task_priorities.issubset(set(dispatch["priority_order"])):
+        errors.append("campaign-config.json adaptive_dispatch.priority_order is missing recovery task priorities")
+
+    recovery = config.get("opportunity_recovery", {})
+    expected_health_weights = {
+        "equal_age_impressions": 0.25,
+        "engagement_rate": 0.2,
+        "profile_view_velocity": 0.2,
+        "follower_connection_growth": 0.1,
+        "action_pace": 0.15,
+        "reserve_coverage_yield": 0.1,
+    }
+    if recovery.get("health_weights") != expected_health_weights:
+        errors.append("campaign-config.json opportunity_recovery.health_weights is invalid")
+    if recovery.get("activation_threshold") != 70 or recovery.get("exit_threshold") != 80:
+        errors.append("campaign-config.json opportunity recovery thresholds are invalid")
+    expected_tiers = {
+        "normal": {"minimum_score": 65, "new_target_min_followers": 3000, "cooldown_hours": 72},
+        "expansion": {"minimum_score": 60, "new_target_min_followers": 2000, "cooldown_hours": 48},
+        "intensive": {"minimum_score": 55, "new_target_min_followers": 1000, "cooldown_hours": 24},
+    }
+    if recovery.get("tiers") != expected_tiers:
+        errors.append("campaign-config.json opportunity_recovery.tiers is invalid")
+    if len(recovery.get("source_rotation", [])) != 8:
+        errors.append("campaign-config.json opportunity_recovery.source_rotation must contain eight sources")
 
     reliability = config.get("automation_reliability", {})
     reliability_expected = {
@@ -232,7 +266,11 @@ def main() -> int:
         "fixed_publish_times": [],
         "fixed_spacing_minutes": None,
         "dynamic_cannibalization_penalty": True,
-        "no_extra_stockpile": True,
+        "minimum_posts_per_day": 2,
+        "maximum_posts_per_day": 6,
+        "minimum_recovery_spacing_minutes": 120,
+        "maximum_unpublished_recovery_packages": 1,
+        "no_extra_normal_stockpile": True,
     }
     for key, value in publishing_expected.items():
         if publishing_config.get(key) != value:
@@ -298,10 +336,17 @@ def main() -> int:
     ):
         errors.append("campaign-state.json must contain a loaded active consent snapshot")
     publishing_state = state.get("publishing", {})
-    for key in ("packages_ready", "posts_published"):
+    for key in ("packages_ready",):
         value = publishing_state.get(key)
         if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 2:
             errors.append(f"campaign-state.json publishing.{key} must be from 0 to 2")
+    posts_published = publishing_state.get("posts_published")
+    if isinstance(posts_published, bool) or not isinstance(posts_published, int) or not 0 <= posts_published <= 6:
+        errors.append("campaign-state.json publishing.posts_published must be from 0 to 6")
+
+    opportunities = load_json(state_dir / "engagement-opportunities.json", errors)
+    if opportunities and not isinstance(opportunities.get("opportunities"), list):
+        errors.append("engagement-opportunities.json opportunities must be an array")
 
     work_queue = load_json(state_dir / "work-queue.json", errors)
     if work_queue and not isinstance(work_queue.get("items"), list):
@@ -338,6 +383,11 @@ def main() -> int:
         "regional_opportunity",
         "concentration",
         "candidate_staleness",
+        "source_yield",
+        "gate_tier",
+        "action_type",
+        "recovery_post",
+        "action_to_profile_view",
     }
     if algorithm and not required_models.issubset(set(algorithm.get("scheduling_models", {}))):
         errors.append("working-algorithm-model.json scheduling_models is incomplete")

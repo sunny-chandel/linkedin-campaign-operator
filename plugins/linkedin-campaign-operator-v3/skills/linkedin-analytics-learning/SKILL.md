@@ -3,7 +3,7 @@ name: linkedin-analytics-learning
 description: Normalize LinkedIn campaign analytics, run controlled experiments, and update a versioned runtime learning layer without editing the governing skill. Use for daily and weekly reviews.
 metadata:
   author: sunny
-  version: "5.0.9"
+  version: "5.1.0"
 ---
 
 # LinkedIn analytics and learning
@@ -36,7 +36,8 @@ Raw analytics alone never complete the analytics stage. Every snapshot must prod
 5. Change a strategy category by no more than ten percentage points in one weekly review.
 6. Promote, retain, downgrade, expire, or roll back each active learning.
 7. Run `python scripts/update_learning.py` to append a normalized ledger entry.
-8. Update publication-time, response-latency, regional-opportunity, concentration, and candidate-staleness observations in `working-algorithm-model.json`.
+8. Update publication-time, response-latency, regional-opportunity, concentration, candidate-staleness, source-yield, gate-tier, action-type, recovery-post, and action-to-profile-view observations in `working-algorithm-model.json`.
+9. After every recovery publication, write its equal-age result, update `opportunity-health.jsonl`, and return control before another recovery package can be prepared.
 9. Append every adaptive timing choice and its measured result to `schedule-decisions.jsonl`.
 10. Use `python scripts/update_scheduling_model.py <working-algorithm-model.json> <model-name> <observation.json>` for deterministic model updates.
 

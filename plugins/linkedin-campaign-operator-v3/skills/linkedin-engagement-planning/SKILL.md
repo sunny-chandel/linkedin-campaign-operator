@@ -3,7 +3,7 @@ name: linkedin-engagement-planning
 description: Build and validate adaptive LinkedIn action queues with qualified-growth scoring, qualification, cooldown, deduplication, and regional relevance. Use before any proactive action cluster.
 metadata:
   author: sunny
-  version: "5.0.9"
+  version: "5.1.0"
 ---
 
 # LinkedIn engagement planning
@@ -29,10 +29,10 @@ Qualification precedes drafting and presentation. Materialize the discovered can
 
 ## Qualification and cooldown
 
-- Apply the 3,000-follower gate only when adding a new target.
+- Apply the active recovery tier's follower gate only when adding a new target: 3,000 normal, 2,000 expansion, or 1,000 intensive.
 - Do not apply the gate to direct replies or people already in the target list.
 - Before queueing proactive or soft-reciprocal activity, check the interaction log.
-- Do not proactively engage the same person more than once in 72 hours or more than twice in seven days.
+- Apply the active cooldown tier: 72 hours normal, 48 expansion, or 24 intensive. Never proactively engage the same person more than twice in seven days.
 - Direct replies, incoming DMs, and conversations initiated by the other person are exempt but must be logged in the `direct-inbound` lane.
 - Run `python scripts/check_cooldown.py` when structured interaction data is available.
 
@@ -43,10 +43,12 @@ Read [queue rules](references/queue-rules.md) for scoring and output fields.
 - A reaction, comment, reply, DM, follow, or connection each counts as one action.
 - Avoid repetitive response-bank text and repeated targeting.
 - Every response must be relevant to the specific post or conversation.
-- Run `python scripts/rank_actions.py <candidates> --threshold 65 --limit 10` for structured candidate sets.
+- Run `python scripts/rank_actions.py <candidates> --mode <normal|expansion|intensive> --limit 10` for structured candidate sets. The tier fixes the exact score and new-target follower floors.
 - Treat the ranker output as authoritative. `rejected` items are terminal for the current opportunity and must never be presented for owner approval; follow the output's `next_step` automatically.
 - After each confirmed external action, run `python scripts/record_action.py <state-dir> <action.json>` so lane metadata and the correct base or overage counter are committed.
-- A proactive or mixed burst contains at most 10 actions and stops earlier when candidate quality drops below 65, expected marginal value declines, or the base budget is exhausted.
+- A proactive or mixed burst contains at most 10 actions and stops earlier when candidate quality drops below the active tier floor, expected marginal value declines, or the base budget is exhausted. A single qualified canonical record is enough for a one-action burst.
+
+Write accepted candidates to `engagement-opportunities.json`; do not maintain an independent reserve total. Record source passes through `runtime_control.py opportunity-pass` and completed bursts through `runtime_control.py burst-complete` so lifecycle and budget changes are atomic.
 - Proactive and soft-reciprocity actions consume the shared 100-action base budget. Genuine direct replies use the base budget until 100, then continue under `direct-reply-overage`.
 - A reaction to a reciprocal action raises relationship strength but never bypasses cooldown.
 - Maintain an adaptive reserve sized for the next two likely bursts and observed candidate-staleness rate.

@@ -8,7 +8,7 @@ import json
 import os
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -19,6 +19,12 @@ from runtime_state import (
     lease_task,
     parse_time,
     reconcile_runtime,
+)
+from opportunity_recovery import (
+    eligible_opportunities,
+    evaluate_health,
+    next_discovery_source,
+    opportunity_document,
 )
 
 
@@ -36,9 +42,13 @@ PRIORITY_BY_TYPE = {
     "publication-opportunity": 2,
     "publication-queue-building": 2,
     "mandatory-stage-recovery": 3,
+    "engagement-burst": 4,
     "soft-reciprocity": 4,
+    "engagement-opportunity-generation": 5,
+    "performance-recovery-content": 5,
     "two-package-production": 5,
-    "adaptive-reserve": 6,
+    "opportunity-health-evaluation": 7,
+    "performance-recovery-analytics": 7,
     "analytics-and-investigation": 8,
 }
 STARVATION_EXEMPT_TYPES = {
@@ -51,6 +61,7 @@ STARVATION_EXEMPT_TYPES = {
     "publication-opportunity",
     "publication-queue-building",
     "mandatory-stage-recovery",
+    "engagement-burst",
 }
 
 
@@ -161,8 +172,8 @@ def task_is_eligible(
     action_lane = str(task.get("action_lane", ""))
     if (task_type in BASE_BUDGET_TYPES or action_lane in BASE_BUDGET_TYPES) and base_used >= base_ceiling:
         return False, "base-daily-ceiling"
-    if task_type == "publication-opportunity" and posts_published >= 2:
-        return False, "daily-publications-complete"
+    if task_type == "publication-opportunity" and posts_published >= 6:
+        return False, "daily-publication-maximum-reached"
     if task_type == "two-package-production" and packages_ready >= 2:
         return False, "two-packages-ready"
     return True, None
@@ -300,6 +311,14 @@ def main() -> int:
             startup=False,
         )
         dispatcher = state.get("dispatcher", {})
+        health_evaluation = evaluate_health(state_dir, state, config, now_dt)
+        canonical = opportunity_document(state_dir, str(state.get("campaign_id") or ""))
+        canonical_candidates = eligible_opportunities(canonical, state, config, now_dt)
+        reserve = state.setdefault("engagement_scaling", {}).setdefault("adaptive_reserve", {})
+        reserve["qualified_count"] = len(canonical_candidates)
+        reserve["count_source"] = "engagement-opportunities.json"
+        if args.record:
+            append_jsonl(state_dir / "opportunity-health.jsonl", health_evaluation)
         global_hard_blocker = state.get("hard_blocker") and dispatcher.get("offline_lane") == "blocked"
         if global_hard_blocker:
             blocker_items = queue.get("items", [])
@@ -468,35 +487,151 @@ def main() -> int:
                 }
             )
 
-        reserve = scaling.get("adaptive_reserve", {})
-        if (
-            int(reserve.get("qualified_count", 0) or 0) < int(reserve.get("target_count", 0) or 0)
-            and not any(item.get("task_type") == "adaptive-reserve" for item in candidates)
-            and not any(
+        # v5.1 uses the canonical opportunity file. Legacy reserve tasks can never
+        # claim supply or outrank an executable candidate.
+        for item in items:
+            if (
                 isinstance(item, dict)
                 and item.get("task_type") == "adaptive-reserve"
                 and item.get("status") in UNFINISHED_STATUSES
+            ):
+                item["status"] = "superseded"
+                item["completed_at"] = now
+                item["completion_reason"] = "replaced-by-canonical-opportunity-generation"
+        candidates = [item for item in candidates if item.get("task_type") != "adaptive-reserve"]
+
+        if canonical_candidates:
+            remaining = max(0, base_ceiling - base_used)
+            burst_candidates = [
+                item
+                for item in canonical_candidates
+                if item.get("lane") == "direct-inbound" or remaining > 0
+            ][: min(10, max(1, remaining) if remaining else 10)]
+            if burst_candidates and not any(
+                isinstance(item, dict)
+                and item.get("task_type") == "engagement-burst"
+                and item.get("status") in UNFINISHED_STATUSES
                 for item in items
-            )
+            ):
+                candidate_ids = [str(item.get("candidate_id")) for item in burst_candidates]
+                candidates.append(
+                    {
+                        "task_id": f"engagement-burst-{current_budget_day}-{'-'.join(candidate_ids)[:80]}",
+                        "task_type": "engagement-burst",
+                        "lane": "linkedin",
+                        "action_lane": (
+                            "direct-inbound"
+                            if all(item.get("lane") == "direct-inbound" for item in burst_candidates)
+                            else "proactive"
+                        ),
+                        "priority": 1 if all(item.get("lane") == "direct-inbound" for item in burst_candidates) else 4,
+                        "status": "pending",
+                        "ready": True,
+                        "requires_linkedin": True,
+                        "content_day_local": current_budget_day,
+                        "candidate_ids": candidate_ids,
+                        "actions": burst_candidates,
+                        "action_count": len(burst_candidates),
+                        "active_recovery_mode": health_evaluation["mode"],
+                        "idempotency_key": f"burst:{current_budget_day}:{':'.join(candidate_ids)}",
+                    }
+                )
+
+        recovery = state.get("opportunity_recovery", {})
+        source_not_before = parse_time(recovery.get("source_not_before"))
+        generation_due = source_not_before is None or source_not_before <= now_dt
+        action_deficit = base_used < min(base_ceiling, int(health_evaluation["expected_actions"]))
+        if (
+            not canonical_candidates
             and base_used < base_ceiling
+            and (recovery.get("active") is True or action_deficit)
+            and generation_due
             and dispatcher.get("linkedin_lane", "ready") == "ready"
+            and not any(item.get("task_type") == "engagement-opportunity-generation" for item in candidates)
         ):
-            reserve_history = reserve.get("pass_history", [])
-            pass_number = len(reserve_history if isinstance(reserve_history, list) else []) + 1
+            source = next_discovery_source(state, config)
+            attempts = sum(
+                1
+                for item in items
+                if isinstance(item, dict)
+                and item.get("task_type") == "engagement-opportunity-generation"
+                and item.get("content_day_local") == current_budget_day
+            ) + 1
             candidates.append(
                 {
-                    "task_id": f"replenish-adaptive-reserve-{current_budget_day}-pass-{pass_number}",
-                    "task_type": "adaptive-reserve",
+                    "task_id": f"generate-opportunities-{current_budget_day}-{attempts}-{source}",
+                    "task_type": "engagement-opportunity-generation",
                     "lane": "linkedin",
-                    "priority": 6,
+                    "priority": 5,
                     "status": "pending",
                     "ready": True,
                     "requires_linkedin": True,
                     "content_day_local": current_budget_day,
-                    "execution_limits": config.get("automation_reliability", {}).get("reserve", {}),
-                    "idempotency_key": f"reserve:{current_budget_day}:pass:{pass_number}",
+                    "discovery_source": source,
+                    "active_recovery_mode": health_evaluation["mode"],
+                    "canonical_output": "engagement-opportunities.json",
+                    "idempotency_key": f"opportunity-generation:{current_budget_day}:{attempts}:{source}",
                 }
             )
+
+        minimum_posts = int(config.get("publishing_optimization", {}).get("minimum_posts_per_day", 2) or 2)
+        maximum_posts = int(config.get("publishing_optimization", {}).get("maximum_posts_per_day", 6) or 6)
+        posts_published = int(publishing.get("posts_published", 0) or 0)
+        last_publication = parse_time(publishing.get("last_publication_at"))
+        spacing_ok = last_publication is None or now_dt - last_publication >= timedelta(minutes=120)
+        velocity = publishing.get("preceding_post_velocity_ratio")
+        cannibalization = publishing.get("current_cannibalization_signal")
+        distribution_ok = (
+            isinstance(velocity, (int, float)) and not isinstance(velocity, bool) and velocity < 0.85
+        ) or (
+            isinstance(cannibalization, (int, float)) and not isinstance(cannibalization, bool) and cannibalization < 0.35
+        )
+        recovery_package = publishing.get("recovery_package")
+        if (
+            recovery.get("active") is True
+            and posts_published >= minimum_posts
+            and posts_published < maximum_posts
+            and spacing_ok
+            and distribution_ok
+        ):
+            if not isinstance(recovery_package, dict) or recovery_package.get("status") not in {"ready", "published"}:
+                if not any(item.get("task_type") == "performance-recovery-content" for item in candidates):
+                    candidates.append(
+                        {
+                            "task_id": f"prepare-recovery-post-{current_budget_day}-{posts_published + 1}",
+                            "task_type": "performance-recovery-content",
+                            "lane": "offline",
+                            "priority": 5,
+                            "status": "pending",
+                            "ready": True,
+                            "requires_linkedin": False,
+                            "content_day_local": current_budget_day,
+                            "publication_number": posts_published + 1,
+                            "maximum_unpublished_packages": 1,
+                            "quality_rules_relaxed": False,
+                            "requires_fresh_source_and_distinct_angle_format_pillar": True,
+                            "idempotency_key": f"recovery-content:{current_budget_day}:{posts_published + 1}",
+                        }
+                    )
+            elif recovery_package.get("status") == "ready" and float(recovery_package.get("publication_score", 0) or 0) >= 65:
+                candidates.append(
+                    {
+                        "task_id": f"publish-recovery-{current_budget_day}-{posts_published + 1}",
+                        "task_type": "publication-opportunity",
+                        "publication_kind": "recovery",
+                        "lane": "linkedin",
+                        "priority": 2,
+                        "status": "pending",
+                        "ready": True,
+                        "requires_linkedin": True,
+                        "engagement_queue_ready": True,
+                        "content_day_local": current_budget_day,
+                        "region": recovery_package.get("region", "adaptive-recovery"),
+                        "package_path": recovery_package.get("package_path"),
+                        "opportunity_score": recovery_package.get("publication_score"),
+                        "idempotency_key": f"publish-recovery:{current_budget_day}:{posts_published + 1}",
+                    }
+                )
 
         for item in candidates:
             task_type = str(item.get("task_type", ""))
@@ -571,7 +706,7 @@ def main() -> int:
                 "decision": "execute",
                 "decided_at": now,
                 "task": selected,
-                "unfinished_work_count": pending_count,
+                "unfinished_work_count": max(1, pending_count),
                 "rejected": rejected,
                 "reason": "highest-priority eligible work",
             }
@@ -603,15 +738,15 @@ def main() -> int:
                     "decision": "execute",
                     "decided_at": now,
                     "task": {
-                        "task_id": "reconcile-work-queue",
-                        "task_type": "analytics-and-investigation",
+                        "task_id": f"opportunity-health-recovery-{current_budget_day}",
+                        "task_type": "opportunity-health-evaluation",
                         "lane": "offline",
-                        "priority": 8,
+                        "priority": 7,
                         "requires_linkedin": False,
                     },
                     "unfinished_work_count": pending_count,
                     "rejected": rejected,
-                    "reason": "unfinished work exists but requires reconciliation or a blocked lane",
+                    "reason": "unfinished work is ineligible; refresh health and exact task evidence without a reconciliation loop",
                 }
             else:
                 result = {
@@ -660,6 +795,8 @@ def main() -> int:
         result["budget_day_local"] = current_budget_day
         result["budget_day_reset"] = budget_day_reset
         result["reconciliation"] = reconciliation
+        result["opportunity_health"] = health_evaluation
+        result["canonical_eligible_candidates"] = len(canonical_candidates)
         if args.record:
             if result.get("decision") == "execute" and isinstance(result.get("task"), dict):
                 selected = result["task"]

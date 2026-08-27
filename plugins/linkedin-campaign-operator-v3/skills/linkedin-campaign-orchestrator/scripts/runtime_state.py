@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from opportunity_recovery import eligible_opportunities, opportunity_document
+
 
 ACTIVE_TASK_STATUSES = {"pending", "recovering", "missed-recovering", "retry-wait"}
 LEASED_TASK_STATUSES = {"leased", "running"}
@@ -294,8 +296,9 @@ def read_publication_evidence(
         ) != day:
             continue
         region = value.get("region")
-        if region in regions and value.get("verified") is True:
-            evidence[str(region)] = value
+        if value.get("verified") is True:
+            key = str(region) if region in regions else str(value.get("post_id") or value.get("task_id"))
+            evidence[key] = value
     return evidence
 
 
@@ -370,6 +373,15 @@ def reconcile_content_day(
                 item["status"] = "superseded"
                 item["completed_at"] = iso_time(now)
                 item["completion_reason"] = "content-day-closed"
+            if (
+                item.get("task_type") in {"performance-recovery-content", "performance-recovery-analytics"}
+                and item_day
+                and item_day != day
+                and item.get("status") not in TERMINAL_TASK_STATUSES
+            ):
+                item["status"] = "expired"
+                item["completed_at"] = iso_time(now)
+                item["completion_reason"] = "recovery-package-expired-at-content-day-rollover"
 
     packages = find_daily_packages(state_dir, day, regions)
     evidence = read_publication_evidence(state_dir, day, regions)
@@ -395,6 +407,9 @@ def reconcile_content_day(
                     default=None,
                 ),
                 "current_cannibalization_signal": None,
+                "normal_posts_published": sum(1 for region in regions if region in evidence),
+                "recovery_posts_published": sum(1 for key in evidence if key not in regions),
+                "recovery_package": None,
             }
         )
     publishing["packages_ready"] = len(packages)
@@ -602,6 +617,7 @@ def recalculate_adaptive_reserve(
     state: dict[str, Any],
     config: dict[str, Any],
     now: datetime,
+    state_dir: Path | None = None,
 ) -> dict[str, Any]:
     scaling = state.setdefault("engagement_scaling", {})
     reserve = scaling.setdefault("adaptive_reserve", {})
@@ -628,8 +644,14 @@ def recalculate_adaptive_reserve(
         int(scaling.get("base_daily_ceiling", 100) or 100)
         - int(scaling.get("base_actions_used", 0) or 0),
     )
-    calculated = math.ceil(expected * forecast * (1 + 0.5 * staleness + 0.5 * rejection))
+    # Rejection and staleness rotate discovery effort; they never inflate supply
+    # demand or manufacture a larger reserve target.
+    calculated = math.ceil(expected * forecast)
     target = 0 if base_remaining == 0 else min(maximum, base_remaining, max(minimum, calculated))
+    canonical_count = int(reserve.get("qualified_count", 0) or 0)
+    if state_dir is not None:
+        canonical = opportunity_document(state_dir, str(state.get("campaign_id") or ""))
+        canonical_count = len(eligible_opportunities(canonical, state, config, now))
     reserve.update(
         {
             "expected_burst_size": round(expected, 2),
@@ -643,12 +665,14 @@ def recalculate_adaptive_reserve(
                 "minimum": minimum,
                 "maximum": maximum,
             },
+            "qualified_count": canonical_count,
+            "count_source": "engagement-opportunities.json",
         }
     )
     reserve["note"] = (
         f"Adaptive reserve is {int(reserve.get('qualified_count', 0) or 0)}/{target}; "
-        f"target derives from expected burst size {round(expected, 2)}, staleness {staleness:.2f}, "
-        f"rejection {rejection:.2f}, and remaining base capacity {base_remaining}."
+        f"target derives from expected burst size {round(expected, 2)} and remaining base capacity "
+        f"{base_remaining}; staleness {staleness:.2f} and rejection {rejection:.2f} affect source rotation only."
     )
     return reserve
 
@@ -673,7 +697,7 @@ def reconcile_runtime(
     consent_valid, consent_reason = sync_consent_snapshot(state_dir, state, now)
     lifecycle = reconcile_task_lifecycle(queue, now, startup=startup)
     publishing = reconcile_content_day(state_dir, state, config, queue, ledger, now)
-    reserve = recalculate_adaptive_reserve(state, config, now)
+    reserve = recalculate_adaptive_reserve(state, config, now, state_dir)
     continuation_reconciled = reconcile_recovered_lane_continuation(state, now)
     runtime_classification = apply_lifecycle_classification(
         state,

@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.2",
+  "schema_version": "1.3",
   "campaign_id": "replace-me",
   "timezone": "UTC",
   "target": {
@@ -22,7 +22,8 @@
   },
   "content_pillars": [],
   "fixed_rules": {
-    "posts_per_day": 2,
+    "minimum_posts_per_day": 2,
+    "maximum_posts_per_day": 6,
     "prepared_packages_per_content_day": 2,
     "max_actions_per_burst": 10,
     "base_actions_per_day": 100,
@@ -75,11 +76,53 @@
       "direct-inbound",
       "publication-opportunity",
       "mandatory-stage-recovery",
+      "engagement-burst",
       "soft-reciprocity",
-      "adaptive-reserve",
+      "engagement-opportunity-generation",
+      "performance-recovery-content",
       "two-package-production",
+      "performance-recovery-analytics",
       "analytics-and-investigation"
     ]
+  },
+  "opportunity_recovery": {
+    "enabled": true,
+    "health_weights": {
+      "equal_age_impressions": 0.25,
+      "engagement_rate": 0.2,
+      "profile_view_velocity": 0.2,
+      "follower_connection_growth": 0.1,
+      "action_pace": 0.15,
+      "reserve_coverage_yield": 0.1
+    },
+    "activation_threshold": 70,
+    "activation_consecutive_evaluations": 2,
+    "pace_activation_ratio": 0.5,
+    "exit_threshold": 80,
+    "exit_pace_ratio": 0.9,
+    "exit_consecutive_evaluations": 2,
+    "daily_action_milestones": [
+      {"day_fraction": 0.25, "actions": 20},
+      {"day_fraction": 0.5, "actions": 45},
+      {"day_fraction": 0.75, "actions": 70},
+      {"day_fraction": 1.0, "actions": 100}
+    ],
+    "tiers": {
+      "normal": {"minimum_score": 65, "new_target_min_followers": 3000, "cooldown_hours": 72},
+      "expansion": {"minimum_score": 60, "new_target_min_followers": 2000, "cooldown_hours": 48},
+      "intensive": {"minimum_score": 55, "new_target_min_followers": 1000, "cooldown_hours": 24}
+    },
+    "source_rotation": [
+      "direct-inbound-and-notifications",
+      "own-post-signals",
+      "existing-targets-and-hubs",
+      "hub-post-commenters-and-reactors",
+      "regional-and-topic-search",
+      "premium-searches-alerts-newsletters-events",
+      "second-degree-and-new-connections",
+      "creator-registry-adjacency-trends-primary-sources"
+    ],
+    "source_allocation": {"proven": 70, "promising": 20, "exploration": 10}
   },
   "automation_reliability": {
     "consent_mode": "single-owner-grant",
@@ -119,10 +162,17 @@
       "timezone": "UTC"
     },
     "required_regions": ["india", "us-central"],
+    "minimum_posts_per_day": 2,
+    "maximum_posts_per_day": 6,
+    "minimum_recovery_spacing_minutes": 120,
+    "recovery_velocity_ratio_threshold": 0.85,
+    "recovery_cannibalization_threshold": 0.35,
+    "minimum_recovery_publication_score": 65,
+    "maximum_unpublished_recovery_packages": 1,
     "fixed_publish_times": [],
     "fixed_spacing_minutes": null,
     "dynamic_cannibalization_penalty": true,
-    "no_extra_stockpile": true
+    "no_extra_normal_stockpile": true
   },
   "brand_system": {
     "auto_create": true,

@@ -19,26 +19,34 @@ Never present scheduled execution, a loop, manual check-back, or â€œkeep goingâ€
 ## Engagement lanes and accounting
 
 - `direct-inbound`: genuine comments, replies, and direct messages. These bypass new-target qualification and proactive cooldown. They consume the base budget until 100, then increment `direct_reply_overage` and continue.
-- `soft-reciprocity`: likes, reactions, follows, visible profile views, and accepted connections. Inspect the newest visible relevant posts and select at most one action. New targets must have at least 3,000 followers. Every action must pass cooldown and score at least 65. If none qualifies, retain the relationship signal without acting.
+- `soft-reciprocity`: likes, reactions, follows, visible profile views, and accepted connections. Inspect the newest visible relevant posts and select at most one action. Apply the active recovery tier's new-target follower, cooldown, and score gates. If none qualifies, retain the relationship signal without acting.
 - `proactive`: hub accounts, adjacency signals, premium discovery, and current regional or topic opportunities. Apply all qualification, score, deduplication, and cooldown gates.
 
 Candidate rejection is normal work, not a blocker. A candidate that fails qualification, region/relevance, cooldown, availability, marginal value, or the score threshold is logged and discarded for the current opportunity before any draft is prepared. The dispatcher must continue discovery or select another eligible task; it must never route a rejected candidate to the owner for an exception.
 
 Every action record includes lane, triggering signal, relationship strength, budget class, score or direct-inbound exemption, scheduling rationale, observed result, and evidence. A reaction to a reciprocal action increases relationship strength but never bypasses cooldown.
 
-## Adaptive bursts and reserve
+## Opportunity health, adaptive bursts, and canonical supply
+
+Run `evaluate_opportunity_health.py <state-dir> --record` after every wake, publication, burst, analytics checkpoint, and generation pass. Score equal-age impressions at 25 percent, engagement rate at 20, profile-view velocity at 20, follower and connection growth at 10, action pace at 15, and canonical reserve coverage plus source yield at 10. Use trailing seven-day comparable medians. Missing metrics are excluded and remaining weights renormalized; fewer than three comparable observations reduces confidence instead of inventing zeroes.
+
+Expected cumulative action pace is 20 at 25 percent of the local day, 45 at 50 percent, 70 at 75 percent, and 100 at close. Activate recovery after two health scores below 70 or when actual actions fall below half expected pace. Exit only after two consecutive evaluations with health at least 80 and pace at least 90 percent.
+
+Recovery tiers are immutable: normal is score 65, 3,000 new-target followers, 72-hour cooldown; expansion is 60, 2,000, 48; intensive is 55, 1,000, 24. Never go lower, and always enforce at most two proactive interactions per person in seven days.
 
 A proactive burst contains no more than 10 combined proactive and soft-reciprocal actions. Start a burst only when the Working Algorithm Model predicts positive marginal value from qualified-candidate density, regional opportunity, audience spillover, historical performance, remaining base capacity, and current concentration. There is no fixed interval. Recent concentration lowers the opportunity score and decays according to observed campaign outcomes.
 
-Forecast the next two likely bursts and calculate the reserve target from recent executed burst size, candidate staleness, rejection rate, remaining budget, and the configured minimum and maximum. Do not default to two full 10-action bursts. Each discovery pass stops after five pages, eight minutes, low qualified yield, target completion, or declining marginal value. Persist candidates as they are found and record the pass immediately. A low-yield or limit-ending pass enters backoff so another work type can run. If reserve coverage is weak, investigation and discovery outrank waiting. Do not force an action or lower the score threshold.
+`engagement-opportunities.json` is canonical. Every record carries identity, source, lane, score, active gate, freshness, cooldown, follower count, action type, lifecycle, expiry, and evidence. Derive reserve coverage only from currently eligible records. When one or more are eligible, dispatch a burst of up to ten before another search. After execution atomically update action count, lifecycle, concentration, source yield, relationship evidence, and prediction.
+
+Rotate discovery through the eight configured sources and use 70/20/10 proven, promising, and exploration allocation. Each pass records attempts, accepted candidates, rejection reasons, staleness, actions, replies, profile views, and follower outcomes. Low yield sets an exact `not_before`, selects a different next source, and continues offline work. It never increases the reserve target or creates a `reconcile-work-queue` loop.
 
 Prevent starvation: after two consecutive selections of the same non-urgent task type, select the highest-ranked different eligible type. Direct inbound, due publication, pre-flight, lane recovery, and mandatory recovery remain exempt.
 
-## Dynamic publication
+## Dynamic publication and recovery content
 
-Maintain exactly two validated packages for the configured required regions, which default to India and US-Central. Use the configured production-priority block, but allow direct inbound and exceptionally strong adaptive opportunities to interrupt it.
+Maintain exactly two normal validated packages for India and US-Central. After both are published, active recovery may prepare one additional package. Never store more than one unpublished recovery package.
 
-Evaluate publication opportunities without fixed times or spacing. Use `select_publish_time.py <opportunities> --state-dir <state-dir> --record` so the decision is appended to `schedule-decisions.jsonl`. Score regional activity, qualified-target activity, topic freshness, current network velocity, the previous post's engagement velocity, historical equal-age performance, format/pillar fit, remaining-day opportunity, and a dynamic cannibalization risk from the other post's live distribution. Use 70 percent proven timing, 20 percent promising timing, and 10 percent exploration. Publish exactly two posts per campaign-local content day; use the best final remaining opportunity if the model has not selected one earlier.
+Evaluate publication opportunities dynamically with `select_publish_time.py`. Guarantee two normal posts. Recovery publication additionally requires active recovery, 120 minutes since the previous publication, preceding velocity below 85 percent of baseline or cannibalization below 0.35, a fresh source, distinct angle and pillar or format, and score at least 65. Collect `performance-recovery-analytics` and reevaluate before creating another. Publish from two through six posts, never seven.
 
 ## Completion and blocker behavior
 
