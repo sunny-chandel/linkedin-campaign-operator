@@ -60,19 +60,32 @@ def main() -> int:
         opportunities = data.get("opportunities", [])
         if not isinstance(posts, list) or not isinstance(opportunities, list):
             raise ValueError("posts and opportunities must be arrays")
-        if not 2 <= len(posts) <= 6:
-            raise ValueError("between two and six post records are required")
-        required_regions = {"india", "us-central"}
+        if not 6 <= len(posts) <= 8:
+            raise ValueError("between six and eight post records are required")
         normal_posts = [post for post in posts if isinstance(post, dict) and post.get("publication_kind", "normal") == "normal"]
         recovery_posts = [post for post in posts if isinstance(post, dict) and post.get("publication_kind") == "recovery"]
-        regions = {post.get("region") for post in normal_posts}
-        if len(normal_posts) != 2 or regions != required_regions:
-            raise ValueError("normal posts must contain exactly India and US-Central")
+        regions = {str(post.get("region") or "") for post in normal_posts}
+        if len(normal_posts) != 6:
+            raise ValueError("normal portfolio must contain exactly six posts")
+        if "india" not in regions or not ({"us", "us-central"} & regions):
+            raise ValueError("normal portfolio must retain at least one India and one US post")
+        pillars = {str(post.get("content_pillar") or "") for post in normal_posts} - {""}
+        formats = {str(post.get("format_treatment") or post.get("format") or "") for post in normal_posts} - {""}
+        if len(pillars) < 4 or len(formats) < 3:
+            raise ValueError("six-post portfolio needs at least four pillars and three formats")
+        for previous, current in zip(normal_posts, normal_posts[1:]):
+            for field in ("topic", "angle"):
+                if previous.get(field) and previous.get(field) == current.get(field):
+                    raise ValueError(f"normal portfolio cannot repeat {field} consecutively")
+            previous_format = previous.get("format_treatment") or previous.get("format")
+            current_format = current.get("format_treatment") or current.get("format")
+            if previous_format and previous_format == current_format:
+                raise ValueError("normal portfolio cannot repeat format consecutively")
         unpublished_recovery = [post for post in recovery_posts if post.get("published") is not True]
         if len(unpublished_recovery) > 1:
             raise ValueError("at most one unpublished recovery package may be stored")
         published = [post for post in posts if post.get("published") is True]
-        if len(published) >= 6:
+        if len(published) >= 8:
             result = {
                 "valid": True,
                 "decision": "daily-publications-complete",
@@ -108,10 +121,15 @@ def main() -> int:
                 if post_id not in ready_ids:
                     continue
                 post = next((item for item in posts if item.get("post_id") == post_id), {})
+                minutes_since_previous = opportunity.get("minutes_since_previous_publication")
+                if published and (
+                    isinstance(minutes_since_previous, bool)
+                    or not isinstance(minutes_since_previous, (int, float))
+                    or float(minutes_since_previous) < 120
+                ):
+                    continue
                 if post.get("publication_kind") == "recovery":
-                    if len([item for item in normal_posts if item.get("published") is True]) < 2:
-                        continue
-                    if float(opportunity.get("minutes_since_previous_publication", 0) or 0) < 120:
+                    if len([item for item in normal_posts if item.get("published") is True]) < 6:
                         continue
                     velocity = opportunity.get("preceding_post_velocity_ratio")
                     risk_value = opportunity.get("cannibalization_risk", 1)
@@ -165,8 +183,8 @@ def main() -> int:
                 "learning_allocation": learning_allocation,
                 "fixed_publish_time_used": False,
                 "fixed_spacing_used": False,
-                "minimum_recovery_spacing_minutes": 120,
-                "publication_range": {"minimum": 2, "maximum": 6},
+                "absolute_minimum_spacing_minutes": 120,
+                "publication_range": {"minimum": 6, "maximum": 8},
             }
         rendered = json.dumps(result, indent=2, ensure_ascii=False) + "\n"
         if args.output:

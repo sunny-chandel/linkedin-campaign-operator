@@ -24,21 +24,24 @@ def frontmatter(path: Path) -> dict:
     return value
 
 
-def test_all_eight_skills_share_the_public_release_version() -> None:
+def test_parent_and_twelve_children_share_the_rc_version() -> None:
     skill_files = sorted(SKILLS.glob("*/SKILL.md"))
-    assert len(skill_files) == 8
+    assert len(skill_files) == 13
+    parent_text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
     for skill_file in skill_files:
         metadata = frontmatter(skill_file)
         assert metadata["name"] == skill_file.parent.name
         assert metadata["description"]
-        assert metadata["metadata"]["version"] == "5.1.0"
+        assert metadata["metadata"]["version"] == "6.0.0-rc.1"
+        if metadata["name"] != "linkedin-campaign-orchestrator":
+            assert f"`{metadata['name']}`" in parent_text
 
 
 def test_claude_and_codex_manifests_are_aligned() -> None:
     claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
     codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
     assert claude["name"] == codex["name"] == PLUGIN.name
-    assert claude["version"] == codex["version"] == "5.1.0"
+    assert claude["version"] == codex["version"] == "6.0.0-rc.1"
     assert claude["license"] == codex["license"] == "MIT"
     assert claude["homepage"] == codex["homepage"] == PUBLIC_SITE
     assert codex["skills"] == "./skills/"
@@ -46,30 +49,46 @@ def test_claude_and_codex_manifests_are_aligned() -> None:
 
 def test_orchestrator_selects_exact_pinned_browser_without_question() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
-    assert "immediately call the browser-selection tool with that ID as an explicit argument" in text
-    assert "never use an owner-question tool for device selection" in text
-    assert "ignore other connected devices and do not present them as choices" in text
-    assert "do not ask about other devices and do not offer a device-choice prompt" in text
-    assert "at least three scheduled probe cycles fail" in text
+    assert "Resolve the pinned Chrome device" in text
+    assert "verify the stored profile identity" in text
+    assert "routes to `linkedin-runtime-repair`" in text
+    assert "retry automatically" in text
 
 
 def test_runtime_classification_is_agent_neutral() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
-    assert "Claude, Codex, and every compatible agent" in text
-    assert "identical evidence must always produce the same state" in text
+    assert "Claude, Codex, and compatible agents" in text
+    assert "canonical" in text
 
 
 def test_continuation_never_becomes_an_owner_choice() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
-    assert "Never ask the owner to choose between a scheduled agent" in text
-    assert "Never expose continuation setup as a question" in text
+    assert "Renew it before any host duration limit" in text
+    assert "Never ask the owner to choose an automation" in text
 
 
 def test_orchestrator_uses_deterministic_plugin_path_resolution() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
-    assert "Invoke this installed skill directly as `/linkedin-campaign-orchestrator`" in text
-    assert "Never locate this plugin with `find /`" in text
-    assert "runtime_instructions.install_path" in text
+    assert "Resolve the newest installed plugin at every wake" in text
+    assert "scripts/resolve_latest_plugin.py" in text
+    assert "load the returned parent and every relevant child `SKILL.md` completely" in text
+
+
+def test_v6_operational_contracts_and_internal_routes_are_explicit() -> None:
+    text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
+    assert "at least 160 qualified counted actions" in text
+    assert "never exceed 200" in text
+    assert "at least six and at most eight verified publications" in text
+    assert "at least 40 currently executable records" in text
+    assert "absolute 120-minute publication-spacing floor" in text
+    for child in (
+        "linkedin-opportunity-discovery",
+        "linkedin-engagement-execution",
+        "linkedin-regional-intelligence",
+        "linkedin-publishing-operations",
+        "linkedin-runtime-repair",
+    ):
+        assert f"`{child}`" in text
 
 
 def test_public_package_contains_no_fixed_owner_identity() -> None:

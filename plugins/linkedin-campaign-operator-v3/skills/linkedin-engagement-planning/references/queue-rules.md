@@ -8,7 +8,7 @@ Each queue item contains:
 - lane: `proactive`, `soft-reciprocity`, or `direct-inbound`;
 - triggering signal and signal-event identifier when applicable;
 - relationship strength before the proposed action;
-- budget classification: `base` or `direct-reply-overage`;
+- budget classification: `rolling-base` or `direct-inbound-outside-cap`;
 - scheduling rationale and regional-opportunity evidence;
 - target-list status: new or existing;
 - follower count when qualification applies;
@@ -24,6 +24,7 @@ Each queue item contains:
 - cooldown result;
 - source or claim-verification note;
 - Chrome execution status.
+- existing-connection and prior-interaction evidence for any proactive DM.
 
 ## Scoring
 
@@ -53,12 +54,12 @@ Run hard gates before drafting any action text. A failed hard gate or score belo
 
 ## Budget and burst controls
 
-- The shared base ceiling is 100 actions per campaign-local day.
-- Proactive and soft-reciprocal actions stop when the base ceiling is reached.
-- Direct-inbound replies consume base capacity while it remains, then increment `direct_reply_overage` and continue.
+- The rolling 24-hour counted-action target is 160 and hard cap is 200.
+- Proactive and soft-reciprocal actions stop at the rolling cap.
+- Direct inbound replies remain outside the cap and continue when useful.
 - Every burst is capped at 10 actions.
-- Do not manufacture low-quality actions to fill a burst or the daily budget.
-- Calculate reserve coverage from the next two predicted bursts, recent executed burst size, staleness, rejection rate, remaining base capacity, and the configured minimum and maximum. Do not assume two 10-action bursts.
+- Do not manufacture low-quality actions to fill a burst or action debt.
+- Maintain at least 40 currently executable canonical opportunities while rolling capacity remains.
 - Stop a reserve pass after five pages, eight minutes, target completion, qualified yield below the configured floor, or declining marginal value. Persist every accepted candidate immediately and record the pass through the parent runtime so low-yield backoff and task rotation survive restart.
 
 ## Repetition controls

@@ -60,10 +60,10 @@ def main() -> int:
         budget = data.get("budget", {})
         if not isinstance(budget, dict):
             raise ValueError("budget must be an object")
-        base_used = int(budget.get("base_actions_used", 0))
-        base_ceiling = int(budget.get("base_daily_ceiling", 100))
-        if not 0 <= base_used <= base_ceiling or base_ceiling != 100:
-            raise ValueError("budget must use a 100-action base ceiling with valid usage")
+        base_used = int(budget.get("rolling_24h_actions", budget.get("base_actions_used", 0)))
+        base_ceiling = int(budget.get("rolling_action_cap", budget.get("base_daily_ceiling", 200)))
+        if not 0 <= base_used <= base_ceiling or base_ceiling != 200:
+            raise ValueError("budget must use the 200-action rolling cap with valid usage")
         direct_overage_allowed = budget.get("direct_reply_overage_allowed", True) is True
         tier = RECOVERY_TIERS[args.mode]
         threshold = max(55.0, tier["threshold"], args.threshold if "--threshold" in sys.argv else tier["threshold"])
@@ -107,6 +107,13 @@ def main() -> int:
                 failed_gates.append("direct_reply_overage_allowed")
             if lane == "soft-reciprocity" and not candidate.get("triggering_signal"):
                 failed_gates.append("triggering_signal")
+            action_type = str(candidate.get("action_type") or "").lower()
+            if lane != "direct-inbound" and action_type in {"dm", "message", "direct-message"}:
+                if candidate.get("connection_status") not in {"existing", "connected"}:
+                    failed_gates.append("existing_connection_required_for_dm")
+                prior_evidence = candidate.get("prior_interaction_evidence")
+                if prior_evidence is not True and not isinstance(prior_evidence, dict):
+                    failed_gates.append("prior_interaction_required_for_dm")
             if failed_gates:
                 rejected.append(
                     {
@@ -184,15 +191,15 @@ def main() -> int:
                     )
                     continue
                 selected_soft_targets.add(soft_target)
-            if item["lane"] == "direct-inbound" and projected_base >= base_ceiling:
-                item["budget_class"] = "direct-reply-overage"
+            if item["lane"] == "direct-inbound":
+                item["budget_class"] = "direct-inbound-outside-cap"
                 projected_overage += 1
             else:
                 item["budget_class"] = "base"
                 projected_base += 1
             selected.append(item)
         output = {
-            "schema_version": "1.0",
+            "schema_version": "2.0",
             "campaign_id": data.get("campaign_id"),
             "threshold": threshold,
             "active_recovery_mode": args.mode,
@@ -209,9 +216,10 @@ def main() -> int:
             "eligible_not_selected": eligible_not_selected,
             "rejected": rejected,
             "projected_budget": {
-                "base_actions_used": min(projected_base, base_ceiling),
-                "base_daily_ceiling": base_ceiling,
-                "direct_reply_overage": projected_overage,
+                "rolling_24h_actions": min(projected_base, base_ceiling),
+                "rolling_action_target": 160,
+                "rolling_action_cap": base_ceiling,
+                "direct_inbound_replies": projected_overage,
             },
             "owner_input_required": False,
             "next_step": "execute-selected" if selected else "continue-discovery",

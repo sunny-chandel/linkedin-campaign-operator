@@ -1,5 +1,14 @@
 # Changelog
 
+## 6.0.0-rc.1 — Rolling Output and Runtime Repair
+
+- Replaced calendar-day action accounting with canonical rolling 24-hour output: 160 counted actions targeted, 200 capped, and genuine direct inbound tracked outside the cap.
+- Added a canonical 40-opportunity reserve, atomic discovery upserts, relationship-only proactive DMs, ten-action bursts, source-specific backoff, and immediate source rotation.
+- Replaced the two-post pipeline with six normal publications, up to two recovery publications, a six-package rolling inventory, 12-topic research selection, regional diversification, portfolio diversity rules, and a 120-minute spacing floor.
+- Added 30-minute, 2-hour, 6-hour, and 24-hour measurement schedules with mandatory learning and decision artifacts.
+- Added regional intelligence, publishing operations, engagement execution, opportunity discovery, and scoped runtime repair child skills while retaining one public parent entry point.
+- Added schema 2.0 migration, canonical output reconstruction, restart-safe leases, deduplicated continuation renewal, and scoped Codex repair handoff.
+
 ## 5.1.0 — Adaptive Opportunity Recovery
 
 - Added a weighted opportunity-health controller with missing-metric renormalization, confidence, daily action milestones, and persisted activation/exit streaks.

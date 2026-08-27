@@ -142,9 +142,112 @@ def import_legacy_opportunities(state_dir: Path, campaign_id: str, now: datetime
             opportunities.append(normalized)
             existing[candidate_id] = normalized
             imported += 1
+    document["schema_version"] = "2.0"
     document["campaign_id"] = campaign_id
     document["updated_at"] = now.isoformat()
     atomic_write_json(path, document)
+    return imported
+
+
+def import_legacy_packages(state_dir: Path, campaign_id: str, now: datetime) -> int:
+    """Place legacy package evidence into the v6 pipeline without inventing validation."""
+    path = state_dir / "content-pipeline.json"
+    pipeline = load_object(path)
+    packages = pipeline.setdefault("packages", [])
+    existing = {
+        str(item.get("package_id")) for item in packages
+        if isinstance(item, dict) and item.get("package_id")
+    }
+    publication_text = (
+        (state_dir / "publication-evidence.jsonl").read_text(encoding="utf-8")
+        if (state_dir / "publication-evidence.jsonl").is_file() else ""
+    )
+    imported = 0
+    for package_path in sorted(state_dir.glob("**/publication-package*.json")):
+        if package_path == path:
+            continue
+        try:
+            value = load_object(package_path)
+        except (OSError, json.JSONDecodeError, ValueError):
+            continue
+        package_id = str(value.get("package_id") or value.get("post_id") or package_path.stem)
+        if package_id in existing:
+            continue
+        expiry = value.get("freshness_expiry")
+        expiry_time = None
+        if isinstance(expiry, str):
+            try:
+                expiry_time = datetime.fromisoformat(expiry.replace("Z", "+00:00"))
+                if expiry_time.tzinfo is None:
+                    expiry_time = expiry_time.replace(tzinfo=timezone.utc)
+                expiry_time = expiry_time.astimezone(timezone.utc)
+            except ValueError:
+                expiry_time = None
+        published = package_id in publication_text or str(value.get("post_url") or "") in publication_text
+        legacy_ready = str(
+            value.get("final_validation_status") or value.get("validation_status") or ""
+        ).startswith("ready")
+        required_fields = {
+            "region": value.get("target_region") or value.get("region"),
+            "demographic_hypothesis": value.get("demographic_hypothesis"),
+            "freshness_expiry": expiry,
+            "portfolio_role": value.get("portfolio_role"),
+            "competing_angle": value.get("competing_angle"),
+            "intended_growth_outcome": value.get("intended_growth_outcome"),
+        }
+        complete = legacy_ready and all(required_fields.values()) and bool(
+            value.get("content_pillar") and (value.get("format_treatment") or value.get("format"))
+        )
+        status = (
+            "published" if published else
+            "stale-replacement-required" if expiry_time is not None and expiry_time <= now else
+            "validated" if complete else
+            "needs-v6-revalidation"
+        )
+        packages.append({
+            "package_id": package_id,
+            "status": status,
+            "source_path": str(package_path.relative_to(state_dir)),
+            "region": required_fields["region"],
+            "demographic_hypothesis": required_fields["demographic_hypothesis"],
+            "freshness_expiry": expiry,
+            "portfolio_role": required_fields["portfolio_role"],
+            "competing_angle": required_fields["competing_angle"],
+            "intended_growth_outcome": required_fields["intended_growth_outcome"],
+            "topic": value.get("topic"),
+            "angle": value.get("angle"),
+            "content_pillar": value.get("content_pillar"),
+            "format_treatment": value.get("format_treatment") or value.get("format"),
+            "replacement_required": status == "stale-replacement-required",
+            "analytics_contract": "legacy-preserved" if published else "v6-four-checkpoints",
+            "stages": {
+                "research_brief": bool(value.get("research_brief") or value.get("research_brief_path")),
+                "claim_verification": bool(value.get("claim_verification") or value.get("claims_verified")),
+                "caption": bool(value.get("caption") or value.get("caption_path")),
+                "asset": bool(value.get("asset") or value.get("asset_path")),
+                "watermark": bool(value.get("watermark") or value.get("watermark_applied")),
+                "validation": legacy_ready,
+                "publication_decision": bool(value.get("publication_decision")),
+                "live_verification": published,
+            },
+            "migration_evidence": "legacy-package-file",
+        })
+        existing.add(package_id)
+        imported += 1
+    ready_count = sum(
+        1 for item in packages
+        if isinstance(item, dict) and item.get("status") in {"ready", "validated"}
+    )
+    pipeline["schema_version"] = "2.0"
+    pipeline["campaign_id"] = campaign_id
+    pipeline["inventory"] = {
+        "target": 6,
+        "validated_unpublished": ready_count,
+        "debt": max(0, 6 - ready_count),
+        "evaluated_at": now.isoformat(),
+    }
+    pipeline["updated_at"] = now.isoformat()
+    atomic_write_json(path, pipeline)
     return imported
 
 
@@ -176,18 +279,24 @@ def main() -> int:
         "max_actions_per_day",
         "min_proactive_cluster_gap_minutes",
         "posts_per_day",
+        "minimum_posts_per_day",
+        "maximum_posts_per_day",
+        "prepared_packages_per_content_day",
+        "base_actions_per_day",
     }
-    config["schema_version"] = "1.3"
+    config["schema_version"] = "2.0"
     fixed = config.setdefault("fixed_rules", {})
     for key in legacy_fixed_keys:
         fixed.pop(key, None)
     fixed.update(
         {
-            "minimum_posts_per_day": 2,
-            "maximum_posts_per_day": 6,
-            "prepared_packages_per_content_day": 2,
+            "minimum_posts_rolling_24h": 6,
+            "maximum_posts_rolling_24h": 8,
+            "rolling_package_inventory": 6,
+            "topic_candidates_per_portfolio": 12,
             "max_actions_per_burst": 10,
-            "base_actions_per_day": 100,
+            "rolling_24h_action_target": 160,
+            "rolling_24h_action_cap": 200,
             "direct_reply_overage_allowed": True,
             "new_target_min_followers": 3000,
             "cooldown_hours": 72,
@@ -199,6 +308,17 @@ def main() -> int:
     adaptive_dispatch = config.setdefault("adaptive_dispatch", {})
     adaptive_dispatch["priority_order"] = list(defaults["adaptive_dispatch"]["priority_order"])
     merged, merged_missing = merge_missing(config, defaults)
+    merged["schema_version"] = "2.0"
+    merged["fixed_rules"] = fixed
+    merged["opportunity_recovery"]["daily_action_milestones"] = list(
+        defaults["opportunity_recovery"]["daily_action_milestones"]
+    )
+    merged["automation_reliability"]["reserve"].update(
+        {"min_target": 40, "max_target": 80}
+    )
+    merged["publishing_optimization"].update(defaults["publishing_optimization"])
+    for section in ("regional_intelligence", "content_research", "analytics_contract", "runtime_repair"):
+        merged[section] = defaults[section]
     merged.setdefault("publishing_optimization", {}).setdefault(
         "production_priority_window", {}
     )["timezone"] = merged.get("timezone", "UTC")
@@ -212,11 +332,11 @@ def main() -> int:
     if state_path.is_file():
         state_defaults = load_object(assets_dir / "campaign-state.template.json")
         state = load_object(state_path)
-        state["schema_version"] = "1.3"
+        state["schema_version"] = "2.0"
         runtime_instructions = state.setdefault("runtime_instructions", {})
-        runtime_instructions["active_version"] = "5.1.0"
-        runtime_instructions["detected_version"] = "5.1.0"
-        runtime_instructions["session_version"] = "5.1.0"
+        runtime_instructions["active_version"] = "6.0.0-rc.1"
+        runtime_instructions["detected_version"] = "6.0.0-rc.1"
+        runtime_instructions["session_version"] = "6.0.0-rc.1"
         old_scaling = state.get("engagement_scaling", {})
         if not isinstance(old_scaling, dict):
             old_scaling = {}
@@ -247,9 +367,12 @@ def main() -> int:
                     }
                 )
         state["engagement_scaling"] = {
-            "budget_day_local": old_scaling.get("budget_day_local") or old_scaling.get("budget_day_ist") or legacy_today.get("date_ist"),
-            "base_daily_ceiling": 100,
-            "base_actions_used": min(max(base_actions_used, 0), 100),
+            "rolling_24h_actions": 0,
+            "rolling_action_target": 160,
+            "rolling_action_cap": 200,
+            "action_debt": 160,
+            "base_daily_ceiling": 200,
+            "base_actions_used": 0,
             "direct_reply_overage": max(int(old_scaling.get("direct_reply_overage", 0) or 0), 0),
             "burst_history": burst_history,
             "concentration_state": old_scaling.get("concentration_state", {}),
@@ -297,17 +420,36 @@ def main() -> int:
                     or publishing.get("content_day_ist")
                     or today.get("date_ist")
                 ),
-                "packages_required": 2,
-                "packages_ready": min(max(int(publishing.get("packages_ready", package_count) or 0), 0), 2),
-                "posts_published": min(max(int(publishing.get("posts_published", published_count) or 0), 0), 6),
-                "normal_posts_published": min(max(int(publishing.get("normal_posts_published", published_count) or 0), 0), 2),
-                "recovery_posts_published": min(max(int(publishing.get("recovery_posts_published", 0) or 0), 0), 4),
+                "packages_required": 6,
+                "packages_ready": min(max(int(publishing.get("packages_ready", package_count) or 0), 0), 6),
+                "posts_published": 0,
+                "rolling_24h_posts": 0,
+                "rolling_post_target": 6,
+                "rolling_post_cap": 8,
+                "post_debt": 6,
+                "rolling_inventory_target": 6,
+                "normal_posts_published": min(max(int(publishing.get("normal_posts_published", published_count) or 0), 0), 6),
+                "recovery_posts_published": min(max(int(publishing.get("recovery_posts_published", 0) or 0), 0), 2),
                 "published_post_ids": publishing.get("published_post_ids", []),
                 "last_publication_at": publishing.get("last_publication_at"),
                 "current_cannibalization_signal": publishing.get("current_cannibalization_signal"),
             }
         )
         state["publishing"] = publishing
+        continuation = state.setdefault("dispatcher", {}).setdefault("continuation", {})
+        continuation.pop("expires_at", None)
+        continuation.pop("fixed_expiry_at", None)
+        continuation.update(
+            {
+                "mode": "automatic",
+                "owner_input_required": False,
+                "dedupe_key": f"linkedin-campaign-continuation:{campaign_id}",
+                "expiry_policy": "renew-before-host-limit-until-target-or-owner-stop",
+                "renew_existing_automation": True,
+                "renewal_due_before_expiry": True,
+                "campaign_completion_or_owner_stop_required_to_end": True,
+            }
+        )
         merged_state, state_updated = merge_missing(state, state_defaults)
         state_updated = state_updated or merged_state != load_object(state_path)
         if state_updated:
@@ -320,7 +462,7 @@ def main() -> int:
         consent = load_object(consent_path)
         required_settings = [
             "automated-mode",
-            "adaptive-100-base-action-ceiling",
+            "rolling-160-action-target-200-cap",
             "continuous-24-hour-dispatch",
             "direct-inbound-overage",
             "fully-dynamic-publishing",
@@ -330,14 +472,20 @@ def main() -> int:
             "campaign-lifetime-consent-reload",
             "automatic-recovery-without-routine-questions",
             "opportunity-recovery-controller",
-            "adaptive-two-to-six-publications",
+            "six-to-eight-rolling-publications",
+            "regional-diversification",
+            "relationship-only-proactive-dms",
+            "automatic-runtime-repair",
         ]
         current_settings = consent.get("persistent_settings", [])
         if not isinstance(current_settings, list):
             current_settings = []
-        current_settings = [
-            value for value in current_settings if value != "adaptive-80-action-ceiling"
-        ]
+        obsolete_settings = {
+            "adaptive-80-action-ceiling",
+            "adaptive-100-base-action-ceiling",
+            "adaptive-two-to-six-publications",
+        }
+        current_settings = [value for value in current_settings if value not in obsolete_settings]
         merged_settings = list(dict.fromkeys([*current_settings, *required_settings]))
         receipt = consent.get("authorization_receipt", {})
         receipt_missing = not isinstance(receipt, dict) or not receipt.get("receipt_id")
@@ -449,22 +597,57 @@ def main() -> int:
             "summary": {},
         },
         "work-queue.json": {
-            "schema_version": "1.0",
+            "schema_version": "2.0",
             "campaign_id": campaign_id,
             "updated_at": None,
             "items": [],
         },
         "stage-ledger.json": {
-            "schema_version": "1.0",
+            "schema_version": "2.0",
             "campaign_id": campaign_id,
             "updated_at": None,
             "stages": [],
         },
         "engagement-opportunities.json": {
-            "schema_version": "1.0",
+            "schema_version": "2.0",
             "campaign_id": campaign_id,
             "updated_at": None,
             "opportunities": [],
+        },
+        "operational-output.json": {
+            "schema_version": "2.0",
+            "campaign_id": campaign_id,
+            "calculated_at": None,
+            "actions": {"rolling_24h_actions": 0, "target": 160, "hard_cap": 200, "debt": 160},
+            "publishing": {"rolling_24h_posts": 0, "target": 6, "hard_cap": 8, "debt": 6},
+        },
+        "content-pipeline.json": {
+            "schema_version": "2.0",
+            "campaign_id": campaign_id,
+            "topic_candidates": [],
+            "briefs": [],
+            "packages": [],
+            "inventory": {"target": 6, "validated_unpublished": 0, "debt": 6},
+            "analytics_schedule": [],
+            "replacement_requirements": [],
+        },
+        "regional-performance.json": {
+            "schema_version": "2.0",
+            "campaign_id": campaign_id,
+            "observations": [],
+            "current_allocation": {
+                "mode": "bootstrap",
+                "six_post_allocation": ["india", "india", "us", "us", "uk-eu", "apac"],
+                "observation_count": 0,
+            },
+            "exploration_state": {"proven": 70, "promising": 20, "exploration": 10},
+        },
+        "repair-state.json": {
+            "schema_version": "2.0",
+            "campaign_id": campaign_id,
+            "status": "healthy",
+            "active_repair": None,
+            "history": [],
         },
     }
     for name, initial in artifacts.items():
@@ -472,9 +655,23 @@ def main() -> int:
         if not path.exists():
             atomic_write_json(path, initial)
             created.append(name)
-    imported_opportunities = import_legacy_opportunities(
-        state_dir, campaign_id, current_time(args.now)
-    )
+    regional_path = state_dir / "regional-performance.json"
+    regional = load_object(regional_path)
+    merged_regional, _ = merge_missing(regional, artifacts["regional-performance.json"])
+    merged_regional["schema_version"] = "2.0"
+    merged_regional["campaign_id"] = campaign_id
+    current_allocation = merged_regional.setdefault("current_allocation", {})
+    current_allocation.setdefault("observation_count", 0)
+    atomic_write_json(regional_path, merged_regional)
+    repair_path = state_dir / "repair-state.json"
+    repair = load_object(repair_path)
+    merged_repair, _ = merge_missing(repair, artifacts["repair-state.json"])
+    merged_repair["schema_version"] = "2.0"
+    merged_repair["campaign_id"] = campaign_id
+    atomic_write_json(repair_path, merged_repair)
+    migration_now = current_time(args.now)
+    imported_opportunities = import_legacy_opportunities(state_dir, campaign_id, migration_now)
+    imported_packages = import_legacy_packages(state_dir, campaign_id, migration_now)
     results = state_dir / "subscription-results.jsonl"
     if not results.exists():
         results.touch()
@@ -486,6 +683,7 @@ def main() -> int:
         "task-events.jsonl",
         "recovery-events.jsonl",
         "opportunity-health.jsonl",
+        "repair-events.jsonl",
     ):
         path = state_dir / name
         if not path.exists():
@@ -494,9 +692,9 @@ def main() -> int:
 
     algorithm_path = state_dir / "working-algorithm-model.json"
     algorithm_defaults = {
-        "schema_version": "1.2",
+        "schema_version": "2.0",
         "campaign_id": campaign_id,
-        "version": "0.3",
+        "version": "6.0.0-rc.1",
         "strategy_weights": {"proven": 70, "promising": 20, "exploration": 10},
         "scheduling_models": {
             "publication_timing": {"mode": "evidence-adaptive", "observations": []},
@@ -509,14 +707,18 @@ def main() -> int:
             "action_type": {"mode": "evidence-adaptive", "observations": []},
             "recovery_post": {"mode": "evidence-adaptive", "observations": []},
             "action_to_profile_view": {"mode": "evidence-adaptive", "observations": []},
+            "follower_conversion": {"mode": "evidence-adaptive", "observations": []},
+            "format_performance": {"mode": "evidence-adaptive", "observations": []},
+            "topic_performance": {"mode": "evidence-adaptive", "observations": []},
+            "regional_spillover": {"mode": "evidence-adaptive", "observations": []},
         },
         "hypotheses": [],
     }
     if algorithm_path.exists():
         algorithm = load_object(algorithm_path)
         merged_algorithm, algorithm_updated = merge_missing(algorithm, algorithm_defaults)
-        merged_algorithm["schema_version"] = "1.2"
-        merged_algorithm["version"] = "0.3"
+        merged_algorithm["schema_version"] = "2.0"
+        merged_algorithm["version"] = "6.0.0-rc.1"
         if algorithm_updated or merged_algorithm != algorithm:
             atomic_write_json(algorithm_path, merged_algorithm)
     else:
@@ -526,6 +728,8 @@ def main() -> int:
     state = load_object(state_path) if state_path.is_file() else {}
     queue_path = state_dir / "work-queue.json"
     queue = load_object(queue_path)
+    queue["schema_version"] = "2.0"
+    queue["campaign_id"] = campaign_id
     items = queue.get("items", [])
     if not isinstance(items, list):
         items = []
@@ -539,26 +743,29 @@ def main() -> int:
             item["status"] = "superseded"
             item["completion_reason"] = "migrated-to-canonical-opportunity-generation"
     publishing = state.get("publishing", {})
-    if publishing.get("packages_ready", 0) < 2 and "prepare-two-packages" not in existing_task_ids:
+    for item in items:
+        if not isinstance(item, dict) or item.get("status") in {"completed", "superseded", "expired", "cancelled"}:
+            continue
+        if item.get("task_type") in {"two-package-production", "performance-recovery-content"}:
+            item["status"] = "superseded"
+            item["completion_reason"] = "migrated-to-six-package-rolling-pipeline"
+    if publishing.get("packages_ready", 0) < 6 and "six-package-replenishment" not in existing_task_ids:
         items.append(
             {
-                "task_id": "prepare-two-packages",
-                "task_type": "two-package-production",
+                "task_id": "six-package-replenishment",
+                "task_type": "six-package-replenishment",
                 "lane": "offline",
-                "priority": 7,
+                "priority": 5,
                 "status": "pending",
                 "ready": True,
                 "requires_linkedin": False,
-                "target_scope": "next-content-day" if publishing.get("posts_published", 0) >= 2 else "current-content-day",
+                "target_scope": "rolling-inventory",
                 "required_regions": config.get("publishing_optimization", {}).get(
-                    "required_regions", ["india", "us-central"]
+                    "required_regions", ["india", "india", "us", "us", "uk-eu", "apac"]
                 ),
-                "required_package_count": len(
-                    config.get("publishing_optimization", {}).get(
-                        "required_regions", ["india", "us-central"]
-                    )
-                ),
-                "normal_package_limit": 2,
+                "required_package_count": 6,
+                "topic_candidate_target": 12,
+                "normal_package_limit": 6,
             }
         )
     analytics_path = state_dir / "daily-analytics.jsonl"
@@ -583,6 +790,8 @@ def main() -> int:
 
     ledger_path = state_dir / "stage-ledger.json"
     ledger = load_object(ledger_path)
+    ledger["schema_version"] = "2.0"
+    ledger["campaign_id"] = campaign_id
     stages = ledger.get("stages", [])
     if not isinstance(stages, list):
         stages = []
@@ -629,11 +838,14 @@ def main() -> int:
         json.dumps(
             {
                 "migrated": str(state_dir),
+                "schema_version": "2.0",
+                "plugin_version": "6.0.0-rc.1",
                 "config_updated": changed,
                 "state_updated": state_updated,
                 "consent_updated": consent_updated,
                 "created": created,
                 "imported_opportunities": imported_opportunities,
+                "imported_packages": imported_packages,
                 "runtime_reconciliation": runtime_reconciliation,
             }
         )

@@ -1,58 +1,30 @@
-# Artifact contracts
+# Artifact contracts v6
 
 Store mutable artifacts outside the plugin.
 
-## Required files
+## Canonical evidence
 
-- `campaign-config.json`: target, audience, content pillars, cadence, and completion formula.
-- `consent-record.json`: recognized owner, start time, and authorized action classes.
-- `campaign-state.json`: lifecycle state, current stage, last action, blockers, and progress.
-- `brand-profile.json`: verified profile-derived brand inputs, explicit overrides, and identity hash.
-- `watermark-manifest.json`: Claude Design project, validated watermark exports, hashes, placement, and refresh state.
-- `creator-registry.json`: 12 core and eight rotating GIF creator records.
-- `gif-reference-index.json`: normalized reference metadata and visual or motion measurements.
-- `creative-pattern-library.json`: mutable GIF rules that support immediate per-post promotion and permanent deletion.
-- `gif-creative-spec.json`: exact selected build specification for the current GIF publication package.
-- `premium-entitlements.json`: compatibility inventory of detected products, tiers, roles, and limits.
-- `subscription-inventory.json`: normalized feature-level entitlements, setup state, capacity, expiry, and pipeline mappings.
-- `subscription-utilization-plan.json`: deterministic priority scores and execution routing for verified included features.
-- `subscription-results.jsonl`: feature setup, usage, capacity, and outcome events used by daily and weekly learning.
-- `interaction-log.jsonl`: one interaction event per line.
-- `daily-analytics.jsonl`: normalized snapshot events.
-- `learning-ledger.jsonl`: evidence-ranked learning records.
-- `working-algorithm-model.json`: current hypotheses and strategy weights.
-- `experiments.json`: registered controlled experiments.
-- `work-queue.json`: unified prioritized tasks and lane blockers.
-- `stage-ledger.json`: mandatory-stage evidence and completion gates.
-- `signal-events.jsonl`: append-only inbound and soft-reciprocity signals.
-- `schedule-decisions.jsonl`: append-only dispatcher, burst, publication, and wake decisions.
-- `engagement-opportunities.json`: canonical candidate identities, sources, lanes, gate tiers, scores, freshness, cooldowns, follower evidence, lifecycle, expiry, and action evidence. All reserve counts derive from its eligible records.
-- `opportunity-health.jsonl`: append-only health scores, normalized weights, missing metrics, confidence, expected and actual action pace, active tier, and trigger evidence.
-- `task-events.jsonl`: append-only task lease, start, checkpoint, completion, and failure events.
-- `recovery-events.jsonl`: append-only session restart, downtime, abandoned-lease, missed-task, and rollover recovery events.
-- `publication-evidence.jsonl`: verified post IDs, URLs, regions, content days, packages, and timestamps.
-- `logs/`: daily summaries and execution records.
+- `interaction-log.jsonl`: confirmed actions, lane, signal, relationship, budget class, rationale, outcome, and timestamp.
+- `publication-evidence.jsonl`: unique verified post identity, package, region, publication and verification times.
+- `engagement-opportunities.json`: candidate identity, source, lane, gates, score, freshness, cooldown, followers, action type, lifecycle, expiry, relationship, and evidence.
+- `signal-events.jsonl`, `task-events.jsonl`, `schedule-decisions.jsonl`, `opportunity-health.jsonl`, `repair-events.jsonl`: append-only runtime evidence.
 
-Every interaction event additionally records its lane, triggering signal, relationship strength, budget classification, and scheduling rationale.
+## Controllers
 
-Every queue item records its lifecycle status, attempt count, idempotency key, lease ID and expiry while active, last heartbeat, latest checkpoint, retry eligibility, and evidence-backed terminal outcome. `campaign-state.json` records the consent fingerprint, pinned browser binding, reusable pre-flight evidence, lane circuits, last runtime heartbeat, detected downtime, latest self-revival report, agent-neutral `runtime_classification`, and the active automatic-continuation adapter, automation identifier, exact next wake, and deduplication key.
+- `operational-output.json`: rolling 24-hour action and post counts, targets, caps, debts, checkpoints, and evidence availability.
+- `content-pipeline.json`: 12 topic candidates, six briefs, six-package inventory, freshness, portfolio roles, stage lifecycle, replacements, and four analytics checkpoints per post.
+- `regional-performance.json`: observations, current allocation, timing performance, audience demographics, spillover, and exploration state.
+- `repair-state.json`: failure, checkpoint, recovery attempts, Codex handoff, result, verification, retry trigger, and task resumption.
+- `campaign-state.json`: lifecycle, consent snapshot, rolling mirrors, browser binding, lane circuits, continuity, and current controller links.
+- `work-queue.json`: leased and idempotent tasks.
+- `stage-ledger.json`: artifact-backed completion claims.
 
-## Pipeline artifacts
+## Supporting state
 
-`research-brief.json` → `content-plan.json` → `gif-creative-spec.json` when applicable → two normal `publication-package.json` records → optional single recovery package → `work-queue.json` → `daily-results.json` → `opportunity-health.jsonl` → `learning-update.json` → mandatory-stage completion
+Preserve configuration, consent, brand and watermark assets, creator and GIF learning, premium inventory and utilization, analytics, learning ledger, experiments, and the Working Algorithm Model.
 
-Every artifact should contain:
+The pipeline is:
 
-- schema version;
-- campaign ID;
-- creation timestamp and timezone;
-- producing stage;
-- source activation version;
-- validation status;
-- inputs or evidence references;
-- structured payload;
-- warnings and unresolved uncertainty.
+`regional allocation` → `12 candidate topics` → `six briefs` → `six validated packages` → `publication decision` → `live evidence` → `30m/2h/6h/24h analytics` → `learning and experiment decision` → `replenishment`
 
-Do not infer that an artifact exists because a prior tool call timed out. Verify it on disk.
-
-The pipeline auditor rejects completion when a required artifact is absent. For analytics, the stage remains incomplete until the ledger contains a provisional or validated learning, an experiment or explicit no-change decision, and the next measurement trigger.
+Every artifact records schema version, campaign ID, timestamps, producer, active plugin version, validation status, evidence references, uncertainty, and next trigger. The auditor rejects claimed completion when required files or stage evidence are absent.

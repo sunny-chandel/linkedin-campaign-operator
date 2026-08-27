@@ -8,9 +8,9 @@
   "plugins": [
     {
       "name": "linkedin-campaign-operator-v3",
-      "version": "5.1.0",
+      "version": "6.0.0-rc.1",
       "source": "./plugins/linkedin-campaign-operator-v3",
-      "description": "Run a durable LinkedIn growth system with canonical opportunity recovery, adaptive bursts, two-to-six-post publishing, crash self-revival, analytics, branding, and persistent learning.",
+      "description": "Run a durable LinkedIn growth system with rolling 160–200 actions, six-to-eight-post publishing, regional intelligence, runtime repair, analytics, branding, and persistent learning.",
       "author": {
         "name": "Sunny Chandel"
       }

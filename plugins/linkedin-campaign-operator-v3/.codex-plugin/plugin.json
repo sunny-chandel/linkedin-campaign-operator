@@ -1,7 +1,7 @@
 {
   "name": "linkedin-campaign-operator-v3",
-  "version": "5.1.0",
-  "description": "A stateful LinkedIn operating system with canonical opportunity recovery, adaptive engagement bursts, measured recovery publishing, analytics, and crash recovery.",
+  "version": "6.0.0-rc.1",
+  "description": "A stateful LinkedIn operating system with rolling 24-hour action and publishing contracts, canonical opportunities, regional intelligence, analytics, and runtime repair.",
   "author": {
     "name": "Sunny Chandel",
     "url": "https://github.com/sunny-chandel"
@@ -23,10 +23,15 @@
   "interface": {
     "displayName": "LinkedIn Campaign Operator",
     "shortDescription": "Run your LinkedIn growth system inside an AI agent.",
-    "longDescription": "Research topics, produce posts, plan engagement, route premium features, learn from analytics, and continue from persistent campaign state.",
+    "longDescription": "Maintain rolling engagement and publishing output, research and produce a diversified six-post portfolio, route premium features, learn from analytics, repair capabilities, and continue from persistent campaign state.",
     "developerName": "Sunny Chandel",
     "category": "Productivity",
-    "capabilities": ["Research", "Write", "Analyze", "Automate"],
+    "capabilities": [
+      "Research",
+      "Write",
+      "Analyze",
+      "Automate"
+    ],
     "websiteURL": "https://linkedin-campaign-operator.sunnychandel73.chatgpt.site",
     "defaultPrompt": [
       "Start my LinkedIn growth campaign.",

@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "linkedin-campaign-operator-v3",
   "displayName": "LinkedIn Campaign Operator",
-  "version": "5.1.0",
-  "description": "Run a durable LinkedIn growth system with canonical opportunity recovery, adaptive 1–10 action bursts, two-to-six-post publishing, crash self-revival, analytics, and persistent learning.",
+  "version": "6.0.0-rc.1",
+  "description": "Run a durable LinkedIn growth system with rolling 160–200 action output, six-to-eight-post publishing, regional intelligence, runtime repair, analytics, and persistent learning.",
   "author": {
     "name": "Sunny Chandel",
     "url": "https://github.com/sunny-chandel"

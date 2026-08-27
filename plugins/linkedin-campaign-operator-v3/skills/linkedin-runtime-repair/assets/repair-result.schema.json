@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "capability", "actions_attempted", "verification", "resume_checkpoint"],
+  "properties": {
+    "status": {"enum": ["repaired", "retry-required", "unavailable"]},
+    "capability": {"type": "string"},
+    "actions_attempted": {"type": "array", "items": {"type": "string"}},
+    "verification": {"type": "object"},
+    "resume_checkpoint": {"type": ["string", "null"]},
+    "error": {"type": ["string", "null"]}
+  }
+}

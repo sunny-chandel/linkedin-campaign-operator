@@ -3,12 +3,12 @@ name: linkedin-engagement-planning
 description: Build and validate adaptive LinkedIn action queues with qualified-growth scoring, qualification, cooldown, deduplication, and regional relevance. Use before any proactive action cluster.
 metadata:
   author: sunny
-  version: "5.1.0"
+  version: "6.0.0-rc.1"
 ---
 
 # LinkedIn engagement planning
 
-Prepare high-quality queues for the continuous dispatcher. The shared base ceiling is 100 actions per campaign-local day and is never a target. Genuine direct-inbound replies continue after the base ceiling and use the separate `direct_reply_overage` counter.
+Prepare high-quality queues for the continuous dispatcher. The rolling 24-hour counted-action target is 160 and the hard cap is 200. Genuine direct inbound replies remain outside the cap and are logged separately.
 
 Inherit the parent's active campaign-lifetime consent receipt, pinned browser binding, lane circuit, and leased task. Never ask for device selection or action approval. Persist each qualified candidate immediately, and finish every discovery pass through `runtime_control.py reserve-pass` so page, duration, yield, adaptive target, backoff, and restart state are deterministic.
 
@@ -49,7 +49,7 @@ Read [queue rules](references/queue-rules.md) for scoring and output fields.
 - A proactive or mixed burst contains at most 10 actions and stops earlier when candidate quality drops below the active tier floor, expected marginal value declines, or the base budget is exhausted. A single qualified canonical record is enough for a one-action burst.
 
 Write accepted candidates to `engagement-opportunities.json`; do not maintain an independent reserve total. Record source passes through `runtime_control.py opportunity-pass` and completed bursts through `runtime_control.py burst-complete` so lifecycle and budget changes are atomic.
-- Proactive and soft-reciprocity actions consume the shared 100-action base budget. Genuine direct replies use the base budget until 100, then continue under `direct-reply-overage`.
+- Proactive and soft-reciprocity actions consume rolling capacity up to 200. Genuine direct replies remain outside the cap. Proactive DMs require an existing connection and prior-interaction evidence.
 - A reaction to a reciprocal action raises relationship strength but never bypasses cooldown.
 - Maintain an adaptive reserve sized for the next two likely bursts and observed candidate-staleness rate.
 - Never use a fixed cluster interval. Apply the learned concentration penalty and let the parent dispatcher choose the next wake from evidence.

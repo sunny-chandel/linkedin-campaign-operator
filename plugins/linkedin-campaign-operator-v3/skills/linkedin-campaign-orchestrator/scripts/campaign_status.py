@@ -41,6 +41,10 @@ def main() -> int:
         dispatcher = state.get("dispatcher", {})
         recovery = state.get("opportunity_recovery", {})
         opportunities = load_object(state_dir / "engagement-opportunities.json")
+        operational = load_object(state_dir / "operational-output.json")
+        pipeline = load_object(state_dir / "content-pipeline.json")
+        regional = load_object(state_dir / "regional-performance.json")
+        repair = load_object(state_dir / "repair-state.json")
         items = queue.get("items", [])
         stages = ledger.get("stages", [])
         if not isinstance(items, list) or not isinstance(stages, list):
@@ -80,8 +84,10 @@ def main() -> int:
             and last_decision.get("predicted_next_opportunity")
             and last_decision.get("wake_trigger")
         )
-        base_used = int(scaling.get("base_actions_used", 0))
-        base_ceiling = int(scaling.get("base_daily_ceiling", 100))
+        action_output = operational.get("actions", {})
+        post_output = operational.get("publishing", {})
+        base_used = int(action_output.get("rolling_24h_actions", 0))
+        base_ceiling = int(action_output.get("hard_cap", 200))
         result = {
             "valid": True,
             "posting": {
@@ -89,22 +95,28 @@ def main() -> int:
                     publishing.get("content_day_local") or publishing.get("content_day_ist")
                 ),
                 "packages_ready": int(publishing.get("packages_ready", 0)),
-                "packages_required": int(publishing.get("packages_required", 2)),
-                "posts_published": int(publishing.get("posts_published", 0)),
-                "minimum_posts_required": 2,
-                "maximum_posts_allowed": 6,
+                "packages_required": 6,
+                "rolling_inventory_ready": int(pipeline.get("inventory", {}).get("validated_unpublished", 0)),
+                "topic_candidates": len(pipeline.get("topic_candidates", [])),
+                "briefs": len(pipeline.get("briefs", [])),
+                "rolling_24h_posts": int(post_output.get("rolling_24h_posts", 0)),
+                "minimum_posts_required": 6,
+                "maximum_posts_allowed": 8,
+                "post_debt": int(post_output.get("debt", 6)),
                 "normal_posts_published": int(publishing.get("normal_posts_published", 0)),
                 "recovery_posts_published": int(publishing.get("recovery_posts_published", 0)),
                 "unpublished_recovery_package": publishing.get("recovery_package"),
             },
             "engagement": {
-                "budget_day_local": scaling.get("budget_day_local"),
-                "base_actions_used": base_used,
-                "base_daily_ceiling": base_ceiling,
-                "base_remaining": max(0, base_ceiling - base_used),
-                "direct_reply_overage": int(scaling.get("direct_reply_overage", 0)),
+                "rolling_24h_actions": base_used,
+                "rolling_action_target": int(action_output.get("target", 160)),
+                "rolling_action_cap": base_ceiling,
+                "action_debt": int(action_output.get("debt", 160)),
+                "remaining_capacity": max(0, base_ceiling - base_used),
+                "direct_inbound_replies": int(action_output.get("direct_inbound_replies", 0)),
                 "adaptive_reserve": scaling.get("adaptive_reserve", {}),
                 "canonical_opportunity_records": len(opportunities.get("opportunities", [])),
+                "canonical_executable_opportunities": int(opportunities.get("eligible_count", 0)),
                 "opportunity_health": recovery,
             },
             "analytics_debt": {
@@ -125,6 +137,8 @@ def main() -> int:
                 "runtime_classification": state.get("runtime_classification", {}),
                 "continuation": dispatcher.get("continuation", {}),
             },
+            "regional_allocation": regional.get("current_allocation", {}),
+            "runtime_repair": repair,
             "unfinished_work_count": len(unfinished),
             "unfinished_stage_count": len(unfinished_stages),
             "unfinished_stage_ids": unfinished_stages,

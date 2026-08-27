@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.3",
+  "schema_version": "2.0",
   "campaign_id": "replace-me",
   "lifecycle_state": "ready",
   "current_stage": "preflight",
@@ -18,9 +18,9 @@
   },
   "progress": {},
   "runtime_instructions": {
-    "session_version": "5.1.0",
-    "active_version": "5.1.0",
-    "detected_version": "5.1.0",
+    "session_version": "6.0.0-rc.1",
+    "active_version": "6.0.0-rc.1",
+    "detected_version": "6.0.0-rc.1",
     "install_path": null,
     "last_checked_at": null,
     "activated_at": null,
@@ -49,8 +49,11 @@
     "next_reevaluation_trigger": null
   },
   "engagement_scaling": {
-    "budget_day_local": null,
-    "base_daily_ceiling": 100,
+    "rolling_24h_actions": 0,
+    "rolling_action_target": 160,
+    "rolling_action_cap": 200,
+    "action_debt": 160,
+    "base_daily_ceiling": 200,
     "base_actions_used": 0,
     "direct_reply_overage": 0,
     "burst_history": [],
@@ -58,7 +61,7 @@
     "regional_opportunity_state": {},
     "adaptive_reserve": {
       "forecast_bursts": 2,
-      "target_count": 0,
+      "target_count": 40,
       "qualified_count": 0,
       "staleness_rate": null,
       "rejection_rate": null,
@@ -109,6 +112,10 @@
       "automation_id": null,
       "next_wake_at": null,
       "dedupe_key": null,
+      "expiry_policy": "renew-before-host-limit-until-target-or-owner-stop",
+      "renew_existing_automation": true,
+      "renewal_due_before_expiry": true,
+      "campaign_completion_or_owner_stop_required_to_end": true,
       "failed_adapters": []
     },
     "unfinished_work_count": 0
@@ -135,9 +142,14 @@
   "publishing": {
     "content_day_local": null,
     "content_day_ist": null,
-    "packages_required": 2,
+    "packages_required": 6,
     "packages_ready": 0,
     "posts_published": 0,
+    "rolling_24h_posts": 0,
+    "rolling_post_target": 6,
+    "rolling_post_cap": 8,
+    "post_debt": 6,
+    "rolling_inventory_target": 6,
     "normal_posts_published": 0,
     "recovery_posts_published": 0,
     "published_post_ids": [],
@@ -163,6 +175,15 @@
     "active_features": [],
     "pending_setup": [],
     "utilization_score": null
+  },
+  "operational_output": {
+    "path": "operational-output.json",
+    "last_calculated_at": null
+  },
+  "runtime_repair": {
+    "state_path": "repair-state.json",
+    "events_path": "repair-events.jsonl",
+    "status": "healthy"
   },
   "updated_at": null
 }

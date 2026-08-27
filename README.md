@@ -22,7 +22,7 @@ Claude LinkedIn is the public interface for LinkedIn Campaign Operator: a free, 
 
 **Website:** [linkedin-campaign-operator.sunnychandel73.chatgpt.site](https://linkedin-campaign-operator.sunnychandel73.chatgpt.site)
 
-Version 5.1.0 adds a deterministic opportunity-health controller, a canonical engagement queue, staged 65/60/55 recovery gates, source-yield rotation, immediate 1–10 action bursts, and measured two-to-six-post recovery publishing. It preserves the durable consent, pinned-browser reuse, task leases, crash self-revival, day rollover, circuit breakers, pre-flight evidence, deterministic skill entry, and state reconciliation introduced in the 5.0 series.
+Version 6.0.0-rc.1 adds rolling 24-hour operational contracts, a 160-action target with a 200-action cap, six-to-eight verified publications, a six-package rolling inventory, regional diversification, four analytics checkpoints per post, and automatic runtime repair. It preserves durable consent, canonical engagement evidence, staged 65/60/55 recovery gates, task leases, and crash-safe resumption.
 
 It runs in Claude Code and Codex, keeps mutable campaign data outside the plugin, and resumes from verified state instead of starting over every day.
 
@@ -39,11 +39,16 @@ It runs in Claude Code and Codex, keeps mutable campaign data outside the plugin
 
 The included 10,000-follower and 10,000-connection strategy is the default. Your identity, profile URL, timezone, niche, baselines, and growth goals are configurable.
 
-## The eight skills
+## The parent and twelve child skills
 
 | Skill | Role |
 | --- | --- |
 | `linkedin-campaign-orchestrator` | Governs state, routing, recovery, and next actions |
+| `linkedin-opportunity-discovery` | Rotates sources and atomically maintains canonical opportunities |
+| `linkedin-engagement-execution` | Builds bursts and enforces rolling action accounting |
+| `linkedin-regional-intelligence` | Allocates six regional portfolio slots from evidence |
+| `linkedin-publishing-operations` | Maintains package inventory, publication evidence, and analytics schedules |
+| `linkedin-runtime-repair` | Restores unhealthy runtime capabilities and resumes work |
 | `linkedin-content-research` | Finds topics, sources, and defensible claims |
 | `linkedin-content-production` | Creates captions, creative briefs, and publish packages |
 | `linkedin-engagement-planning` | Scores and prepares high-value engagement actions |
@@ -67,7 +72,7 @@ Then run:
 
 ## Automated startup and recovery
 
-The parent starts the configured organic LinkedIn system. On the first run it asks one automation-consent question and stores the resulting campaign-lifetime receipt. Later sessions self-revive from durable state without asking again, reconcile missed work and local-day rollover, reuse the pinned verified browser and valid pre-flight evidence, and route automatically through the seven supporting skills. It does not open a generic campaign-setup form or use fixed engagement clusters.
+The parent starts the configured organic LinkedIn system. On the first run it asks one automation-consent question and stores the resulting campaign-lifetime receipt. Later sessions self-revive from durable state without asking again, reconcile missed rolling obligations, reuse valid pre-flight evidence, and route automatically through all twelve child skills. It does not open a generic campaign-setup form or use fixed engagement clusters.
 
 ## Install in Codex
 
@@ -146,7 +151,7 @@ plugins/linkedin-campaign-operator-v3/
 ├── .codex-plugin/plugin.json
 └── skills/
     ├── linkedin-campaign-orchestrator/
-    └── seven supporting skills/
+    └── twelve automatically routed child skills/
 ```
 
 Each skill uses the open `SKILL.md` convention, progressive disclosure through focused references, and deterministic helper scripts where repeatability matters.

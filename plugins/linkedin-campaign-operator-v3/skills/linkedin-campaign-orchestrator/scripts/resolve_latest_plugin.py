@@ -18,11 +18,19 @@ PLUGIN_ID = "linkedin-campaign-operator-v3@sunny-linkedin-tools"
 PLUGIN_NAME = "linkedin-campaign-operator-v3"
 
 
-def version_key(value: str) -> tuple[int, int, int, str]:
-    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)(.*)", value)
+def version_key(value: str) -> tuple[int, int, int, int, int, str]:
+    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)(?:-rc\.(\d+))?(.*)", value)
     if not match:
-        return (-1, -1, -1, value)
-    return (int(match.group(1)), int(match.group(2)), int(match.group(3)), match.group(4))
+        return (-1, -1, -1, -1, -1, value)
+    rc_number = match.group(4)
+    return (
+        int(match.group(1)),
+        int(match.group(2)),
+        int(match.group(3)),
+        1 if rc_number is None else 0,
+        int(rc_number or 0),
+        match.group(5),
+    )
 
 
 def load_object(path: Path) -> dict[str, Any]:

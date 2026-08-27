@@ -21,10 +21,10 @@ DEFAULT_WEIGHTS = {
     "reserve_coverage_yield": 0.10,
 }
 DEFAULT_MILESTONES = [
-    {"day_fraction": 0.25, "actions": 20},
-    {"day_fraction": 0.50, "actions": 45},
-    {"day_fraction": 0.75, "actions": 70},
-    {"day_fraction": 1.00, "actions": 100},
+    {"day_fraction": 0.25, "actions": 40},
+    {"day_fraction": 0.50, "actions": 80},
+    {"day_fraction": 0.75, "actions": 120},
+    {"day_fraction": 1.00, "actions": 160},
 ]
 DEFAULT_TIERS = {
     "normal": {"minimum_score": 65, "new_target_min_followers": 3000, "cooldown_hours": 72},
@@ -68,7 +68,7 @@ def opportunity_document(state_dir: Path, campaign_id: str | None = None) -> dic
             raise ValueError("engagement-opportunities.json must contain an opportunities array")
         return value
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "campaign_id": campaign_id,
         "updated_at": None,
         "opportunities": [],
@@ -142,7 +142,10 @@ def eligible_opportunities(
         if raw.get("action_available", True) is not True:
             continue
         if lane != "direct-inbound":
-            if int(state.get("engagement_scaling", {}).get("base_actions_used", 0) or 0) >= 100:
+            scaling = state.get("engagement_scaling", {})
+            if int(scaling.get("rolling_24h_actions", scaling.get("base_actions_used", 0)) or 0) >= int(
+                scaling.get("rolling_action_cap", scaling.get("base_daily_ceiling", 200)) or 200
+            ):
                 continue
             score = raw.get("score", raw.get("action_score", 0))
             if isinstance(score, bool) or not isinstance(score, (int, float)) or score < gate["minimum_score"]:
@@ -158,6 +161,13 @@ def eligible_opportunities(
             weekly = raw.get("proactive_actions_person_7d", 0)
             if isinstance(weekly, bool) or not isinstance(weekly, (int, float)) or weekly >= 2:
                 continue
+            action_type = str(raw.get("action_type") or "").lower()
+            if action_type in {"dm", "message", "direct-message"}:
+                if raw.get("connection_status") not in {"existing", "connected"}:
+                    continue
+                prior_evidence = raw.get("prior_interaction_evidence")
+                if prior_evidence is not True and not isinstance(prior_evidence, dict):
+                    continue
         if lane == "soft-reciprocity":
             target = str(raw.get("candidate_identity") or raw.get("target_id") or raw.get("candidate_id"))
             if target in seen_soft_targets:
@@ -265,7 +275,8 @@ def evaluate_health(
     configured_milestones = settings.get("daily_action_milestones", DEFAULT_MILESTONES)
     milestones = configured_milestones if isinstance(configured_milestones, list) else DEFAULT_MILESTONES
     expected = expected_actions(now, str(config.get("timezone") or "UTC"), milestones)
-    actual = int(state.get("engagement_scaling", {}).get("base_actions_used", 0) or 0)
+    scaling = state.get("engagement_scaling", {})
+    actual = int(scaling.get("rolling_24h_actions", scaling.get("base_actions_used", 0)) or 0)
     pace_ratio = 1.0 if expected <= 0 else actual / expected
     components["action_pace"] = max(0.0, min(100.0, pace_ratio * 100))
     document = opportunity_document(state_dir, str(state.get("campaign_id") or ""))
@@ -300,7 +311,7 @@ def evaluate_health(
         mode = "normal"
     tier = tiers(config)[mode]
     evaluation = {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "campaign_id": state.get("campaign_id"),
         "evaluated_at": now.astimezone(timezone.utc).isoformat(),
         "health_score": round(health, 2),
@@ -346,7 +357,11 @@ def evaluate_health(
     return evaluation
 
 
-def next_discovery_source(state: dict[str, Any], config: dict[str, Any]) -> str:
+def next_discovery_source(
+    state: dict[str, Any],
+    config: dict[str, Any],
+    now: datetime | None = None,
+) -> str:
     settings = recovery_config(config)
     sources = settings.get("source_rotation", DEFAULT_SOURCES)
     if not isinstance(sources, list) or not sources:
@@ -356,7 +371,20 @@ def next_discovery_source(state: dict[str, Any], config: dict[str, Any]) -> str:
     if not isinstance(history, dict):
         history = {}
     previous = recovery.get("last_discovery_source")
-    candidates = [str(source) for source in sources if str(source) != previous] or [str(sources[0])]
+    now = now or datetime.now(timezone.utc)
+    candidates = []
+    for source in sources:
+        source_name = str(source)
+        record = history.get(source_name, {})
+        backoff_until = _parse_time(record.get("backoff_until")) if isinstance(record, dict) else None
+        if source_name != previous and (backoff_until is None or backoff_until <= now):
+            candidates.append(source_name)
+    if not candidates:
+        candidates = [
+            str(source)
+            for source in sources
+            if (_parse_time(history.get(str(source), {}).get("backoff_until")) or now) <= now
+        ] or [str(sources[0])]
 
     def source_score(source: str) -> tuple[float, int, str]:
         record = history.get(source, {})

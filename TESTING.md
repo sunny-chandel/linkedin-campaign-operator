@@ -87,9 +87,9 @@ Expected behavior:
 ## Adaptive engagement tests
 
 - No fixed cluster list or fixed interval exists; fresh opportunity and concentration evidence control burst timing.
-- Each burst selects no more than 10 eligible proactive or soft-reciprocal actions scoring at least 65.
-- Proactive and soft-reciprocity actions stop at the shared 100-action base ceiling.
-- Genuine direct-inbound replies continue after 100 and increment `direct_reply_overage`.
+- Each burst selects no more than 10 eligible actions under the active 65/60/55 recovery tier.
+- Counted actions maintain a rolling 24-hour target of 160 and stop at the 200-action hard cap.
+- Genuine direct-inbound replies remain outside the 200-action cap.
 - The action type is selected by qualified-growth score rather than a fixed mix.
 - Unqualified, cooling, unavailable, capacity-blocked, and below-threshold candidates are rejected.
 - A liker with one qualified fresh post creates at most one soft-reciprocal candidate; a cooldown or low score prevents execution.
@@ -99,15 +99,19 @@ Expected behavior:
 
 - A ready publication package with a missing engagement reserve selects reserve building instead of waiting.
 - Missing analytics produces immediate offline recovery and cannot be marked complete from raw snapshots alone.
-- Exactly two packages, India and US-Central, are accepted; a third package fails validation.
-- Publication opportunities are scored from live evidence and cannibalization risk with no fixed time or separation.
+- The rolling inventory requires six validated unpublished packages drawn from at least 12 topics and six briefs.
+- Six normal packages retain India and US, cover at least four pillars and three formats, and never repeat topic, angle, or format consecutively.
+- Publication opportunities are scored from live evidence and cannibalization risk with an absolute 120-minute spacing floor.
+- Verified publication output remains between six and eight in every rolling 24 hours.
 - Empty or weak engagement queues route to research, reserve building, analytics, or investigation instead of forced clicking.
 - A wait is valid only with zero unfinished work plus recorded evidence, predicted opportunity, and wake trigger.
 - Status output separates posting progress, base and overage utilization, analytics debt, blockers, and true idle time.
-- Migration preserves legacy interaction history, publication evidence, experiments, scheduled work, and old cluster identifiers while converting the ceiling from 80 to 100.
+- Migration preserves legacy interaction history, publication evidence, experiments, scheduled work, and old cluster identifiers while recalculating rolling output from canonical evidence.
 - A recorded dispatch leases the task, checkpoints survive interruption, and a restarted session recovers an abandoned lease without replaying completed external work.
-- IST rollover resets the new day's publication and engagement counters, activates its packages, creates region-specific publication tasks, and archives the prior day.
-- Reserve targets respond to recent burst size, staleness, rejection, and remaining capacity; low-yield or limit-ending passes back off instead of monopolizing the dispatcher.
+- Local-day rollover never resets rolling action or publication evidence; expired events leave the 24-hour window naturally.
+- The canonical reserve maintains at least 40 executable opportunities; low-yield sources receive source-specific backoff while discovery rotates immediately.
+- Every post schedules measurements at 30 minutes, 2 hours, 6 hours, and 24 hours, and analytics cannot complete without learning, a decision, and a next trigger.
+- Chrome, Claude Design, upload, and computer-use failures persist a repair checkpoint, continue unaffected work, and route through scoped runtime repair.
 - After two consecutive non-urgent tasks of one type, another eligible task type receives a turn.
 
 ## Brand and GIF tests

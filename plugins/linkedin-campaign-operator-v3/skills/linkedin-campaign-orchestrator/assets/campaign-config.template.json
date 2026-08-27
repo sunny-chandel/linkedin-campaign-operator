@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.3",
+  "schema_version": "2.0",
   "campaign_id": "replace-me",
   "timezone": "UTC",
   "target": {
@@ -17,16 +17,18 @@
     "niche": "",
     "roles": [],
     "industries": [],
-    "regions": ["india", "us-central", "uk-eu"],
+    "regions": ["india", "us", "uk-eu", "apac"],
     "exclusions": []
   },
   "content_pillars": [],
   "fixed_rules": {
-    "minimum_posts_per_day": 2,
-    "maximum_posts_per_day": 6,
-    "prepared_packages_per_content_day": 2,
+    "minimum_posts_rolling_24h": 6,
+    "maximum_posts_rolling_24h": 8,
+    "rolling_package_inventory": 6,
+    "topic_candidates_per_portfolio": 12,
     "max_actions_per_burst": 10,
-    "base_actions_per_day": 100,
+    "rolling_24h_action_target": 160,
+    "rolling_24h_action_cap": 200,
     "direct_reply_overage_allowed": true,
     "new_target_min_followers": 3000,
     "cooldown_hours": 72,
@@ -79,9 +81,15 @@
       "engagement-burst",
       "soft-reciprocity",
       "engagement-opportunity-generation",
-      "performance-recovery-content",
-      "two-package-production",
-      "performance-recovery-analytics",
+      "opportunity-discovery",
+      "engagement-burst-execution",
+      "rolling-output-evaluation",
+      "regional-allocation",
+      "six-package-replenishment",
+      "publication-execution",
+      "scheduled-analytics-snapshot",
+      "publishing-debt-recovery",
+      "runtime-repair",
       "analytics-and-investigation"
     ]
   },
@@ -102,10 +110,10 @@
     "exit_pace_ratio": 0.9,
     "exit_consecutive_evaluations": 2,
     "daily_action_milestones": [
-      {"day_fraction": 0.25, "actions": 20},
-      {"day_fraction": 0.5, "actions": 45},
-      {"day_fraction": 0.75, "actions": 70},
-      {"day_fraction": 1.0, "actions": 100}
+      {"day_fraction": 0.25, "actions": 40},
+      {"day_fraction": 0.5, "actions": 80},
+      {"day_fraction": 0.75, "actions": 120},
+      {"day_fraction": 1.0, "actions": 160}
     ],
     "tiers": {
       "normal": {"minimum_score": 65, "new_target_min_followers": 3000, "cooldown_hours": 72},
@@ -145,8 +153,8 @@
     },
     "reserve": {
       "default_expected_burst_size": 5,
-      "min_target": 4,
-      "max_target": 20,
+      "min_target": 40,
+      "max_target": 80,
       "max_pages_per_pass": 5,
       "max_minutes_per_pass": 8,
       "min_qualified_yield_per_page": 0.25,
@@ -161,9 +169,12 @@
       "end": "02:00",
       "timezone": "UTC"
     },
-    "required_regions": ["india", "us-central"],
-    "minimum_posts_per_day": 2,
-    "maximum_posts_per_day": 6,
+    "required_regions": ["india", "india", "us", "us", "uk-eu", "apac"],
+    "minimum_posts_rolling_24h": 6,
+    "maximum_posts_rolling_24h": 8,
+    "rolling_inventory_target": 6,
+    "normal_publications": 6,
+    "maximum_recovery_publications": 2,
     "minimum_recovery_spacing_minutes": 120,
     "recovery_velocity_ratio_threshold": 0.85,
     "recovery_cannibalization_threshold": 0.35,
@@ -172,7 +183,36 @@
     "fixed_publish_times": [],
     "fixed_spacing_minutes": null,
     "dynamic_cannibalization_penalty": true,
-    "no_extra_normal_stockpile": true
+    "minimum_content_pillars_per_portfolio": 4,
+    "minimum_format_treatments_per_portfolio": 3,
+    "normal_inventory_replenishment": "one-after-each-publication",
+    "no_consecutive_topic_angle_or_format": true
+  },
+  "regional_intelligence": {
+    "bootstrap_allocation": ["india", "india", "us", "us", "uk-eu", "apac"],
+    "evidence_mode": {"core_slots": 4, "exploration_slots": 2},
+    "required_minimums": {"india": 1, "us": 1},
+    "learning_allocation": {"proven": 70, "promising": 20, "exploration": 10}
+  },
+  "content_research": {
+    "candidate_topic_target": 12,
+    "selected_brief_target": 6,
+    "required_brief_fields": [
+      "region", "demographic_hypothesis", "freshness_expiry", "portfolio_role",
+      "competing_angle", "intended_growth_outcome"
+    ]
+  },
+  "analytics_contract": {
+    "checkpoints_minutes": [30, 120, 360, 1440],
+    "required_completion_artifacts": ["snapshot", "learning", "decision", "next_measurement_trigger"]
+  },
+  "runtime_repair": {
+    "enabled": true,
+    "capabilities": ["chrome", "claude-design", "file-upload", "computer-use", "codex"],
+    "continue_unaffected_work": true,
+    "retry_automatically": true,
+    "codex_fallback": true,
+    "codex_scope": "runtime-recovery-only"
   },
   "brand_system": {
     "auto_create": true,

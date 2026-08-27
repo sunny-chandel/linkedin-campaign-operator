@@ -21,7 +21,6 @@ from runtime_state import (
     parse_time,
     recalculate_adaptive_reserve,
     reconcile_recovered_lane_continuation,
-    required_regions,
     sync_consent_snapshot,
 )
 from opportunity_recovery import (
@@ -29,6 +28,15 @@ from opportunity_recovery import (
     next_discovery_source,
     opportunity_document,
 )
+from operational_output import SCRIPT as ROLLING_OUTPUT_SCRIPT
+
+EXECUTION_SCRIPTS = ROLLING_OUTPUT_SCRIPT.parent
+sys.path.insert(0, str(EXECUTION_SCRIPTS))
+from rolling_output import ACTION_CAP, refresh_output  # noqa: E402
+
+PUBLISHING_SCRIPTS = Path(__file__).resolve().parents[2] / "linkedin-publishing-operations" / "scripts"
+sys.path.insert(0, str(PUBLISHING_SCRIPTS))
+from publishing_ledger import record_publication_evidence  # noqa: E402
 
 
 PREFLIGHT_COMPONENTS = {
@@ -348,7 +356,12 @@ def continuation_event(args, state_dir: Path, state: dict[str, Any], now) -> dic
                 "active_adapter": args.adapter,
                 "automation_id": args.automation_id,
                 "next_wake_at": args.next_wake_at or dispatcher.get("next_wake_at"),
+                "dedupe_key": f"linkedin-campaign-continuation:{state.get('campaign_id') or state_dir.name}",
                 "armed_at": timestamp,
+                "expiry_policy": "renew-before-host-limit-until-target-or-owner-stop",
+                "renew_existing_automation": True,
+                "renewal_due_before_expiry": True,
+                "campaign_completion_or_owner_stop_required_to_end": True,
                 "last_error": None,
             }
         )
@@ -410,9 +423,12 @@ def task_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, A
     elif args.event == "complete":
         if item.get("status") == "completed":
             return {"valid": True, "idempotent": True, "task": item}
-        if item.get("task_type") == "publication-opportunity":
-            required = {"region", "post_id", "post_url"}
+        if item.get("task_type") in {"publication-opportunity", "publication-execution"}:
+            region = payload.get("region") or item.get("region")
+            required = {"post_id", "post_url"}
             missing = [key for key in required if not payload.get(key)]
+            if not region:
+                missing.append("region")
             if missing or payload.get("verified") is not True:
                 raise ValueError(
                     "publication completion requires verified region, post_id, and post_url evidence"
@@ -425,25 +441,27 @@ def task_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, A
                 or publishing.get("content_day_ist")
             )
             evidence = {
-                "schema_version": "1.0",
+                "schema_version": "2.0",
                 "campaign_id": state.get("campaign_id"),
                 "content_day_local": day,
-                "region": payload["region"],
+                "region": region,
                 "post_id": payload["post_id"],
                 "post_url": payload["post_url"],
                 "published_at": payload.get("published_at") or timestamp,
                 "verified": True,
                 "task_id": item.get("task_id"),
+                "package_id": item.get("package_id") or payload.get("package_id"),
                 "package_path": item.get("package_path"),
                 "publication_kind": item.get("publication_kind", "normal"),
             }
-            append_jsonl(state_dir / "publication-evidence.jsonl", evidence)
+            publication_result = record_publication_evidence(state_dir, evidence, now)
+            refreshed_state = load_object(state_dir / "campaign-state.json")
+            refreshed_publishing = refreshed_state.get("publishing", {})
+            if isinstance(refreshed_publishing, dict):
+                publishing.update(refreshed_publishing)
             ids = publishing.setdefault("published_post_ids", [])
             if payload["post_id"] not in ids:
                 ids.append(payload["post_id"])
-            config = load_object(state_dir / "campaign-config.json")
-            maximum = int(config.get("publishing_optimization", {}).get("maximum_posts_per_day", 6) or 6)
-            publishing["posts_published"] = min(maximum, len(ids))
             publishing["last_publication_at"] = evidence["published_at"]
             if item.get("publication_kind") == "recovery":
                 publishing["recovery_posts_published"] = int(
@@ -472,9 +490,51 @@ def task_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, A
                     )
             else:
                 publishing["normal_posts_published"] = min(
-                    len(required_regions(config)),
+                    6,
                     int(publishing.get("normal_posts_published", 0) or 0) + 1,
                 )
+            item["publication_result"] = publication_result
+        if item.get("task_type") == "rolling-output-evaluation":
+            decision_name = payload.get("decision")
+            if decision_name not in {"publish-now", "continue-investigation"}:
+                raise ValueError(
+                    "rolling output evaluation requires publish-now or continue-investigation"
+                )
+            package_id = str(payload.get("package_id") or item.get("package_id") or "")
+            pipeline_path = state_dir / "content-pipeline.json"
+            pipeline = load_object(pipeline_path)
+            package = next(
+                (
+                    candidate for candidate in pipeline.get("packages", [])
+                    if isinstance(candidate, dict) and candidate.get("package_id") == package_id
+                ),
+                None,
+            )
+            if package is None:
+                raise ValueError(f"unknown publication package: {package_id}")
+            attempt = int(item.get("evaluation_attempt", 1) or 1)
+            decision_record = {
+                "decision": decision_name,
+                "attempt": attempt,
+                "evaluated_at": timestamp,
+                "evidence": payload.get("evidence") or {},
+            }
+            if decision_name == "publish-now":
+                score = payload.get("opportunity_score")
+                if isinstance(score, bool) or not isinstance(score, (int, float)) or score < 65:
+                    raise ValueError("publish-now requires opportunity_score of at least 65")
+                decision_record["opportunity_score"] = float(score)
+                decision_record["selected_at"] = payload.get("selected_at") or timestamp
+            else:
+                next_evaluation = parse_time(payload.get("next_evaluation_at"))
+                if next_evaluation is None or next_evaluation <= now:
+                    raise ValueError(
+                        "continue-investigation requires an exact future next_evaluation_at"
+                    )
+                decision_record["next_evaluation_at"] = iso_time(next_evaluation)
+                decision_record["reason"] = payload.get("reason") or "opportunity-below-threshold"
+            package["publication_decision"] = decision_record
+            atomic_write(pipeline_path, pipeline)
         if item.get("task_type") == "preflight" and payload.get("preflight_passed") is not True:
             raise ValueError("preflight completion requires preflight_passed=true")
         if item.get("task_type") == "publication-queue-building":
@@ -519,7 +579,9 @@ def task_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, A
         state["last_confirmed_action"] = args.task_id
         state["current_stage"] = "dispatch"
         stage_id = item.get("stage_id") or (
-            item.get("task_id") if item.get("task_type") == "publication-opportunity" else None
+            item.get("task_id")
+            if item.get("task_type") in {"publication-opportunity", "publication-execution"}
+            else None
         )
         if stage_id:
             stages = ledger.get("stages", [])
@@ -530,7 +592,7 @@ def task_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, A
                     stage["status"] = "completed"
                     stage["completed_at"] = timestamp
                     stage["completion_evidence"] = payload
-                    if item.get("task_type") == "publication-opportunity":
+                    if item.get("task_type") in {"publication-opportunity", "publication-execution"}:
                         stage["evidence_recorded"] = True
                         stage["completed_artifacts"] = ["publication-evidence.jsonl"]
                     break
@@ -691,8 +753,9 @@ def opportunity_pass(args, state_dir: Path, state: dict[str, Any], now) -> dict[
         or 30
     )
     not_before = now + timedelta(minutes=cooldown if low_yield else 1)
-    recovery["source_not_before"] = iso_time(not_before)
-    recovery["next_discovery_source"] = next_discovery_source(state, config)
+    stats["backoff_until"] = iso_time(not_before) if low_yield else None
+    recovery["source_not_before"] = None
+    recovery["next_discovery_source"] = next_discovery_source(state, config, now)
     reserve = state.setdefault("engagement_scaling", {}).setdefault("adaptive_reserve", {})
     eligible = eligible_opportunities(document, state, config, now)
     reserve["qualified_count"] = len(eligible)
@@ -769,9 +832,10 @@ def burst_complete(args, state_dir: Path, state: dict[str, Any], now) -> dict[st
         for record in document.get("opportunities", [])
         if isinstance(record, dict) and record.get("candidate_id")
     }
+    output_before = refresh_output(state_dir, now, write=False)
     scaling = state.setdefault("engagement_scaling", {})
-    base_used = int(scaling.get("base_actions_used", 0) or 0)
-    overage = int(scaling.get("direct_reply_overage", 0) or 0)
+    base_used = int(output_before["actions"]["rolling_24h_actions"])
+    overage = int(output_before["actions"]["direct_inbound_replies"])
     source_history = state.setdefault("opportunity_recovery", {}).setdefault("source_performance", {})
     executed: list[str] = []
     executed_sources: list[str] = []
@@ -780,12 +844,12 @@ def burst_complete(args, state_dir: Path, state: dict[str, Any], now) -> dict[st
         if record is None or record.get("status") == "executed":
             continue
         lane = record.get("lane", "proactive")
-        if lane == "direct-inbound" and base_used >= 100:
+        if lane == "direct-inbound":
             overage += 1
-            budget_class = "direct-reply-overage"
-        elif base_used < 100:
+            budget_class = "direct-inbound-outside-cap"
+        elif base_used < ACTION_CAP:
             base_used += 1
-            budget_class = "base"
+            budget_class = "rolling-base"
         else:
             continue
         record.update(
@@ -810,12 +874,30 @@ def burst_complete(args, state_dir: Path, state: dict[str, Any], now) -> dict[st
         stats["actions_executed"] = int(stats.get("actions_executed", 0) or 0) + 1
         executed_sources.append(source)
         executed.append(candidate_id)
+        append_jsonl(
+            state_dir / "interaction-log.jsonl",
+            {
+                "schema_version": "2.0",
+                "action_id": f"{args.task_id}:{candidate_id}",
+                "candidate_id": candidate_id,
+                "lane": lane,
+                "action_type": record.get("action_type"),
+                "triggering_signal": record.get("triggering_signal") or record.get("source"),
+                "relationship_strength": record.get("relationship_strength", 0),
+                "scheduling_rationale": "executed from canonical v6 engagement burst",
+                "budget_class": budget_class,
+                "recorded_at": iso_time(now),
+                "executed_at": iso_time(now),
+                "confirmed": True,
+                "external_action_occurred": True,
+            },
+        )
     if executed_sources:
         primary_stats = source_history.setdefault(executed_sources[0], {})
         primary_stats["replies_generated"] = int(primary_stats.get("replies_generated", 0) or 0) + args.replies_generated
         primary_stats["profile_views"] = int(primary_stats.get("profile_views", 0) or 0) + args.profile_views
         primary_stats["follower_outcomes"] = int(primary_stats.get("follower_outcomes", 0) or 0) + args.follower_outcomes
-    scaling["base_actions_used"] = min(100, base_used)
+    scaling["base_actions_used"] = min(ACTION_CAP, base_used)
     scaling["direct_reply_overage"] = overage
     scaling.setdefault("burst_history", []).append(
         {
@@ -864,11 +946,14 @@ def burst_complete(args, state_dir: Path, state: dict[str, Any], now) -> dict[st
     state["updated_at"] = iso_time(now)
     queue["updated_at"] = iso_time(now)
     write_runtime(state_dir, state, queue)
+    rolling = refresh_output(state_dir, now, write=True)
     return {
         "valid": True,
         "executed_candidate_ids": executed,
-        "base_actions_used": scaling["base_actions_used"],
-        "direct_reply_overage": overage,
+        "rolling_24h_actions": rolling["actions"]["rolling_24h_actions"],
+        "rolling_action_target": rolling["actions"]["target"],
+        "rolling_action_cap": rolling["actions"]["hard_cap"],
+        "direct_inbound_replies": rolling["actions"]["direct_inbound_replies"],
         "canonical_eligible_count": reserve["qualified_count"],
         "task": item,
     }

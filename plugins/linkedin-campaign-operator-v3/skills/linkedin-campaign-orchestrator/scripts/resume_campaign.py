@@ -32,14 +32,14 @@ def reconcile_missed_stages(ledger: dict, current_day: str, now: str) -> dict:
         if not stage_day or stage_day >= current_day:
             continue
         stage_type = stage.get("stage_type")
-        if stage_type in {"preflight", "publication", "content-production"}:
+        if stage_type == "preflight":
             stage["status"] = "missed-closed"
             stage["closed_at"] = now
             stage["closure_reason"] = "obsolete-time-bound-stage-after-downtime"
             closed_obsolete.append(str(stage.get("stage_id")))
         else:
             stage["status"] = "missed-recovering"
-            stage["recovery_reason"] = "unfinished-stage-detected-after-restart"
+            stage["recovery_reason"] = "unfinished-rolling-contract-stage-after-restart"
             stage["recovered_at"] = now
             recovered.append(str(stage.get("stage_id")))
     return {"recovered_stages": recovered, "closed_obsolete_stages": closed_obsolete}

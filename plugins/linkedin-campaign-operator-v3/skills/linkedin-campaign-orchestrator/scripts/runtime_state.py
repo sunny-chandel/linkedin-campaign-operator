@@ -7,6 +7,7 @@ import hashlib
 import json
 import math
 import os
+import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -14,6 +15,10 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from opportunity_recovery import eligible_opportunities, opportunity_document
+
+EXECUTION_SCRIPTS = Path(__file__).resolve().parents[2] / "linkedin-engagement-execution" / "scripts"
+sys.path.insert(0, str(EXECUTION_SCRIPTS))
+from rolling_output import refresh_output  # noqa: E402
 
 
 ACTIVE_TASK_STATUSES = {"pending", "recovering", "missed-recovering", "retry-wait"}
@@ -182,7 +187,7 @@ def required_regions(config: dict[str, Any]) -> tuple[str, ...]:
     if not isinstance(configured, list):
         configured = []
     regions = tuple(str(region) for region in configured if isinstance(region, str) and region)
-    return regions or ("india", "us-central")
+    return regions or ("india", "india", "us", "us", "uk-eu", "apac")
 
 
 def consent_fingerprint(consent: dict[str, Any]) -> str:
@@ -332,8 +337,6 @@ def reconcile_content_day(
     now: datetime,
 ) -> dict[str, Any]:
     day = campaign_day(now, config)
-    timezone_value = campaign_timezone(config)
-    regions = required_regions(config)
     publishing = state.setdefault("publishing", {})
     previous_day = publishing.get("content_day_local") or publishing.get("content_day_ist")
     rollover = previous_day != day
@@ -342,230 +345,160 @@ def reconcile_content_day(
     if not isinstance(items, list) or not isinstance(stages, list):
         raise ValueError("work queue items and stage ledger stages must be arrays")
 
-    if rollover and previous_day:
-        history = publishing.setdefault("day_history", [])
-        if not any(
-            (entry.get("content_day_local") or entry.get("content_day_ist")) == previous_day
-            for entry in history
-            if isinstance(entry, dict)
-        ):
-            history.append(
-                {
-                    "content_day_local": previous_day,
-                    "packages_ready": int(publishing.get("packages_ready", 0) or 0),
-                    "posts_published": int(publishing.get("posts_published", 0) or 0),
-                    "published_post_ids": list(publishing.get("published_post_ids", [])),
-                    "last_publication_at": publishing.get("last_publication_at"),
-                    "closed_at": iso_time(now),
-                    "closure_reason": "automatic-local-day-rollover",
-                }
-            )
-        for item in items:
-            if not isinstance(item, dict):
-                continue
-            item_day = item.get("content_day_local") or item.get("content_day_ist")
-            if (
-                item.get("task_type") in {"publication-opportunity", "publication-queue-building"}
-                and item_day
-                and item_day != day
-                and item.get("status") not in TERMINAL_TASK_STATUSES
-            ):
-                item["status"] = "superseded"
-                item["completed_at"] = iso_time(now)
-                item["completion_reason"] = "content-day-closed"
-            if (
-                item.get("task_type") in {"performance-recovery-content", "performance-recovery-analytics"}
-                and item_day
-                and item_day != day
-                and item.get("status") not in TERMINAL_TASK_STATUSES
-            ):
-                item["status"] = "expired"
-                item["completed_at"] = iso_time(now)
-                item["completion_reason"] = "recovery-package-expired-at-content-day-rollover"
-
-    packages = find_daily_packages(state_dir, day, regions)
-    evidence = read_publication_evidence(state_dir, day, regions)
-    analytics_due_at = (
-        datetime.fromisoformat(f"{day}T23:50:00")
-        .replace(tzinfo=timezone_value)
-        .astimezone(timezone.utc)
+    pipeline_path = state_dir / "content-pipeline.json"
+    pipeline = load_object(pipeline_path) if pipeline_path.is_file() else {
+        "schema_version": "2.0", "topic_candidates": [], "briefs": [], "packages": []
+    }
+    ready_packages: list[dict[str, Any]] = []
+    for package in pipeline.get("packages", []):
+        if not isinstance(package, dict) or package.get("status") not in {"ready", "validated"}:
+            continue
+        expiry = parse_time(package.get("freshness_expiry"))
+        if expiry is not None and expiry <= now:
+            package["status"] = "stale-replacement-required"
+            package["replacement_required"] = True
+            continue
+        ready_packages.append(package)
+    pipeline_complete = (
+        len(pipeline.get("topic_candidates", [])) >= 12
+        and len(pipeline.get("briefs", [])) >= 6
+        and len(ready_packages) >= 6
     )
-    if rollover:
-        publishing.update(
-            {
-                "content_day_local": day,
-                "content_day_ist": day,
-                "packages_required": len(regions),
-                "posts_published": len(evidence),
-                "published_post_ids": [
-                    item.get("post_id") or item.get("post_url")
-                    for item in evidence.values()
-                    if item.get("post_id") or item.get("post_url")
-                ],
-                "last_publication_at": max(
-                    (item.get("published_at") for item in evidence.values() if item.get("published_at")),
-                    default=None,
-                ),
-                "current_cannibalization_signal": None,
-                "normal_posts_published": sum(1 for region in regions if region in evidence),
-                "recovery_posts_published": sum(1 for key in evidence if key not in regions),
-                "recovery_package": None,
-            }
-        )
-    publishing["packages_ready"] = len(packages)
-    publishing["packages_required"] = len(regions)
-    publishing["content_day_local"] = day
-    publishing["content_day_ist"] = day
-    publishing["prepared_packages"] = [
-        {"package": path, "region": region, "content_day_local": day}
-        for region, path in sorted(packages.items())
+    stale_package_ids = [
+        str(package.get("package_id") or package.get("post_id"))
+        for package in pipeline.get("packages", [])
+        if isinstance(package, dict) and package.get("status") == "stale-replacement-required"
     ]
 
-    preflight_stage = upsert_stage(
-        stages,
-        {
-            "stage_id": f"preflight-{day}",
-            "stage_type": "preflight",
-            "status": "pending",
-            "required_artifacts": [],
-            "completed_artifacts": [],
-            "content_day_local": day,
-        },
-    )
-    upsert_task(
-        items,
-        {
-            "task_id": f"preflight-{day}",
-            "task_type": "preflight",
-            "lane": "offline",
-            "priority": 1,
-            "status": "completed" if preflight_stage.get("status") == "completed" else "pending",
-            "ready": True,
-            "requires_linkedin": False,
-            "content_day_ist": day,
-            "stage_id": f"preflight-{day}",
-            "idempotency_key": f"preflight:{day}",
-        },
-    )
-
-    production_id = f"prepare-two-packages-{day}"
-    production = upsert_task(
-        items,
-        {
-            "task_id": production_id,
-            "task_type": "two-package-production",
-            "lane": "offline",
-            "priority": 5,
-            "status": "completed" if len(packages) == len(regions) else "pending",
-            "ready": True,
-            "requires_linkedin": False,
-            "content_day_local": day,
-            "required_regions": list(regions),
-            "required_package_count": len(regions),
-            "no_third_package": True,
-            "idempotency_key": f"packages:{day}",
-        },
-    )
-    if len(packages) == len(regions) and production.get("status") not in TERMINAL_TASK_STATUSES:
-        production["status"] = "completed"
-        production["completed_at"] = iso_time(now)
-        production["completion_reason"] = "daily-packages-verified"
-
     for item in items:
-        if (
-            isinstance(item, dict)
-            and item.get("task_type") == "publication-opportunity"
-            and item.get("task_id") == f"publish-{day}-pair"
-            and item.get("status") not in TERMINAL_TASK_STATUSES
-        ):
+        if not isinstance(item, dict) or item.get("status") in TERMINAL_TASK_STATUSES:
+            continue
+        if item.get("task_type") in {"two-package-production", "performance-recovery-content"}:
             item["status"] = "superseded"
             item["completed_at"] = iso_time(now)
-            item["completion_reason"] = "replaced-by-region-specific-publication-tasks"
+            item["completion_reason"] = "migrated-to-six-package-rolling-pipeline"
 
-    for region, package_path in packages.items():
-        publication = upsert_task(
-            items,
-            {
-                "task_id": f"publish-{region}-{day}",
-                "task_type": "publication-opportunity",
-                "lane": "linkedin",
-                "priority": 2,
-                "status": "completed" if region in evidence else "pending",
-                "ready": True,
-                "requires_linkedin": True,
-                "engagement_queue_ready": False,
-                "content_day_local": day,
-                "region": region,
-                "package_path": package_path,
-                "idempotency_key": f"publish:{day}:{region}",
-            },
+    preflight_stage = upsert_stage(stages, {
+        "stage_id": f"preflight-{day}", "stage_type": "preflight", "status": "pending",
+        "required_artifacts": [], "completed_artifacts": [], "content_day_local": day,
+    })
+    upsert_task(items, {
+        "task_id": f"preflight-{day}", "task_type": "preflight", "lane": "offline", "priority": 1,
+        "status": "completed" if preflight_stage.get("status") == "completed" else "pending",
+        "ready": True, "requires_linkedin": False, "content_day_local": day,
+        "stage_id": f"preflight-{day}", "idempotency_key": f"preflight:{day}",
+    })
+
+    production = upsert_task(items, {
+        "task_id": "six-package-replenishment", "task_type": "six-package-replenishment",
+        "lane": "offline", "priority": 5, "status": "completed" if pipeline_complete else "pending",
+        "ready": True, "requires_linkedin": False, "inventory_target": 6,
+        "inventory_ready": len(ready_packages), "topic_candidate_target": 12,
+        "required_regions": list(required_regions(config)), "idempotency_key": "six-package-replenishment",
+    })
+    production["inventory_ready"] = len(ready_packages)
+    production["status"] = "completed" if pipeline_complete else "pending"
+
+    for package in ready_packages:
+        package_id = str(package.get("package_id") or package.get("post_id") or "")
+        if not package_id:
+            continue
+        decision = package.get("publication_decision", {})
+        if not isinstance(decision, dict):
+            decision = {}
+        decision_name = str(decision.get("decision") or "")
+        decision_score = decision.get("opportunity_score")
+        selected_at = parse_time(decision.get("selected_at"))
+        next_evaluation_at = parse_time(decision.get("next_evaluation_at"))
+        publication_ready = (
+            decision_name == "publish-now"
+            and isinstance(decision_score, (int, float))
+            and not isinstance(decision_score, bool)
+            and float(decision_score) >= 65
+            and (selected_at is None or selected_at <= now)
         )
-        if region in evidence:
-            publication["status"] = "completed"
-            publication["completed_at"] = evidence[region].get("published_at") or iso_time(now)
-            publication["external_evidence"] = evidence[region]
+        publication_task = upsert_task(items, {
+            "task_id": f"publish-{package_id}", "task_type": "publication-execution",
+            "lane": "linkedin", "priority": 2, "status": "pending", "ready": publication_ready,
+            "requires_linkedin": True, "package_id": package_id, "region": package.get("region"),
+            "freshness_expiry": package.get("freshness_expiry"),
+            "opportunity_score": decision_score, "decision_evidence": decision,
+            "idempotency_key": f"publish:{package_id}",
+        })
+        if publication_task.get("status") not in TERMINAL_TASK_STATUSES:
+            publication_task["ready"] = publication_ready
+            publication_task["opportunity_score"] = decision_score
+            publication_task["decision_evidence"] = decision
+        if not publication_ready:
+            attempt = max(0, int(decision.get("attempt", 0) or 0)) + 1
+            evaluation = upsert_task(items, {
+                "task_id": f"publication-decision-{package_id}-{attempt}",
+                "task_type": "rolling-output-evaluation", "lane": "offline", "priority": 2,
+                "status": "pending", "ready": next_evaluation_at is None or next_evaluation_at <= now,
+                "requires_linkedin": False, "package_id": package_id,
+                "post_id": package.get("post_id"), "region": package.get("region"),
+                "due_at": iso_time(next_evaluation_at) if next_evaluation_at else None,
+                "evaluation_attempt": attempt,
+                "idempotency_key": f"publication-decision:{package_id}:{attempt}",
+            })
+            if evaluation.get("status") not in TERMINAL_TASK_STATUSES:
+                evaluation["ready"] = next_evaluation_at is None or next_evaluation_at <= now
+                evaluation["due_at"] = iso_time(next_evaluation_at) if next_evaluation_at else None
 
-    package_stage = upsert_stage(
-        stages,
-        {
-            "stage_id": f"packages-{day}",
-            "stage_type": "content-production",
-            "status": "completed" if len(packages) == len(regions) else "pending",
-            "required_artifacts": list(packages.values()) if len(packages) == len(regions) else [],
-            "completed_artifacts": list(packages.values()),
-            "content_day_local": day,
-        },
-    )
-    if len(packages) == len(regions):
-        package_stage["status"] = "completed"
-        package_stage["required_artifacts"] = list(packages.values())
-        package_stage["completed_artifacts"] = list(packages.values())
-
-    for region in regions:
-        publication_stage = upsert_stage(
-            stages,
-            {
-                "stage_id": f"publish-{region}-{day}",
-                "stage_type": "publication",
-                "status": "completed" if region in evidence else "pending",
-                "required_artifacts": ["publication-evidence.jsonl"],
-                "completed_artifacts": ["publication-evidence.jsonl"] if region in evidence else [],
-                "content_day_local": day,
-                "region": region,
-                "evidence_recorded": region in evidence,
-            },
+    regional_path = state_dir / "regional-performance.json"
+    if regional_path.is_file():
+        regional = load_object(regional_path)
+        observations = regional.get("observations", [])
+        current_allocation = regional.get("current_allocation", {})
+        observation_count = len(observations) if isinstance(observations, list) else 0
+        allocated_count = (
+            int(current_allocation.get("observation_count", 0) or 0)
+            if isinstance(current_allocation, dict)
+            else -1
         )
-        if region in evidence:
-            publication_stage["status"] = "completed"
-            publication_stage["completed_at"] = (
-                evidence[region].get("published_at") or iso_time(now)
-            )
-            publication_stage["completed_artifacts"] = ["publication-evidence.jsonl"]
-            publication_stage["evidence_recorded"] = True
-            publication_stage["completion_evidence"] = evidence[region]
-    upsert_stage(
-        stages,
-        {
-            "stage_id": f"analytics-{day}",
-            "stage_type": "analytics",
-            "status": "pending",
-            "required_artifacts": ["daily-analytics.jsonl", "learning-ledger.jsonl"],
-            "completed_artifacts": [],
-            "content_day_local": day,
-            "learning_recorded": False,
-            "learning_status": None,
-            "experiment_outcome": None,
-            "next_measurement_trigger": None,
-            "due_at": iso_time(analytics_due_at),
-        },
-    )
+        if allocated_count != observation_count:
+            upsert_task(items, {
+                "task_id": f"regional-allocation-{observation_count}",
+                "task_type": "regional-allocation", "lane": "offline", "priority": 5,
+                "status": "pending", "ready": True, "requires_linkedin": False,
+                "observation_count": observation_count,
+                "idempotency_key": f"regional-allocation:{observation_count}",
+            })
+
+    if stale_package_ids and int(publishing.get("rolling_24h_posts", 0) or 0) < 6:
+        upsert_task(items, {
+            "task_id": "publishing-debt-recovery", "task_type": "publishing-debt-recovery",
+            "lane": "offline", "priority": 2, "status": "pending", "ready": True,
+            "requires_linkedin": False, "stale_package_ids": stale_package_ids,
+            "requires_freshness_revalidation": True,
+            "idempotency_key": "publishing-debt-recovery",
+        })
+
+    package_stage = upsert_stage(stages, {
+        "stage_id": "rolling-six-package-inventory", "stage_type": "content-production",
+        "status": "completed" if pipeline_complete else "pending",
+        "required_artifacts": ["content-pipeline.json"], "completed_artifacts": ["content-pipeline.json"],
+        "inventory_ready": len(ready_packages), "inventory_target": 6,
+    })
+    package_stage["status"] = "completed" if pipeline_complete else "pending"
+    package_stage["inventory_ready"] = len(ready_packages)
+
+    publishing.update({
+        "content_day_local": day, "content_day_ist": day, "packages_required": 6,
+        "packages_ready": len(ready_packages), "rolling_inventory_target": 6,
+        "minimum_posts_rolling_24h": 6, "maximum_posts_rolling_24h": 8,
+    })
+    pipeline["schema_version"] = "2.0"
+    pipeline["inventory"] = {
+        "target": 6, "validated_unpublished": len(ready_packages),
+        "debt": max(0, 6 - len(ready_packages)), "evaluated_at": iso_time(now),
+    }
+    atomic_write(pipeline_path, pipeline)
     return {
-        "content_day_local": day,
-        "content_day_ist": day,
-        "previous_content_day_local": previous_day,
-        "rollover_performed": rollover,
-        "packages_ready": len(packages),
-        "posts_published": len(evidence) if rollover else int(publishing.get("posts_published", 0) or 0),
+        "content_day_local": day, "content_day_ist": day,
+        "previous_content_day_local": previous_day, "rollover_performed": rollover,
+        "packages_ready": len(ready_packages),
+        "posts_published": int(publishing.get("rolling_24h_posts", 0) or 0),
     }
 
 
@@ -637,17 +570,17 @@ def recalculate_adaptive_reserve(
     forecast = max(1, int(reserve.get("forecast_bursts", 2) or 2))
     staleness = min(1.0, max(0.0, float(reserve.get("staleness_rate", 0) or 0)))
     rejection = min(1.0, max(0.0, float(reserve.get("rejection_rate", 0) or 0)))
-    minimum = max(1, int(rules.get("min_target", 4) or 4))
-    maximum = min(20, max(minimum, int(rules.get("max_target", 20) or 20)))
+    minimum = max(40, int(rules.get("min_target", 40) or 40))
+    maximum = max(minimum, int(rules.get("max_target", 80) or 80))
     base_remaining = max(
         0,
-        int(scaling.get("base_daily_ceiling", 100) or 100)
-        - int(scaling.get("base_actions_used", 0) or 0),
+        int(scaling.get("rolling_action_cap", scaling.get("base_daily_ceiling", 200)) or 200)
+        - int(scaling.get("rolling_24h_actions", scaling.get("base_actions_used", 0)) or 0),
     )
     # Rejection and staleness rotate discovery effort; they never inflate supply
     # demand or manufacture a larger reserve target.
     calculated = math.ceil(expected * forecast)
-    target = 0 if base_remaining == 0 else min(maximum, base_remaining, max(minimum, calculated))
+    target = 0 if base_remaining == 0 else min(maximum, max(minimum, calculated))
     canonical_count = int(reserve.get("qualified_count", 0) or 0)
     if state_dir is not None:
         canonical = opportunity_document(state_dir, str(state.get("campaign_id") or ""))
@@ -688,14 +621,12 @@ def reconcile_runtime(
     startup: bool = False,
 ) -> dict[str, Any]:
     day = campaign_day(now, config)
-    scaling = state.setdefault("engagement_scaling", {})
-    budget_reset = scaling.get("budget_day_local") != day
-    if budget_reset:
-        scaling["budget_day_local"] = day
-        scaling["base_actions_used"] = 0
-        scaling["direct_reply_overage"] = 0
     consent_valid, consent_reason = sync_consent_snapshot(state_dir, state, now)
     lifecycle = reconcile_task_lifecycle(queue, now, startup=startup)
+    operational_output = refresh_output(state_dir, now, write=True)
+    refreshed_state = load_object(state_dir / "campaign-state.json")
+    state.clear()
+    state.update(refreshed_state)
     publishing = reconcile_content_day(state_dir, state, config, queue, ledger, now)
     reserve = recalculate_adaptive_reserve(state, config, now, state_dir)
     continuation_reconciled = reconcile_recovered_lane_continuation(state, now)
@@ -728,7 +659,8 @@ def reconcile_runtime(
         "content_day": publishing,
         "task_lifecycle": lifecycle,
         "adaptive_reserve": reserve,
-        "budget_day_reset": budget_reset,
+        "rolling_output": operational_output,
+        "budget_day_reset": False,
         "consent_valid": consent_valid,
         "consent_reason": consent_reason,
         "continuation_reconciled": continuation_reconciled,

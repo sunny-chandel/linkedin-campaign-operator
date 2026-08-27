@@ -29,6 +29,8 @@ Maintain explicit scheduling models for:
 - regional opportunity;
 - recent action concentration and penalty decay;
 - candidate staleness and reserve replacement demand.
+- source yield and action-to-profile-view or follower conversion;
+- topic, format, timing, audience demographics, and regional spillover.
 
 Each scheduling observation records the evidence time, context, prediction, selected decision, measured result, confidence, and next measurement trigger. A wait decision is itself an experimentable schedule decision and must be compared with the opportunity that actually appeared.
 
@@ -37,7 +39,7 @@ Each scheduling observation records the evidence time, context, prediction, sele
 - One primary variable.
 - Comparable control.
 - Primary and secondary metrics.
-- Equal-age measurement.
+- Equal-age measurement at 30 minutes, 2 hours, 6 hours, and 24 hours.
 - Audience, region, topic, format, and time recorded.
 - Predefined success, failure, and rollback thresholds.
 - Four matched comparisons or two consistent weekly cycles preferred for non-official claims.

@@ -18,6 +18,16 @@ from runtime_state import parse_time
 ANALYTICS_OUTCOMES = {"experiment-registered", "no-change"}
 ANALYTICS_LEARNING_STATUSES = {"provisional", "validated"}
 TERMINAL_STAGE_STATUSES = {"completed", "missed-closed", "superseded", "cancelled"}
+PACKAGE_STAGES = {
+    "research_brief",
+    "claim_verification",
+    "caption",
+    "asset",
+    "watermark",
+    "validation",
+    "publication_decision",
+}
+ANALYTICS_CHECKPOINTS = {30, 120, 360, 1440}
 
 
 def load_object(path: Path) -> dict[str, Any]:
@@ -130,9 +140,116 @@ def main() -> int:
                     "missing_analytics_fields": analytics_errors,
                 }
             )
+        pipeline_path = state_dir / "content-pipeline.json"
+        pipeline_reports: list[dict[str, Any]] = []
+        if pipeline_path.is_file():
+            pipeline = load_object(pipeline_path)
+            packages = pipeline.get("packages", [])
+            schedules = pipeline.get("analytics_schedule", [])
+            if not isinstance(packages, list) or not isinstance(schedules, list):
+                raise ValueError("content-pipeline packages and analytics_schedule must be arrays")
+            current_time = parse_time(now)
+            for package in packages:
+                if not isinstance(package, dict):
+                    continue
+                package_id = str(package.get("package_id") or "unknown")
+                status = package.get("status")
+                stage_map = package.get("stages", {})
+                missing_package_stages = sorted(
+                    stage for stage in PACKAGE_STAGES
+                    if not isinstance(stage_map, dict) or stage_map.get(stage) is not True
+                )
+                if status in {"ready", "validated"} and missing_package_stages:
+                    package["status"] = "needs-v6-revalidation"
+                    invalid_claims += 1
+                    recovery_tasks.append({
+                        "task_id": f"replenish-{package_id}",
+                        "task_type": "six-package-replenishment",
+                        "lane": "offline",
+                        "priority": 5,
+                        "status": "pending",
+                        "ready": True,
+                        "requires_linkedin": False,
+                        "package_id": package_id,
+                        "missing_package_stages": missing_package_stages,
+                    })
+                expected_checkpoints = {
+                    int(item.get("checkpoint_minutes"))
+                    for item in schedules
+                    if isinstance(item, dict) and item.get("post_id") in {package_id, package.get("post_id")}
+                    and isinstance(item.get("checkpoint_minutes"), (int, float))
+                }
+                if (
+                    status == "published"
+                    and package.get("analytics_contract") != "legacy-preserved"
+                    and expected_checkpoints != ANALYTICS_CHECKPOINTS
+                ):
+                    invalid_claims += 1
+                    recovery_tasks.append({
+                        "task_id": f"schedule-analytics-{package_id}",
+                        "task_type": "scheduled-analytics-snapshot",
+                        "lane": "offline",
+                        "priority": 4,
+                        "status": "pending",
+                        "ready": True,
+                        "requires_linkedin": False,
+                        "post_id": package.get("post_id") or package_id,
+                        "missing_checkpoints": sorted(ANALYTICS_CHECKPOINTS - expected_checkpoints),
+                    })
+                pipeline_reports.append({
+                    "package_id": package_id,
+                    "status": package.get("status"),
+                    "missing_package_stages": missing_package_stages,
+                    "analytics_checkpoints": sorted(expected_checkpoints),
+                })
+            for snapshot in schedules:
+                if not isinstance(snapshot, dict) or snapshot.get("status") == "completed":
+                    continue
+                due_at = parse_time(snapshot.get("due_at"))
+                if due_at is None or current_time is None or due_at > current_time:
+                    continue
+                post_id = str(snapshot.get("post_id") or "unknown")
+                minutes = int(snapshot.get("checkpoint_minutes", 0) or 0)
+                recovery_tasks.append({
+                    "task_id": f"analytics-{post_id}-{minutes}",
+                    "task_type": "scheduled-analytics-snapshot",
+                    "lane": "linkedin",
+                    "priority": 4,
+                    "status": "pending",
+                    "ready": True,
+                    "requires_linkedin": True,
+                    "post_id": post_id,
+                    "checkpoint_minutes": minutes,
+                    "required_completion_artifacts": [
+                        "snapshot", "learning", "decision", "next_measurement_trigger"
+                    ],
+                })
+            if args.write:
+                atomic_write(pipeline_path, pipeline)
         ledger["updated_at"] = now
         if args.write:
             atomic_write(ledger_path, ledger)
+            queue_path = state_dir / "work-queue.json"
+            queue = load_object(queue_path)
+            queue_items = queue.setdefault("items", [])
+            if not isinstance(queue_items, list):
+                raise ValueError("work-queue.json items must be an array")
+            for task in recovery_tasks:
+                existing = next(
+                    (
+                        item for item in queue_items
+                        if isinstance(item, dict) and item.get("task_id") == task.get("task_id")
+                    ),
+                    None,
+                )
+                if existing is None:
+                    queue_items.append(task)
+                elif existing.get("status") in {"completed", "cancelled", "expired", "superseded"}:
+                    continue
+                else:
+                    existing.update({key: value for key, value in task.items() if key != "status"})
+            queue["updated_at"] = now
+            atomic_write(queue_path, queue)
         unfinished_stage_count = sum(
             1 for report in reports if report["status"] not in TERMINAL_STAGE_STATUSES
         )
@@ -143,6 +260,7 @@ def main() -> int:
             "invalid_completion_claims": invalid_claims,
             "unfinished_stage_count": unfinished_stage_count,
             "stages": reports,
+            "content_pipeline": pipeline_reports,
             "recovery_tasks": recovery_tasks,
         }
         print(json.dumps(result, indent=2, ensure_ascii=False))

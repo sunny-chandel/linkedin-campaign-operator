@@ -40,13 +40,22 @@ PRIORITY_BY_TYPE = {
     "reply": 1,
     "direct-message": 1,
     "publication-opportunity": 2,
+    "publication-execution": 2,
     "publication-queue-building": 2,
     "mandatory-stage-recovery": 3,
-    "engagement-burst": 4,
+    "engagement-burst": 3,
+    "engagement-burst-execution": 3,
     "soft-reciprocity": 4,
     "engagement-opportunity-generation": 5,
+    "opportunity-discovery": 5,
     "performance-recovery-content": 5,
     "two-package-production": 5,
+    "six-package-replenishment": 5,
+    "regional-allocation": 5,
+    "rolling-output-evaluation": 2,
+    "publishing-debt-recovery": 2,
+    "runtime-repair": 1,
+    "scheduled-analytics-snapshot": 4,
     "opportunity-health-evaluation": 7,
     "performance-recovery-analytics": 7,
     "analytics-and-investigation": 8,
@@ -59,9 +68,11 @@ STARVATION_EXEMPT_TYPES = {
     "reply",
     "direct-message",
     "publication-opportunity",
+    "publication-execution",
     "publication-queue-building",
     "mandatory-stage-recovery",
     "engagement-burst",
+    "engagement-burst-execution",
 }
 
 
@@ -171,11 +182,11 @@ def task_is_eligible(
     task_type = str(task.get("task_type", ""))
     action_lane = str(task.get("action_lane", ""))
     if (task_type in BASE_BUDGET_TYPES or action_lane in BASE_BUDGET_TYPES) and base_used >= base_ceiling:
-        return False, "base-daily-ceiling"
-    if task_type == "publication-opportunity" and posts_published >= 6:
-        return False, "daily-publication-maximum-reached"
-    if task_type == "two-package-production" and packages_ready >= 2:
-        return False, "two-packages-ready"
+        return False, "rolling-action-cap"
+    if task_type in {"publication-opportunity", "publication-execution", "publication-queue-building"} and posts_published >= 8:
+        return False, "rolling-publication-cap-reached"
+    if task_type in {"two-package-production", "six-package-replenishment"} and packages_ready >= 6:
+        return False, "six-package-inventory-ready"
     return True, None
 
 
@@ -200,6 +211,9 @@ def automatic_continuation(
         "owner_input_required": False,
         "action": "arm-or-update-single-host-wake",
         "dedupe_key": f"linkedin-campaign-continuation:{campaign_id}",
+        "expiry_policy": "renew-before-host-limit-until-target-or-owner-stop",
+        "renew_existing_automation": True,
+        "campaign_completion_or_owner_stop_required_to_end": True,
         "host_adapter_priority": [str(adapter) for adapter in adapters],
         "next_wake_at": wake_at,
         "wake_trigger": wake_trigger,
@@ -329,16 +343,47 @@ def main() -> int:
                 for item in blocker_items
                 if isinstance(item, dict) and item.get("status") in ACTIVE_STATUSES
             ) + len(active_stage_debt(ledger))
+            existing_repair = next(
+                (
+                    item for item in blocker_items
+                    if isinstance(item, dict)
+                    and item.get("task_type") == "runtime-repair"
+                    and item.get("status") in UNFINISHED_STATUSES
+                ),
+                None,
+            )
+            repair_task = existing_repair or {
+                "task_id": f"runtime-repair-{now_dt.strftime('%Y%m%dT%H%M%SZ')}",
+                "task_type": "runtime-repair",
+                "lane": "offline",
+                "priority": 1,
+                "status": "pending",
+                "ready": True,
+                "requires_linkedin": False,
+                "failure_evidence": state["hard_blocker"],
+                "checkpoint": state.get("last_confirmed_action"),
+                "idempotency_key": f"runtime-repair:{state.get('campaign_id')}",
+            }
+            if args.record and existing_repair is None:
+                blocker_items.append(repair_task)
+            if args.record and repair_task.get("status") in ACTIVE_STATUSES:
+                lease_task(
+                    repair_task,
+                    now_dt,
+                    lease_minutes=int(config.get("automation_reliability", {}).get("task_lease_minutes", 15) or 15),
+                    lease_owner="adaptive-dispatcher",
+                )
             result = {
                 "valid": True,
-                "decision": "blocked",
+                "decision": "execute",
                 "decided_at": now,
                 "priority": 1,
-                "hard_blocker": state["hard_blocker"],
+                "task": repair_task,
                 "unfinished_work_count": blocker_unfinished,
-                "reason": "required technical dependency is unavailable and neither work lane can advance",
+                "reason": "automatic runtime repair precedes terminal blocker classification",
             }
             if args.record:
+                atomic_write(state_dir / "work-queue.json", queue)
                 record_decision(state_dir, state, result)
             print(json.dumps(result, indent=2, ensure_ascii=False))
             return 0
@@ -364,8 +409,8 @@ def main() -> int:
         publishing = state.get("publishing", {})
         current_budget_day = reconciliation["content_day"]["content_day_local"]
         budget_day_reset = reconciliation["budget_day_reset"]
-        base_used = int(scaling.get("base_actions_used", 0))
-        base_ceiling = int(scaling.get("base_daily_ceiling", 100))
+        base_used = int(scaling.get("rolling_24h_actions", scaling.get("base_actions_used", 0)) or 0)
+        base_ceiling = int(scaling.get("rolling_action_cap", scaling.get("base_daily_ceiling", 200)) or 200)
         overage_allowed = config.get("fixed_rules", {}).get("direct_reply_overage_allowed") is True
         concentration = scaling.get("concentration_state", {})
         if not isinstance(concentration, dict):
@@ -403,7 +448,7 @@ def main() -> int:
             if (
                 item.get("status") in ACTIVE_STATUSES
                 and item.get("ready") is True
-                and item.get("task_type") == "publication-opportunity"
+                and item.get("task_type") in {"publication-opportunity", "publication-execution"}
                 and item.get("engagement_queue_ready") is not True
             ):
                 derived_task_id = f"build-publication-queue-{item.get('task_id')}"
@@ -446,6 +491,23 @@ def main() -> int:
             elif item.get("status") in ACTIVE_STATUSES:
                 rejected.append({"task_id": item.get("task_id"), "reason": reason})
 
+        repair_state = load_object(state_dir / "repair-state.json")
+        if (
+            dispatcher.get("linkedin_lane") != "ready"
+            or repair_state.get("status") in {"repair-pending", "verification-pending", "recovering"}
+        ) and not any(item.get("task_type") == "runtime-repair" for item in candidates):
+            candidates.append({
+                "task_id": "runtime-repair-active-capability",
+                "task_type": "runtime-repair",
+                "lane": "offline",
+                "priority": 1,
+                "status": "pending",
+                "ready": True,
+                "requires_linkedin": False,
+                "active_repair": repair_state.get("active_repair"),
+                "idempotency_key": f"runtime-repair:{state.get('campaign_id')}",
+            })
+
         lane_circuit = dispatcher.get("lane_circuits", {}).get("linkedin", {})
         next_probe = parse_time(lane_circuit.get("next_probe_at")) if isinstance(lane_circuit, dict) else None
         if (
@@ -487,7 +549,7 @@ def main() -> int:
                 }
             )
 
-        # v5.1 uses the canonical opportunity file. Legacy reserve tasks can never
+        # The canonical opportunity file is authoritative. Legacy reserve tasks can never
         # claim supply or outrank an executable candidate.
         for item in items:
             if (
@@ -509,7 +571,7 @@ def main() -> int:
             ][: min(10, max(1, remaining) if remaining else 10)]
             if burst_candidates and not any(
                 isinstance(item, dict)
-                and item.get("task_type") == "engagement-burst"
+                and item.get("task_type") in {"engagement-burst", "engagement-burst-execution"}
                 and item.get("status") in UNFINISHED_STATUSES
                 for item in items
             ):
@@ -517,14 +579,14 @@ def main() -> int:
                 candidates.append(
                     {
                         "task_id": f"engagement-burst-{current_budget_day}-{'-'.join(candidate_ids)[:80]}",
-                        "task_type": "engagement-burst",
+                        "task_type": "engagement-burst-execution",
                         "lane": "linkedin",
                         "action_lane": (
                             "direct-inbound"
                             if all(item.get("lane") == "direct-inbound" for item in burst_candidates)
                             else "proactive"
                         ),
-                        "priority": 1 if all(item.get("lane") == "direct-inbound" for item in burst_candidates) else 4,
+                        "priority": 1 if all(item.get("lane") == "direct-inbound" for item in burst_candidates) else 3,
                         "status": "pending",
                         "ready": True,
                         "requires_linkedin": True,
@@ -538,29 +600,28 @@ def main() -> int:
                 )
 
         recovery = state.get("opportunity_recovery", {})
-        source_not_before = parse_time(recovery.get("source_not_before"))
-        generation_due = source_not_before is None or source_not_before <= now_dt
+        reserve_target = max(40, int(scaling.get("adaptive_reserve", {}).get("target_count", 40) or 40))
+        supply_weak = len(canonical_candidates) < reserve_target
         action_deficit = base_used < min(base_ceiling, int(health_evaluation["expected_actions"]))
         if (
-            not canonical_candidates
+            supply_weak
             and base_used < base_ceiling
-            and (recovery.get("active") is True or action_deficit)
-            and generation_due
+            and (recovery.get("active") is True or action_deficit or base_used < 160)
             and dispatcher.get("linkedin_lane", "ready") == "ready"
-            and not any(item.get("task_type") == "engagement-opportunity-generation" for item in candidates)
+            and not any(item.get("task_type") in {"engagement-opportunity-generation", "opportunity-discovery"} for item in candidates)
         ):
-            source = next_discovery_source(state, config)
+            source = next_discovery_source(state, config, now_dt)
             attempts = sum(
                 1
                 for item in items
                 if isinstance(item, dict)
-                and item.get("task_type") == "engagement-opportunity-generation"
+                and item.get("task_type") in {"engagement-opportunity-generation", "opportunity-discovery"}
                 and item.get("content_day_local") == current_budget_day
             ) + 1
             candidates.append(
                 {
                     "task_id": f"generate-opportunities-{current_budget_day}-{attempts}-{source}",
-                    "task_type": "engagement-opportunity-generation",
+                    "task_type": "opportunity-discovery",
                     "lane": "linkedin",
                     "priority": 5,
                     "status": "pending",
@@ -574,9 +635,9 @@ def main() -> int:
                 }
             )
 
-        minimum_posts = int(config.get("publishing_optimization", {}).get("minimum_posts_per_day", 2) or 2)
-        maximum_posts = int(config.get("publishing_optimization", {}).get("maximum_posts_per_day", 6) or 6)
-        posts_published = int(publishing.get("posts_published", 0) or 0)
+        minimum_posts = int(config.get("publishing_optimization", {}).get("minimum_posts_rolling_24h", 6) or 6)
+        maximum_posts = int(config.get("publishing_optimization", {}).get("maximum_posts_rolling_24h", 8) or 8)
+        posts_published = int(publishing.get("rolling_24h_posts", publishing.get("posts_published", 0)) or 0)
         last_publication = parse_time(publishing.get("last_publication_at"))
         spacing_ok = last_publication is None or now_dt - last_publication >= timedelta(minutes=120)
         velocity = publishing.get("preceding_post_velocity_ratio")
@@ -595,11 +656,11 @@ def main() -> int:
             and distribution_ok
         ):
             if not isinstance(recovery_package, dict) or recovery_package.get("status") not in {"ready", "published"}:
-                if not any(item.get("task_type") == "performance-recovery-content" for item in candidates):
+                if not any(item.get("task_type") in {"performance-recovery-content", "six-package-replenishment"} for item in candidates):
                     candidates.append(
                         {
                             "task_id": f"prepare-recovery-post-{current_budget_day}-{posts_published + 1}",
-                            "task_type": "performance-recovery-content",
+                            "task_type": "six-package-replenishment",
                             "lane": "offline",
                             "priority": 5,
                             "status": "pending",
@@ -617,7 +678,7 @@ def main() -> int:
                 candidates.append(
                     {
                         "task_id": f"publish-recovery-{current_budget_day}-{posts_published + 1}",
-                        "task_type": "publication-opportunity",
+                        "task_type": "publication-execution",
                         "publication_kind": "recovery",
                         "lane": "linkedin",
                         "priority": 2,
@@ -687,12 +748,10 @@ def main() -> int:
             selected = dict(candidates[0])
             task_type = str(selected.get("task_type", ""))
             action_lane = str(selected.get("action_lane", ""))
-            if task_type in DIRECT_TYPES or action_lane == "direct-inbound":
-                selected["budget_class"] = (
-                    "base" if base_used < base_ceiling else "direct-reply-overage"
-                )
-                if base_used >= base_ceiling and not overage_allowed:
-                    raise ValueError("direct reply overage is disabled")
+            if task_type == "direct-inbound" or action_lane == "direct-inbound":
+                selected["budget_class"] = "direct-inbound-outside-cap"
+                if not overage_allowed:
+                    raise ValueError("direct inbound outside-cap handling is disabled")
             elif task_type in BASE_BUDGET_TYPES or action_lane in BASE_BUDGET_TYPES:
                 selected["budget_class"] = "base"
                 selected["concentration_penalty"] = concentration_penalty

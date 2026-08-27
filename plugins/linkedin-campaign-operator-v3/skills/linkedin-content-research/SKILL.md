@@ -3,7 +3,7 @@ name: linkedin-content-research
 description: Research fresh LinkedIn campaign topics, primary sources, platform changes, and credible trends. Use when creating research briefs or checking claims and algorithm advice.
 metadata:
   author: sunny
-  version: "5.1.0"
+  version: "6.0.0-rc.1"
 ---
 
 # LinkedIn content research
@@ -12,7 +12,7 @@ Produce evidence-ranked research briefs for the campaign. Do not draft the final
 
 Inherit the parent's active campaign-lifetime consent receipt and leased task. Never request separate approval after routing or restart. Checkpoint each verified source set and completed regional brief so recovery continues from durable evidence.
 
-Produce the research needed for the two normal packages: one India brief and one US-Central brief. Do not create backup briefs or stockpile future normal packages. When routed a `performance-recovery-content` task after both normal posts are live, research exactly one sufficiently fresh source and a distinct topic angle, pillar, or format for the single permitted recovery package.
+Discover and score at least 12 candidate topics for the rolling portfolio, then produce six distinct selected briefs. Use the regional allocation supplied by `linkedin-regional-intelligence`. Maintain six ready packages without stockpiling beyond that inventory. Research at most one unpublished recovery package after all six normal posts are verified.
 
 ## Automated execution
 
@@ -34,6 +34,7 @@ In automated mode, start immediately when routed by the parent orchestrator. Nev
 Return:
 
 - proposed topic and region;
+- demographic hypothesis, freshness expiry, portfolio role, competing angle, and intended growth outcome;
 - why it matters now;
 - intended professional audience;
 - primary-source URLs and dates;
@@ -44,5 +45,7 @@ Return:
 - suitable asset concept;
 - experiment opportunity, if any;
 - confidence level and recheck date.
+
+Across the selected six briefs require at least four content pillars and three intended format treatments. Do not repeat topic, angle, or intended format consecutively.
 
 Do not treat popularity as evidence of truth. Use the connected Chrome session when LinkedIn information is needed.
