@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from executor_readiness import task_readiness
+from service_readiness import task_readiness
 
 
 ROUTINE_EXTERNAL_TASK_TYPES = {

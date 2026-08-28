@@ -1,5 +1,13 @@
 # Changelog
 
+## 6.0.0-rc.20 — Fixed Public Startup Surface
+
+- Limit model-facing startup to resolver, initializer, runtime control, and campaign-cycle entry points.
+- Remove service provisioning, credential bootstrap, direct account-action, enqueue, installer, and background-runner implementations from the public plugin package.
+- Rename remaining capability libraries with neutral status-oriented names and make the public preflight command return a concise available/unavailable result.
+- Define `unavailable` as a complete setup result that selects all available campaign lanes without presenting a mode choice.
+- Add a release test that prevents removed setup surfaces from returning to the public scripts directory.
+
 ## 6.0.0-rc.19 — Single Durable Wait After Health Refresh
 
 - Treat a deferred publication decision's `next_evaluation_at` as a first-class wake so both its publication task and evaluation task leave the immediate reconciliation set.

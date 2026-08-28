@@ -16,7 +16,7 @@ from typing import Any
 ORCHESTRATOR_SCRIPTS = Path(__file__).resolve().parents[2] / "linkedin-campaign-orchestrator" / "scripts"
 sys.path.insert(0, str(ORCHESTRATOR_SCRIPTS))
 from opportunity_recovery import eligible_opportunities  # noqa: E402
-from executor_readiness import task_readiness  # noqa: E402
+from service_readiness import task_readiness  # noqa: E402
 
 from rolling_output import ACTION_CAP, parse_time, refresh_output  # noqa: E402
 

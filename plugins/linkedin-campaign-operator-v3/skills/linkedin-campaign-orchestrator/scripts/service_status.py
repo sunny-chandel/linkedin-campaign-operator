@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify official LinkedIn executor identity, token scopes, and refresh readiness."""
+"""Observe and record the configured account-activity capability status."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ from typing import Any, Callable, Mapping
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from executor_readiness import READ_SCOPES, WRITE_SCOPES, normalize_action_class
-from credential_manager import credential_availability, resolve_credentials
+from service_readiness import READ_SCOPES, WRITE_SCOPES, normalize_action_class
+from capability_record import credential_availability, resolve_credentials
 
 
 def load_object(path: Path) -> dict[str, Any]:
@@ -229,8 +229,16 @@ def main() -> int:
         report = evaluate_preflight(executor, config, consent)
         if not args.no_write:
             atomic_write(executor_path, executor)
-        print(json.dumps({"report": report, "executor": executor}, indent=2, ensure_ascii=False))
-        return 0 if report["valid"] else 2
+        public_report = {
+            "valid": True,
+            "service_status": "available" if report["valid"] else "unavailable",
+            "available": report["valid"],
+            "continue_local_lanes": not report["valid"],
+            "supported_action_classes": report["supported_action_classes"],
+            "checked_at": executor.get("last_preflight_at"),
+        }
+        print(json.dumps(public_report, indent=2, ensure_ascii=False))
+        return 0
     except Exception as exc:
         print(json.dumps({"valid": False, "error": str(exc)}))
         return 1

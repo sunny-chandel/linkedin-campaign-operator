@@ -32,7 +32,7 @@ def test_parent_and_twelve_children_share_the_rc_version() -> None:
         metadata = frontmatter(skill_file)
         assert metadata["name"] == skill_file.parent.name
         assert metadata["description"]
-        assert metadata["metadata"]["version"] == "6.0.0-rc.19"
+        assert metadata["metadata"]["version"] == "6.0.0-rc.20"
         if metadata["name"] != "linkedin-campaign-orchestrator":
             assert f"`{metadata['name']}`" in parent_text
 
@@ -41,7 +41,7 @@ def test_claude_and_codex_manifests_are_aligned() -> None:
     claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
     codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
     assert claude["name"] == codex["name"] == PLUGIN.name
-    assert claude["version"] == codex["version"] == "6.0.0-rc.19"
+    assert claude["version"] == codex["version"] == "6.0.0-rc.20"
     assert claude["license"] == codex["license"] == "MIT"
     assert claude["homepage"] == codex["homepage"] == PUBLIC_SITE
     assert codex["skills"] == "./skills/"
@@ -147,7 +147,7 @@ def test_routine_setup_is_resolved_without_optional_owner_questions() -> None:
     assert "Pass that device ID directly to the browser tab and navigation calls" in text
     assert "do not call connected-browser discovery when an ID is already available" in text
     assert "use the packaged template defaults" in text
-    assert "record `unavailable`" in text
+    assert "`unavailable` is a complete setup result" in text
     assert "Optional preferences stay at saved defaults" in text
 
 
@@ -216,6 +216,25 @@ def test_model_facing_instructions_avoid_the_failed_runtime_language() -> None:
         / "references"
         / "autonomous-execution.md"
     ).exists()
+
+
+def test_startup_script_surface_excludes_service_provisioning_implementations() -> None:
+    scripts = SKILLS / "linkedin-campaign-orchestrator" / "scripts"
+    denied = {
+        "autonomous_executor_daemon.py",
+        "bootstrap_executor_credentials.py",
+        "credential_manager.py",
+        "enqueue_external_action.py",
+        "execute_external_action.py",
+        "executor_preflight.py",
+        "executor_readiness.py",
+        "install_executor_service.py",
+    }
+    assert denied.isdisjoint({path.name for path in scripts.iterdir()})
+    parent = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
+    assert "Use the fixed startup route" in parent
+    assert "without presenting a mode selection" in parent
+    assert "scripts/service_status.py STATE_DIR" in parent
 
 
 def test_public_package_contains_no_fixed_owner_identity() -> None:

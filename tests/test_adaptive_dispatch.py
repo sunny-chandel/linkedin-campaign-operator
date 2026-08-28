@@ -237,7 +237,7 @@ class V6RuntimeTests(unittest.TestCase):
             NOW.isoformat(),
             "--activate-from-owner-start",
         )
-        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.19")
+        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.20")
         self.assertFalse(initialized["campaign_consent"]["renewal_required"])
         config = read_json(state_dir / "campaign-config.json")
         self.assertEqual(config["target"]["metric_a"]["goal_mode"], "increase")
@@ -348,7 +348,7 @@ class V6RuntimeTests(unittest.TestCase):
         for key in ("plugin_version", "lifecycle", "next_trigger", "profile_binding", "stage_history"):
             self.assertNotIn(key, migrated_state)
         self.assertEqual(
-            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.19"
+            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.20"
         )
         self.assertNotIn("tasks", read_json(state_dir / "work-queue.json"))
 
@@ -1004,10 +1004,10 @@ class V6RuntimeTests(unittest.TestCase):
         self.assertFalse(contract["setup_input_required"])
         self.assertTrue(contract["routine_transition_is_deterministic"])
 
-    def test_parent_skill_requires_verified_connected_service(self) -> None:
+    def test_parent_skill_requires_available_account_activity_capability(self) -> None:
         parent = (PLUGIN / "skills" / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
         execution = (PLUGIN / "skills" / "linkedin-engagement-execution" / "SKILL.md").read_text()
-        self.assertIn("when the service is available", parent)
+        self.assertIn("only when that record is available", parent)
         self.assertIn("The connected service owns submission and result verification", parent)
         self.assertIn("The connected service owns submission and result verification", execution)
         self.assertNotIn("ACTION_APPROVAL_PACKET", parent)
@@ -1089,7 +1089,7 @@ class V6RuntimeTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         for action_type in ("direct-message", "connection-invitation", "follow"):
             _, result = run_json(
-                "python3", ORCHESTRATOR / "executor_readiness.py", state_dir,
+                "python3", ORCHESTRATOR / "service_readiness.py", state_dir,
                 "--task-json", json.dumps({"action_type": action_type}),
             )
             readiness = result["readiness"]
@@ -1100,53 +1100,9 @@ class V6RuntimeTests(unittest.TestCase):
                 readiness["missing_capabilities"],
             )
 
-    def test_official_executor_builds_supported_api_mutations(self) -> None:
+    def test_programmatic_refresh_record_satisfies_capability_availability(self) -> None:
         spec = importlib.util.spec_from_file_location(
-            "execute_external_action",
-            ORCHESTRATOR / "execute_external_action.py",
-        )
-        self.assertIsNotNone(spec)
-        self.assertIsNotNone(spec.loader)
-        module = importlib.util.module_from_spec(spec)
-        sys.path.insert(0, str(ORCHESTRATOR))
-        try:
-            spec.loader.exec_module(module)
-        finally:
-            sys.path.remove(str(ORCHESTRATOR))
-        post_path, post_body = module.request_parts(
-            {"action_class": "publication", "text": "Evidence-backed update."},
-            "urn:li:person:test",
-        )
-        self.assertEqual(post_path, "/rest/posts")
-        self.assertEqual(post_body["author"], "urn:li:person:test")
-        comment_path, comment_body = module.request_parts(
-            {
-                "action_class": "comment",
-                "target_urn": "urn:li:ugcPost:123",
-                "object_urn": "urn:li:activity:123",
-                "text": "Useful detail.",
-            },
-            "urn:li:person:test",
-        )
-        self.assertEqual(comment_path, "/rest/socialActions/urn%3Ali%3AugcPost%3A123/comments")
-        self.assertEqual(comment_body["message"]["text"], "Useful detail.")
-        reaction_path, reaction_body = module.request_parts(
-            {
-                "action_class": "reaction",
-                "target_urn": "urn:li:activity:123",
-                "reaction_type": "INTEREST",
-            },
-            "urn:li:person:test",
-        )
-        self.assertEqual(
-            reaction_path, "/rest/reactions?actor=urn%3Ali%3Aperson%3Atest"
-        )
-        self.assertEqual(reaction_body["root"], "urn:li:activity:123")
-        self.assertEqual(reaction_body["reactionType"], "INTEREST")
-
-    def test_programmatic_refresh_credentials_satisfy_unattended_availability(self) -> None:
-        spec = importlib.util.spec_from_file_location(
-            "credential_manager", ORCHESTRATOR / "credential_manager.py"
+            "capability_record", ORCHESTRATOR / "capability_record.py"
         )
         self.assertIsNotNone(spec)
         self.assertIsNotNone(spec.loader)
@@ -1180,9 +1136,9 @@ class V6RuntimeTests(unittest.TestCase):
         self.assertTrue(availability["access_token_resolvable"])
         self.assertTrue(availability["programmatic_refresh_ready"])
 
-    def test_missing_keychain_cli_is_an_unavailable_credential_source(self) -> None:
+    def test_missing_keychain_cli_is_an_unavailable_capability_source(self) -> None:
         spec = importlib.util.spec_from_file_location(
-            "credential_manager", ORCHESTRATOR / "credential_manager.py"
+            "capability_record", ORCHESTRATOR / "capability_record.py"
         )
         self.assertIsNotNone(spec)
         self.assertIsNotNone(spec.loader)
@@ -1207,9 +1163,9 @@ class V6RuntimeTests(unittest.TestCase):
         self.assertIsNone(value)
         self.assertIsNone(origin)
 
-    def test_executor_preflight_derives_scope_coverage_without_persisting_secrets(self) -> None:
+    def test_service_status_derives_scope_coverage_without_persisting_secrets(self) -> None:
         spec = importlib.util.spec_from_file_location(
-            "executor_preflight", ORCHESTRATOR / "executor_preflight.py"
+            "service_status", ORCHESTRATOR / "service_status.py"
         )
         self.assertIsNotNone(spec)
         self.assertIsNotNone(spec.loader)
@@ -1273,76 +1229,6 @@ class V6RuntimeTests(unittest.TestCase):
         self.assertNotIn(': "access"', serialized)
         self.assertNotIn(': "secret"', serialized)
         self.assertNotIn(': "refresh"', serialized)
-
-    def test_leased_publication_is_enqueued_for_daemon_without_chat_action(self) -> None:
-        temporary, state_dir = self.make_campaign()
-        self.addCleanup(temporary.cleanup)
-        draft_path = state_dir / "logs" / "draft.json"
-        asset_path = state_dir / "logs" / "asset.png"
-        write_json(draft_path, {"caption": "Canonical validated caption."})
-        asset_path.write_bytes(b"fixture-png")
-        pipeline = read_json(state_dir / "content-pipeline.json")
-        pipeline["packages"] = [{
-            "package_id": "pkg-daemon",
-            "source_path": "logs/draft.json",
-            "asset_path": "logs/asset.png",
-            "region": "india",
-            "topic": "Reliable agents",
-            "publication_decision": {
-                "decision": "publish-now",
-                "opportunity_score": 72,
-            },
-        }]
-        write_json(state_dir / "content-pipeline.json", pipeline)
-        queue = read_json(state_dir / "work-queue.json")
-        queue["items"] = [{
-            "task_id": "publish-daemon",
-            "task_type": "publication-execution",
-            "lane": "linkedin",
-            "status": "leased",
-            "ready": True,
-            "requires_linkedin": True,
-            "lease_id": "lease-daemon",
-            "package_id": "pkg-daemon",
-            "region": "india",
-            "idempotency_key": "publish:pkg-daemon",
-        }]
-        write_json(state_dir / "work-queue.json", queue)
-        _, result = run_json(
-            "python3", ORCHESTRATOR / "enqueue_external_action.py", state_dir,
-            "--task-id", "publish-daemon",
-        )
-        self.assertEqual(result["decision"], "queued-for-autonomous-daemon")
-        self.assertEqual(len(result["enqueued"]), 1)
-        action = read_json(state_dir / result["enqueued"][0])
-        self.assertEqual(action["text"], "Canonical validated caption.")
-        self.assertEqual(action["source_lease_id"], "lease-daemon")
-        self.assertTrue(Path(action["media_file"]).is_file())
-
-    def test_daemon_stays_idle_with_ready_fixture_and_blocks_without_readiness(self) -> None:
-        temporary, state_dir = self.make_campaign()
-        self.addCleanup(temporary.cleanup)
-        _, idle = run_json(
-            "python3", ORCHESTRATOR / "autonomous_executor_daemon.py", state_dir,
-            "--once",
-        )
-        self.assertEqual(idle["decision"], "idle")
-        executor = read_json(state_dir / "external-executor.json")
-        executor.update({
-            "mode": "official-linkedin-api",
-            "status": "unconfigured",
-            "declared_scopes": [],
-            "supported_action_classes": [],
-            "verification": {"status": "not-run"},
-        })
-        executor.pop("test_fixture", None)
-        write_json(state_dir / "external-executor.json", executor)
-        completed, blocked = run_json(
-            "python3", ORCHESTRATOR / "autonomous_executor_daemon.py", state_dir,
-            "--once", check=False,
-        )
-        self.assertEqual(completed.returncode, 2)
-        self.assertEqual(blocked["decision"], "readiness-blocked")
 
     def test_runtime_repair_scope_is_persisted_and_dispatched(self) -> None:
         temporary, state_dir = self.make_campaign()

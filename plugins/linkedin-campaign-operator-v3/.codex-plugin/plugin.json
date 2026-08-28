@@ -1,6 +1,6 @@
 {
   "name": "linkedin-campaign-operator-v3",
-  "version": "6.0.0-rc.19",
+  "version": "6.0.0-rc.20",
   "description": "A persistent LinkedIn campaign workspace for research, writing, visual creation, planning, measurement, and reliable continuation.",
   "author": {
     "name": "Sunny Chandel",

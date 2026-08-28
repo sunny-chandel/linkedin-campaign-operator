@@ -1,9 +1,9 @@
 ---
 name: linkedin-campaign-orchestrator
-description: Run a durable LinkedIn campaign workspace for research, content, scheduling, measurement, and recovery, with a connected service for supported account activity. Use this as the only public entry point.
+description: Run a durable LinkedIn campaign workspace for research, content, scheduling, measurement, and recovery. Use this as the only public entry point.
 metadata:
   author: sunny
-  version: "6.0.0-rc.19"
+  version: "6.0.0-rc.20"
 ---
 
 # LinkedIn campaign orchestrator
@@ -14,7 +14,7 @@ Run one durable campaign workspace and route its work through the supporting ski
 
 Claude Code manages work in the campaign folder: profile research, content research, writing, visual assets, planning, quality checks, measurement, and recovery. Claude Code does not directly change LinkedIn.
 
-A separately installed connected service may handle supported account activity. Treat that service as an existing capability, not something to build or configure from this skill. Claude Code may prepare one checked local service request only when the service is available, the selected profile matches campaign state, the request is within current campaign settings, and duplicate and timing checks pass. The connected service owns submission and result verification.
+A separately configured account-activity capability may handle supported submissions. Treat its saved availability record as an input to the campaign, not as setup work. Claude Code may prepare one checked local request only when that record is available, the selected profile matches campaign state, the request fits current campaign settings, and duplicate and timing checks pass. The connected service owns submission and result verification.
 
 If the connected service is unavailable, keep ready work saved locally and continue useful research, production, validation, analytics, and repair. Never replace the service with browser clicks or another account-writing route.
 
@@ -33,13 +33,14 @@ When prepared work is waiting on the connected service, use the concise status `
 At the start of every new session:
 
 1. Select one campaign state directory. A new campaign must use an empty directory; do not import another campaign's state or reproduce old chat history.
-2. Read the active version from this skill's metadata. Resolve the newest installed plugin with `python scripts/resolve_latest_plugin.py --session-version ACTIVE_VERSION`. For an existing campaign, add `--state-dir STATE_DIR`.
-3. Use only the plugin root returned by that resolver. Load the returned parent skill and each child skill needed for the returned task.
-4. When the current start message or saved campaign binding supplies a verified Chrome device ID, pass that ID directly to the tab and navigation browser calls; skip connected-browser discovery. Verify the selected profile read-only before using account-specific evidence.
-5. For a new campaign, run `scripts/init_campaign.py` with the verified owner, profile URL, timezone, and the owner's stated goals. Use `--activate-from-owner-start` only when the current owner message explicitly starts that campaign scope.
-6. Immediately after initialization, save the verified Chrome binding with `python scripts/runtime_control.py STATE_DIR browser-bind --device-id DEVICE_ID --device-label DEVICE_LABEL --platform PLATFORM --identity-verified`.
-7. Run `python scripts/campaign_cycle.py STATE_DIR --session-start --session-id SESSION_ID`.
-8. Follow the returned `next_action` exactly. Do not replace the returned state, task, transition command, or wait trigger with a conversational choice.
+2. Use the fixed startup route: `resolve_latest_plugin.py`, `init_campaign.py`, `runtime_control.py`, and `campaign_cycle.py`. These are the startup entry points; other files in `scripts/` are library modules used by this route. Begin with the fixed route rather than listing the scripts directory or inferring alternate setup modes.
+3. Read the active version from this skill's metadata. Resolve the newest installed plugin with `python scripts/resolve_latest_plugin.py --session-version ACTIVE_VERSION`. For an existing campaign, add `--state-dir STATE_DIR`.
+4. Use only the plugin root returned by that resolver. Load the returned parent skill and each child skill needed for the returned task.
+5. When the current start message or saved campaign binding supplies a verified Chrome device ID, pass that ID directly to the tab and navigation browser calls; skip connected-browser discovery. Verify the selected profile read-only before using account-specific evidence.
+6. For a new campaign, run `scripts/init_campaign.py` with the verified owner, profile URL, timezone, and the owner's stated goals. Use `--activate-from-owner-start` only when the current owner message explicitly starts that campaign scope.
+7. Immediately after initialization, save the verified Chrome binding with `python scripts/runtime_control.py STATE_DIR browser-bind --device-id DEVICE_ID --device-label DEVICE_LABEL --platform PLATFORM --identity-verified`.
+8. Run `python scripts/campaign_cycle.py STATE_DIR --session-start --session-id SESSION_ID`.
+9. Follow the returned `next_action` exactly. Do not replace the returned state, task, transition command, or wait trigger with a conversational choice.
 
 If the cycle returns `record-current-owner-start-consent` and the current owner message explicitly starts the same named campaign scope, run the returned command and rerun the cycle. Ask only when that current start instruction is absent or the verified profile identity differs.
 
@@ -55,7 +56,7 @@ Resolve routine setup choices directly whenever a resolution path is available:
 - Campaign goal: use the owner's stated goal. When the campaign name or destination already states a numeric follower goal, use that value as the primary goal. Leave unmentioned secondary goals as `unknown` rather than asking for them.
 - Baseline, niche, region, and positioning: derive them from verified profile evidence and fresh research.
 - Pacing, inventory, cooldowns, content mix, and other optional settings: reuse existing campaign configuration; otherwise use the packaged template defaults and improve them later from measured evidence.
-- Connected service: inspect capability records and running service evidence. If readiness is not proven, record `unavailable`, keep service-ready work local, and continue all unaffected work.
+- Account-activity capability: inspect its saved availability record. `unavailable` is a complete setup result that selects the available campaign lanes automatically. Save it, keep service-ready work local, and continue all unaffected work without presenting a mode selection.
 
 Owner input is reserved for a required fact that cannot be verified, derived, defaulted, or safely recorded as unknown when no useful local task can continue. After saving setup, continue immediately with the next useful local task. Optional preferences stay at saved defaults or `unknown` during ongoing work.
 
@@ -69,7 +70,7 @@ Repeat this loop while eligible work remains:
 2. When it returns `execute-child-task`, load the named child skill and complete only the returned task and lease.
 3. For work that may outlast the current lease window, run the returned `checkpoint_command` while work is in progress.
 4. Save the child result and validation evidence, then run the returned `completion_command_template` with actual result JSON. Use `runtime_control.py task-event`; do not edit queue or stage status directly.
-5. A preflight task is complete only after its returned completion command succeeds with `preflight_passed: true`. Save observed unavailable capabilities as evidence and continue unaffected work.
+5. For a preflight task, run `python scripts/service_status.py STATE_DIR`, save its `available` or `unavailable` result, then run the returned completion command with `preflight_passed: true`. An unavailable result selects the available lanes and does not create a setup question.
 6. For a ready service-supported item, create one checked local request and return immediately to local work.
 7. Verify any available service result before marking account activity complete.
 8. Run the exact command returned in `after_save` immediately after the saved transition.

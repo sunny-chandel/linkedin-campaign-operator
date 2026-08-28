@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluate unattended official-API readiness for external campaign tasks."""
+"""Evaluate the saved account-activity capability for campaign tasks."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping
 
-from credential_manager import credential_availability
+from capability_record import credential_availability
 
 
 WRITE_SCOPES = {"w_member_social", "w_member_social_feed"}

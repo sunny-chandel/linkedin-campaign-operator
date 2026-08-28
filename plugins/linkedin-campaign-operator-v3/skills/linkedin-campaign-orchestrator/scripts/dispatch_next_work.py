@@ -27,7 +27,7 @@ from opportunity_recovery import (
     opportunity_document,
 )
 from dispatch_contract import dispatch_contract
-from executor_readiness import normalize_action_class, readiness_report, task_readiness
+from service_readiness import normalize_action_class, readiness_report, task_readiness
 
 
 ACTIVE_STATUSES = {"pending", "recovering", "missed-recovering"}
