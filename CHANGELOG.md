@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.0.0-rc.27 — Host-Supported Hourly Continuation
+
+- Uses the fastest persistent cadence accepted by Claude Desktop Routines: hourly.
+- Retains the read-only due gate and create-once routine contract from rc.26.
+- Allows for the host's documented randomized schedule delay when validating wake latency.
+
 ## 6.0.0-rc.26 — Create-Once Recurring Continuation
 
 - Replaces per-wait one-time schedule updates with one recurring Claude Desktop Routine.

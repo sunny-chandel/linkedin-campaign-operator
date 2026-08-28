@@ -248,7 +248,7 @@ class V6RuntimeTests(unittest.TestCase):
             NOW.isoformat(),
             "--activate-from-owner-start",
         )
-        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.26")
+        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.27")
         self.assertFalse(initialized["campaign_consent"]["renewal_required"])
         verification = initialized["profile_verification"]
         self.assertEqual(verification["device_id"], "browser-1-id")
@@ -389,7 +389,7 @@ class V6RuntimeTests(unittest.TestCase):
         for key in ("plugin_version", "lifecycle", "next_trigger", "profile_binding", "stage_history"):
             self.assertNotIn(key, migrated_state)
         self.assertEqual(
-            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.26"
+            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.27"
         )
         self.assertNotIn("tasks", read_json(state_dir / "work-queue.json"))
 
@@ -795,7 +795,7 @@ class V6RuntimeTests(unittest.TestCase):
         self.assertTrue(continuation["convert_if_not_recurring"])
         self.assertFalse(continuation["update_existing_recurring_task"])
         self.assertFalse(continuation["update_schedule_for_next_wake"])
-        self.assertEqual(continuation["recurrence_cron"], "*/15 * * * *")
+        self.assertEqual(continuation["recurrence_cron"], "0 * * * *")
         self.assertIn("continuation_due.py", continuation["due_gate_command"])
         self.assertTrue(continuation["existing_recurring_task_satisfies_transition"])
         self.assertFalse(continuation["scheduled_task_update_on_wait_required"])
@@ -822,13 +822,13 @@ class V6RuntimeTests(unittest.TestCase):
             "--automation-id", "linkedin-campaign-continuation-v6-test",
             "--next-wake-at", wake_at.isoformat(),
             "--schedule-kind", "recurring-cron",
-            "--recurrence-cron", "*/15 * * * *",
+            "--recurrence-cron", "0 * * * *",
         )
         stored_continuation = read_json(state_dir / "campaign-state.json")[
             "dispatcher"
         ]["continuation"]
         self.assertEqual(stored_continuation["schedule_kind"], "recurring-cron")
-        self.assertEqual(stored_continuation["recurrence_cron"], "*/15 * * * *")
+        self.assertEqual(stored_continuation["recurrence_cron"], "0 * * * *")
         self.assertEqual(
             stored_continuation["expiry_policy"],
             "stable-recurring-until-target-or-stop-signal",

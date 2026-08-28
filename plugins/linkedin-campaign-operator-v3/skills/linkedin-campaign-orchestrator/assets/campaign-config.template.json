@@ -60,14 +60,14 @@
         "host-native-recurring-task"
       ],
       "schedule_kind": "recurring-cron",
-      "recurrence_cron": "*/15 * * * *",
+      "recurrence_cron": "0 * * * *",
       "create_if_missing": true,
       "update_schedule_for_next_wake": false,
       "due_gate_script": "continuation_due.py",
       "persistence_required": "survives-current-session",
       "session_only_loop_accepted": false,
       "fallback_heartbeat_minutes": 15,
-      "maximum_wake_lateness_minutes": 20
+      "maximum_wake_lateness_minutes": 70
     },
     "reserve_mode": "adaptive-next-two-bursts",
     "soft_reciprocity_signals": [

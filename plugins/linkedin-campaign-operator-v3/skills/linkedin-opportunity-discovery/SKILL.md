@@ -3,7 +3,7 @@ name: linkedin-opportunity-discovery
 description: Find and maintain a fresh list of relevant LinkedIn conversations by checking source quality, recency, and campaign fit. Used automatically by the campaign orchestrator.
 metadata:
   author: sunny
-  version: "6.0.0-rc.26"
+  version: "6.0.0-rc.27"
 ---
 
 # LinkedIn opportunity discovery

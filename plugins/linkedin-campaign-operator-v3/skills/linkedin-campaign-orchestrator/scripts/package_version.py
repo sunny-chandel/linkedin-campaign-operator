@@ -1,3 +1,3 @@
 """Single source of truth for the installed campaign runtime version."""
 
-CURRENT_VERSION = "6.0.0-rc.26"
+CURRENT_VERSION = "6.0.0-rc.27"

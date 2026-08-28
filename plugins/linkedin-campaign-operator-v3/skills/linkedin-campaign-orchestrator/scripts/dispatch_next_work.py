@@ -215,7 +215,7 @@ def automatic_continuation(
         "dedupe_key": f"linkedin-campaign-continuation:{campaign_id}",
         "expiry_policy": "stable-recurring-until-target-or-stop-signal",
         "renew_existing_automation": False,
-        "recurrence_cron": str(configured.get("recurrence_cron") or "*/15 * * * *"),
+        "recurrence_cron": str(configured.get("recurrence_cron") or "0 * * * *"),
         "update_schedule_for_next_wake": False,
         "campaign_completion_or_stop_signal_required_to_end": True,
         "host_adapter_priority": [str(adapter) for adapter in adapters],

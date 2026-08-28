@@ -396,8 +396,8 @@ def main() -> int:
     continuation = dispatcher.get("continuation", {})
     if continuation.get("schedule_kind") != "recurring-cron":
         errors.append("campaign-state.json continuation must use a recurring cron schedule")
-    if continuation.get("recurrence_cron") != "*/15 * * * *":
-        errors.append("campaign-state.json continuation recurring cron must run every 15 minutes")
+    if continuation.get("recurrence_cron") != "0 * * * *":
+        errors.append("campaign-state.json continuation recurring cron must run hourly")
     if continuation.get("expiry_policy") != "stable-recurring-until-target-or-stop-signal":
         errors.append("campaign-state.json continuation must remain recurring until completion or stop")
     if continuation.get("renew_existing_automation") is not False:

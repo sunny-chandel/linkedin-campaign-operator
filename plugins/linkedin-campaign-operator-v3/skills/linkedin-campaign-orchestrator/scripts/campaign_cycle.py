@@ -316,7 +316,7 @@ def main() -> int:
             next_wake_at = decision.get("predicted_next_opportunity")
             control_script = str(script_dir / "runtime_control.py")
             due_script = str(script_dir / "continuation_due.py")
-            recurrence_cron = "*/15 * * * *"
+            recurrence_cron = "0 * * * *"
             report["next_action"] = {
                 "kind": "wait-for-recorded-trigger",
                 "next_wake_at": next_wake_at,
