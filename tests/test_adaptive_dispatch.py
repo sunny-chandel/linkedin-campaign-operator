@@ -248,7 +248,7 @@ class V6RuntimeTests(unittest.TestCase):
             NOW.isoformat(),
             "--activate-from-owner-start",
         )
-        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.27")
+        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.28")
         self.assertFalse(initialized["campaign_consent"]["renewal_required"])
         verification = initialized["profile_verification"]
         self.assertEqual(verification["device_id"], "browser-1-id")
@@ -359,6 +359,16 @@ class V6RuntimeTests(unittest.TestCase):
                 "stage_history": [],
             }
         )
+        state["dispatcher"]["continuation"].update(
+            {
+                "action": "arm-or-update-single-host-wake",
+                "host_adapter_priority": ["host-native-scheduled-task"],
+                "resume_instruction": "legacy continuation prompt",
+                "requested_at": NOW.isoformat(),
+                "last_failed_at": NOW.isoformat(),
+                "failed_adapters": ["host-native-scheduled-wake"],
+            }
+        )
         write_json(state_dir / "campaign-state.json", state)
         (state_dir / "consent-record.json").unlink()
         write_json(
@@ -389,8 +399,19 @@ class V6RuntimeTests(unittest.TestCase):
         for key in ("plugin_version", "lifecycle", "next_trigger", "profile_binding", "stage_history"):
             self.assertNotIn(key, migrated_state)
         self.assertEqual(
-            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.27"
+            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.28"
         )
+        migrated_continuation = migrated_state["dispatcher"]["continuation"]
+        self.assertEqual(migrated_continuation["failed_adapters"], [])
+        for legacy_key in (
+            "action",
+            "host_adapter_priority",
+            "state_dir",
+            "resume_instruction",
+            "requested_at",
+            "last_failed_at",
+        ):
+            self.assertNotIn(legacy_key, migrated_continuation)
         self.assertNotIn("tasks", read_json(state_dir / "work-queue.json"))
 
     def test_six_package_completion_rejects_an_undersized_research_pool(self) -> None:
@@ -836,6 +857,16 @@ class V6RuntimeTests(unittest.TestCase):
         self.assertFalse(stored_continuation["renew_existing_automation"])
         self.assertFalse(stored_continuation["renewal_due_before_expiry"])
         self.assertFalse(stored_continuation["update_schedule_for_next_wake"])
+        self.assertEqual(stored_continuation["failed_adapters"], [])
+        for legacy_key in (
+            "action",
+            "host_adapter_priority",
+            "state_dir",
+            "resume_instruction",
+            "requested_at",
+            "last_failed_at",
+        ):
+            self.assertNotIn(legacy_key, stored_continuation)
 
     def test_recurring_continuation_due_gate_is_time_and_lease_aware(self) -> None:
         temporary, state_dir = self.make_campaign()

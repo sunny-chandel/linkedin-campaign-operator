@@ -3,7 +3,7 @@ name: linkedin-publishing-operations
 description: Keep a ready collection of LinkedIn posts, maintain variety and spacing, confirm published results, schedule reviews, and catch up delayed work. Used automatically by the campaign orchestrator.
 metadata:
   author: sunny
-  version: "6.0.0-rc.27"
+  version: "6.0.0-rc.28"
 ---
 
 # LinkedIn publishing operations

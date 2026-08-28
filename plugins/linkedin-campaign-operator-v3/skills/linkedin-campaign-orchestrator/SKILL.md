@@ -3,7 +3,7 @@ name: linkedin-campaign-orchestrator
 description: Run a durable LinkedIn campaign workspace for research, content, scheduling, measurement, and recovery. Use this as the only public entry point.
 metadata:
   author: sunny
-  version: "6.0.0-rc.27"
+  version: "6.0.0-rc.28"
 ---
 
 # LinkedIn campaign orchestrator

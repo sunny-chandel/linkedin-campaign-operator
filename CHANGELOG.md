@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.0.0-rc.28 — Clean Recurring State
+
+- Removes legacy one-time scheduling keys when a recurring continuation is migrated or armed.
+- Clears obsolete failed-adapter history after the recurring routine is successfully recorded.
+- Keeps durable continuation context compact and internally unambiguous.
+
 ## 6.0.0-rc.27 — Host-Supported Hourly Continuation
 
 - Uses the fastest persistent cadence accepted by Claude Desktop Routines: hourly.

@@ -501,6 +501,15 @@ def main() -> int:
         continuation.pop("fixed_expiry_at", None)
         continuation.pop("owner_input_required", None)
         continuation.pop("campaign_completion_or_owner_stop_required_to_end", None)
+        for legacy_key in (
+            "action",
+            "host_adapter_priority",
+            "state_dir",
+            "resume_instruction",
+            "requested_at",
+            "last_failed_at",
+        ):
+            continuation.pop(legacy_key, None)
         continuation.update(
             {
                 "mode": "automatic",
@@ -513,6 +522,7 @@ def main() -> int:
                 "renewal_due_before_expiry": False,
                 "update_schedule_for_next_wake": False,
                 "campaign_completion_or_stop_signal_required_to_end": True,
+                "failed_adapters": [],
             }
         )
         browser_binding = state.setdefault("dispatcher", {}).setdefault("browser_binding", {})

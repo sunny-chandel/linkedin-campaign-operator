@@ -373,6 +373,17 @@ def continuation_event(args, state_dir: Path, state: dict[str, Any], now) -> dic
                 "last_error": None,
             }
         )
+        if recurring:
+            for legacy_key in (
+                "action",
+                "host_adapter_priority",
+                "state_dir",
+                "resume_instruction",
+                "requested_at",
+                "last_failed_at",
+            ):
+                continuation.pop(legacy_key, None)
+            continuation["failed_adapters"] = []
     elif args.event == "woke":
         continuation.update(
             {
