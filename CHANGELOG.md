@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.0.0-rc.17 — Direct Verified Browser Binding
+
+- Uses a verified Chrome device ID from the current start message or saved campaign binding directly in browser calls.
+- Skips connected-browser discovery when that stable ID is available, avoiding the host picker that discovery requires.
+- Preserves the rc.16 durable checkpoint, completion, redispatch, and recorded-wait flow.
+
 ## 6.0.0-rc.16 — Deterministic Browser and Task Transitions
 
 - Added exact runtime commands to each dispatched task for checkpoints, durable completion, and immediate redispatch.

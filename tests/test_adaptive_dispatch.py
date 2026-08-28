@@ -237,7 +237,7 @@ class V6RuntimeTests(unittest.TestCase):
             NOW.isoformat(),
             "--activate-from-owner-start",
         )
-        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.16")
+        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.17")
         self.assertFalse(initialized["campaign_consent"]["renewal_required"])
         config = read_json(state_dir / "campaign-config.json")
         self.assertEqual(config["target"]["metric_a"]["goal_mode"], "increase")
@@ -348,7 +348,7 @@ class V6RuntimeTests(unittest.TestCase):
         for key in ("plugin_version", "lifecycle", "next_trigger", "profile_binding", "stage_history"):
             self.assertNotIn(key, migrated_state)
         self.assertEqual(
-            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.16"
+            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.17"
         )
         self.assertNotIn("tasks", read_json(state_dir / "work-queue.json"))
 

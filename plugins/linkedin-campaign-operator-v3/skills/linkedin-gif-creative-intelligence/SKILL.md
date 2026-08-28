@@ -3,7 +3,7 @@ name: linkedin-gif-creative-intelligence
 description: Study effective LinkedIn GIFs, identify useful visual and motion patterns, choose a strong reference for each post, and improve the campaign's GIF guidance.
 metadata:
   author: sunny
-  version: "6.0.0-rc.16"
+  version: "6.0.0-rc.17"
 ---
 
 # LinkedIn GIF creative intelligence
