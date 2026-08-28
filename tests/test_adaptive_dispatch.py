@@ -237,7 +237,7 @@ class V6RuntimeTests(unittest.TestCase):
             NOW.isoformat(),
             "--activate-from-owner-start",
         )
-        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.18")
+        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.19")
         self.assertFalse(initialized["campaign_consent"]["renewal_required"])
         config = read_json(state_dir / "campaign-config.json")
         self.assertEqual(config["target"]["metric_a"]["goal_mode"], "increase")
@@ -348,7 +348,7 @@ class V6RuntimeTests(unittest.TestCase):
         for key in ("plugin_version", "lifecycle", "next_trigger", "profile_binding", "stage_history"):
             self.assertNotIn(key, migrated_state)
         self.assertEqual(
-            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.18"
+            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.19"
         )
         self.assertNotIn("tasks", read_json(state_dir / "work-queue.json"))
 
@@ -663,6 +663,68 @@ class V6RuntimeTests(unittest.TestCase):
         }]})
         _, deferred = run_json("python3", ORCHESTRATOR / "select_publish_time.py", path)
         self.assertEqual(deferred["decision"], "continue-investigation")
+
+    def test_completed_health_refresh_settles_timed_publication_work_into_one_wait(self) -> None:
+        temporary, state_dir = self.make_campaign()
+        self.addCleanup(temporary.cleanup)
+        seed_pipeline(state_dir)
+        executor = read_json(state_dir / "external-executor.json")
+        executor.update({
+            "status": "unconfigured",
+            "declared_scopes": [],
+            "supported_action_classes": [],
+            "verification": {
+                "status": "not-run",
+                "identity_verified": False,
+                "write_scope_verified": False,
+                "read_scope_verified": False,
+            },
+        })
+        executor.pop("test_fixture", None)
+        write_json(state_dir / "external-executor.json", executor)
+        wake_at = NOW + timedelta(hours=2)
+        pipeline = read_json(state_dir / "content-pipeline.json")
+        for item in pipeline["packages"]:
+            item["publication_decision"] = {
+                "decision": "continue-investigation",
+                "attempt": 1,
+                "selected_at": NOW.isoformat(),
+                "next_evaluation_at": wake_at.isoformat(),
+            }
+        write_json(state_dir / "content-pipeline.json", pipeline)
+        day = NOW.astimezone(ZoneInfo("Asia/Kolkata")).date().isoformat()
+        health_task_id = f"opportunity-health-recovery-{day}"
+        queue = read_json(state_dir / "work-queue.json")
+        queue["items"] = [
+            {
+                "task_id": health_task_id,
+                "task_type": "opportunity-health-evaluation",
+                "lane": "offline",
+                "status": "leased",
+                "ready": True,
+                "requires_linkedin": False,
+                "lease_id": "stale-lease-after-completion",
+                "completed_at": NOW.isoformat(),
+            },
+        ]
+        write_json(state_dir / "work-queue.json", queue)
+        for offset in (0, 1):
+            _, decision = run_json(
+                "python3", ORCHESTRATOR / "dispatch_next_work.py", state_dir,
+                "--now", (NOW + timedelta(minutes=offset)).isoformat(), "--record",
+            )
+            self.assertEqual(decision["decision"], "wait")
+            self.assertEqual(
+                datetime.fromisoformat(decision["predicted_next_opportunity"]),
+                wake_at,
+            )
+            self.assertNotIn("task", decision)
+        stored_health = next(
+            item for item in read_json(state_dir / "work-queue.json")["items"]
+            if item["task_id"] == health_task_id
+        )
+        self.assertEqual(stored_health["status"], "completed")
+        self.assertNotIn("lease_id", stored_health)
 
     def test_ready_package_requires_scored_decision_before_live_execution(self) -> None:
         temporary, state_dir = self.make_campaign()

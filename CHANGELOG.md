@@ -1,5 +1,12 @@
 # Changelog
 
+## 6.0.0-rc.19 — Single Durable Wait After Health Refresh
+
+- Treat a deferred publication decision's `next_evaluation_at` as a first-class wake so both its publication task and evaluation task leave the immediate reconciliation set.
+- Restore a completed health task if a stale lease is encountered and prevent the dispatcher from re-leasing the same completed task.
+- Reuse the earliest durable wake, or the configured automatic heartbeat when no timed task exists, after the daily health refresh finds no executable work.
+- Add a regression test that dispatches the same completed-health state twice and verifies a stable wait with no task lease.
+
 ## 6.0.0-rc.18 — Complete Inventory Before Transition
 
 - Validates the configured topic-candidate, brief, and ready-package counts inside the durable completion command.

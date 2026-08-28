@@ -248,6 +248,12 @@ def future_wake_candidates(
         status = item.get("status")
         next_eligible = parse_time(item.get("next_eligible_at"))
         due_at = parse_time(item.get("due_at"))
+        decision_evidence = item.get("decision_evidence", {})
+        next_evaluation_at = (
+            parse_time(decision_evidence.get("next_evaluation_at"))
+            if isinstance(decision_evidence, dict)
+            else None
+        )
         requires_linkedin = item.get("requires_linkedin") is True or item.get("lane") == "linkedin"
         if (
             status in UNFINISHED_STATUSES
@@ -275,6 +281,19 @@ def future_wake_candidates(
                 {
                     "at": due_at,
                     "trigger": f"task-due:{item.get('task_id')}",
+                    "task_id": item.get("task_id"),
+                }
+            )
+        elif (
+            status in UNFINISHED_STATUSES
+            and item.get("ready") is False
+            and next_evaluation_at
+            and next_evaluation_at > now_dt
+        ):
+            wakes.append(
+                {
+                    "at": next_evaluation_at,
+                    "trigger": f"publication-decision-reevaluation:{item.get('task_id')}",
                     "task_id": item.get("task_id"),
                 }
             )
@@ -921,25 +940,87 @@ def main() -> int:
         elif pending_count:
             offline_available = dispatcher.get("offline_lane", "ready") != "blocked"
             if offline_available:
-                recovery_task = {
-                    "task_id": f"opportunity-health-recovery-{current_budget_day}",
-                    "task_type": "opportunity-health-evaluation",
-                    "lane": "offline",
-                    "priority": 7,
-                    "requires_linkedin": False,
-                }
-                recovery_task["dispatch_contract"] = dispatch_contract(
-                    recovery_task, consent, state, executor
+                recovery_task_id = f"opportunity-health-recovery-{current_budget_day}"
+                completed_recovery = next(
+                    (
+                        item
+                        for item in items
+                        if isinstance(item, dict)
+                        and item.get("task_id") == recovery_task_id
+                        and (item.get("status") == "completed" or item.get("completed_at"))
+                    ),
+                    None,
                 )
-                result = {
-                    "valid": True,
-                    "decision": "execute",
-                    "decided_at": now,
-                    "task": recovery_task,
-                    "unfinished_work_count": pending_count,
-                    "rejected": rejected,
-                    "reason": "unfinished work is ineligible; refresh health and exact task evidence without a reconciliation loop",
-                }
+                if completed_recovery is not None:
+                    completed_recovery["status"] = "completed"
+                    completed_recovery["next_eligible_at"] = None
+                    for lease_key in (
+                        "lease_id",
+                        "lease_owner",
+                        "leased_at",
+                        "lease_expires_at",
+                        "last_heartbeat_at",
+                    ):
+                        completed_recovery.pop(lease_key, None)
+                    if future_wakes:
+                        wake_at = iso_time(future_wakes[0]["at"])
+                        wake_trigger = str(future_wakes[0]["trigger"])
+                        evidence = (
+                            "the daily health refresh is complete and the remaining work is "
+                            "time-gated; reuse the earliest durable wake"
+                        )
+                    else:
+                        continuation_config = config.get("adaptive_dispatch", {}).get(
+                            "continuation", {}
+                        )
+                        if not isinstance(continuation_config, dict):
+                            continuation_config = {}
+                        fallback_minutes = int(
+                            continuation_config.get("fallback_heartbeat_minutes", 15) or 15
+                        )
+                        fallback_minutes = max(1, fallback_minutes)
+                        wake_at = iso_time(now_dt + timedelta(minutes=fallback_minutes))
+                        wake_trigger = "fallback-heartbeat-after-health-refresh"
+                        evidence = (
+                            "the daily health refresh is complete and no task became executable; "
+                            "resume on the configured automatic heartbeat"
+                        )
+                    result = {
+                        "valid": True,
+                        "decision": "wait",
+                        "decided_at": now,
+                        "unfinished_work_count": pending_count,
+                        "deferred_work_count": len(deferred_task_ids),
+                        "evidence": evidence,
+                        "predicted_next_opportunity": wake_at,
+                        "wake_trigger": wake_trigger,
+                        "continuation": automatic_continuation(
+                            state_dir,
+                            config,
+                            wake_at,
+                            wake_trigger,
+                        ),
+                    }
+                else:
+                    recovery_task = {
+                        "task_id": recovery_task_id,
+                        "task_type": "opportunity-health-evaluation",
+                        "lane": "offline",
+                        "priority": 7,
+                        "requires_linkedin": False,
+                    }
+                    recovery_task["dispatch_contract"] = dispatch_contract(
+                        recovery_task, consent, state, executor
+                    )
+                    result = {
+                        "valid": True,
+                        "decision": "execute",
+                        "decided_at": now,
+                        "task": recovery_task,
+                        "unfinished_work_count": pending_count,
+                        "rejected": rejected,
+                        "reason": "unfinished work is ineligible; refresh health and exact task evidence without a reconciliation loop",
+                    }
             else:
                 result = {
                     "valid": True,

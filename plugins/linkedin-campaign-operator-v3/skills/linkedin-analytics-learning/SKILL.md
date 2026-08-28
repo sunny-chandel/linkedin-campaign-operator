@@ -3,7 +3,7 @@ name: linkedin-analytics-learning
 description: Review LinkedIn campaign results, compare experiments, and save useful lessons for future work. Use for daily and weekly reviews.
 metadata:
   author: sunny
-  version: "6.0.0-rc.18"
+  version: "6.0.0-rc.19"
 ---
 
 # LinkedIn analytics and learning
