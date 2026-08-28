@@ -1,9 +1,9 @@
 ---
 name: linkedin-gif-creative-intelligence
-description: Observe high-performing LinkedIn GIF creators, measure their visual and motion patterns, select the strongest reference per post, and maintain a self-growing GIF rule library. Use during creator observation and before GIF production.
+description: Study effective LinkedIn GIFs, identify useful visual and motion patterns, choose a strong reference for each post, and improve the campaign's GIF guidance.
 metadata:
   author: sunny
-  version: "6.0.0-rc.10"
+  version: "6.0.0-rc.11"
 ---
 
 # LinkedIn GIF creative intelligence

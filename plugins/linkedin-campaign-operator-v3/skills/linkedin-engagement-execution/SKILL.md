@@ -1,9 +1,9 @@
 ---
 name: linkedin-engagement-execution
-description: Prepare canonical LinkedIn engagement bursts under rolling 24-hour quotas, official-API coverage, idempotent evidence, and action-debt accounting. Internal child of linkedin-campaign-orchestrator.
+description: Prepare a checked batch of relevant LinkedIn engagement work that follows campaign limits and avoids repeats. Used automatically by the campaign orchestrator.
 metadata:
   author: sunny
-  version: "6.0.0-rc.10"
+  version: "6.0.0-rc.11"
 ---
 
 # LinkedIn engagement execution

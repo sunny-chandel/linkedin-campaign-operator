@@ -32,7 +32,7 @@ def test_parent_and_twelve_children_share_the_rc_version() -> None:
         metadata = frontmatter(skill_file)
         assert metadata["name"] == skill_file.parent.name
         assert metadata["description"]
-        assert metadata["metadata"]["version"] == "6.0.0-rc.10"
+        assert metadata["metadata"]["version"] == "6.0.0-rc.11"
         if metadata["name"] != "linkedin-campaign-orchestrator":
             assert f"`{metadata['name']}`" in parent_text
 
@@ -41,7 +41,7 @@ def test_claude_and_codex_manifests_are_aligned() -> None:
     claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
     codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
     assert claude["name"] == codex["name"] == PLUGIN.name
-    assert claude["version"] == codex["version"] == "6.0.0-rc.10"
+    assert claude["version"] == codex["version"] == "6.0.0-rc.11"
     assert claude["license"] == codex["license"] == "MIT"
     assert claude["homepage"] == codex["homepage"] == PUBLIC_SITE
     assert codex["skills"] == "./skills/"
@@ -82,6 +82,36 @@ def test_routine_user_updates_use_plain_language() -> None:
     assert "Use plain, short progress updates" in text
     assert "Keep implementation terms internal" in text
     assert "the single next setup step in one concise message" in text
+
+
+def test_public_descriptions_are_plain_language() -> None:
+    marketplace = json.loads((ROOT / ".claude-plugin" / "marketplace.json").read_text())
+    claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
+    codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
+    descriptions = [
+        marketplace["description"],
+        marketplace["plugins"][0]["description"],
+        claude["description"],
+        codex["description"],
+        codex["interface"]["shortDescription"],
+        codex["interface"]["longDescription"],
+        *(frontmatter(path)["description"] for path in sorted(SKILLS.glob("*/SKILL.md"))),
+    ]
+    internal_terms = {
+        "160",
+        "200",
+        "daemon",
+        "dispatcher",
+        "idempotency",
+        "lease",
+        "mutation",
+        "oauth",
+        "outbox",
+        "launchagent",
+    }
+    for description in descriptions:
+        lowered = description.lower()
+        assert not any(term in lowered for term in internal_terms), description
 
 
 def test_claude_runtime_has_no_codex_dependency() -> None:

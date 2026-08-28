@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.0.0-rc.11 — Plain-Language Public Plugin Surfaces
+
+- Rewrote the marketplace card, plugin summaries, and every skill summary in short, calm language.
+- Removed internal implementation terms and activity counts from public descriptions while preserving the underlying campaign behavior.
+- Added a release check that prevents technical wording from returning to public plugin descriptions.
+
 ## 6.0.0-rc.10 — Plain-Language Claude Code Experience
 
 - Rewrote the public Claude Code role and connected-service boundary in calm, plain language.

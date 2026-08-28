@@ -1,9 +1,9 @@
 ---
 name: linkedin-engagement-planning
-description: Build and validate adaptive LinkedIn action queues with qualified-growth scoring, qualification, cooldown, deduplication, and regional relevance. Use before any proactive action cluster.
+description: Build a relevant LinkedIn engagement plan by checking quality, timing, prior contact, duplicates, and regional fit before preparing any activity.
 metadata:
   author: sunny
-  version: "6.0.0-rc.10"
+  version: "6.0.0-rc.11"
 ---
 
 # LinkedIn engagement planning

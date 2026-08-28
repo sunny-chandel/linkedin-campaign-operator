@@ -345,9 +345,9 @@ def main() -> int:
         state = load_object(state_path)
         state["schema_version"] = "2.0"
         runtime_instructions = state.setdefault("runtime_instructions", {})
-        runtime_instructions["active_version"] = "6.0.0-rc.10"
-        runtime_instructions["detected_version"] = "6.0.0-rc.10"
-        runtime_instructions["session_version"] = "6.0.0-rc.10"
+        runtime_instructions["active_version"] = "6.0.0-rc.11"
+        runtime_instructions["detected_version"] = "6.0.0-rc.11"
+        runtime_instructions["session_version"] = "6.0.0-rc.11"
         old_scaling = state.get("engagement_scaling", {})
         if not isinstance(old_scaling, dict):
             old_scaling = {}
@@ -807,7 +807,7 @@ def main() -> int:
     algorithm_defaults = {
         "schema_version": "2.0",
         "campaign_id": campaign_id,
-        "version": "6.0.0-rc.10",
+        "version": "6.0.0-rc.11",
         "strategy_weights": {"proven": 70, "promising": 20, "exploration": 10},
         "scheduling_models": {
             "publication_timing": {"mode": "evidence-adaptive", "observations": []},
@@ -831,7 +831,7 @@ def main() -> int:
         algorithm = load_object(algorithm_path)
         merged_algorithm, algorithm_updated = merge_missing(algorithm, algorithm_defaults)
         merged_algorithm["schema_version"] = "2.0"
-        merged_algorithm["version"] = "6.0.0-rc.10"
+        merged_algorithm["version"] = "6.0.0-rc.11"
         if algorithm_updated or merged_algorithm != algorithm:
             atomic_write_json(algorithm_path, merged_algorithm)
     else:
@@ -952,7 +952,7 @@ def main() -> int:
             {
                 "migrated": str(state_dir),
                 "schema_version": "2.0",
-                "plugin_version": "6.0.0-rc.10",
+                "plugin_version": "6.0.0-rc.11",
                 "config_updated": changed,
                 "state_updated": state_updated,
                 "consent_updated": consent_updated,

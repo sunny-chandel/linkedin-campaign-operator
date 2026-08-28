@@ -1,7 +1,7 @@
 {
   "name": "linkedin-campaign-operator-v3",
-  "version": "6.0.0-rc.10",
-  "description": "A stateful LinkedIn operating system with rolling 24-hour action and publishing contracts, canonical opportunities, regional intelligence, analytics, and runtime repair.",
+  "version": "6.0.0-rc.11",
+  "description": "A persistent LinkedIn campaign workspace for research, writing, visual creation, planning, measurement, and reliable continuation.",
   "author": {
     "name": "Sunny Chandel",
     "url": "https://github.com/sunny-chandel"
@@ -21,8 +21,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "LinkedIn Campaign Operator",
-    "shortDescription": "Run your LinkedIn growth system inside an AI agent.",
-    "longDescription": "Maintain rolling engagement and publishing output, research and produce a diversified six-post portfolio, route premium features, learn from analytics, repair capabilities, and continue from persistent campaign state.",
+    "shortDescription": "Plan and manage your LinkedIn campaign in one workspace.",
+    "longDescription": "Research topics, draft posts and responses, create visual assets, plan activity, review results, and continue from saved progress.",
     "developerName": "Sunny Chandel",
     "category": "Productivity",
     "capabilities": [

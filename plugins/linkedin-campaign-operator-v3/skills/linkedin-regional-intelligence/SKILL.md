@@ -1,9 +1,9 @@
 ---
 name: linkedin-regional-intelligence
-description: Allocate the six-post LinkedIn portfolio across core and exploratory regions using demographic observations, time-zone opportunity, performance, and spillover learning. Internal child of linkedin-campaign-orchestrator.
+description: Balance LinkedIn posts across regions using audience fit, time zones, and past results. Used automatically by the campaign orchestrator.
 metadata:
   author: sunny
-  version: "6.0.0-rc.10"
+  version: "6.0.0-rc.11"
 ---
 
 # LinkedIn regional intelligence

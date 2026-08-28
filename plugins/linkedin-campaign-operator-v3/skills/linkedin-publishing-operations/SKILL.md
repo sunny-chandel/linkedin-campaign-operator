@@ -1,9 +1,9 @@
 ---
 name: linkedin-publishing-operations
-description: Maintain the six-package rolling LinkedIn inventory, enforce portfolio diversity and spacing, execute and verify publications, schedule analytics, and recover post debt. Internal child of linkedin-campaign-orchestrator.
+description: Keep a ready collection of LinkedIn posts, maintain variety and spacing, confirm published results, schedule reviews, and catch up delayed work. Used automatically by the campaign orchestrator.
 metadata:
   author: sunny
-  version: "6.0.0-rc.10"
+  version: "6.0.0-rc.11"
 ---
 
 # LinkedIn publishing operations
