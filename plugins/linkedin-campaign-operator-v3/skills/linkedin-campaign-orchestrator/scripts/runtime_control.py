@@ -423,6 +423,31 @@ def task_event(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, A
     elif args.event == "complete":
         if item.get("status") == "completed":
             return {"valid": True, "idempotent": True, "task": item}
+        if item.get("task_type") == "six-package-replenishment":
+            pipeline = load_object(state_dir / "content-pipeline.json")
+            topic_candidates = pipeline.get("topic_candidates", [])
+            briefs = pipeline.get("briefs", [])
+            packages = pipeline.get("packages", [])
+            if not all(isinstance(values, list) for values in (topic_candidates, briefs, packages)):
+                raise ValueError("content pipeline candidates, briefs, and packages must be arrays")
+            topic_target = int(item.get("topic_candidate_target", 12) or 12)
+            package_target = int(item.get("required_package_count", item.get("inventory_target", 6)) or 6)
+            ready_packages = [
+                package
+                for package in packages
+                if isinstance(package, dict) and package.get("status") in {"ready", "validated"}
+            ]
+            missing_counts = {
+                "topic_candidates": max(0, topic_target - len(topic_candidates)),
+                "briefs": max(0, package_target - len(briefs)),
+                "ready_packages": max(0, package_target - len(ready_packages)),
+            }
+            if any(missing_counts.values()):
+                raise ValueError(
+                    "six-package completion requires the full configured pipeline before closing: "
+                    f"need {topic_target} topic candidates, {package_target} briefs, and "
+                    f"{package_target} ready packages; missing {missing_counts}"
+                )
         if item.get("task_type") in {"publication-opportunity", "publication-execution"}:
             region = payload.get("region") or item.get("region")
             required = {"post_id", "post_url"}

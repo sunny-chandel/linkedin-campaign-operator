@@ -3,7 +3,7 @@ name: linkedin-premium-router
 description: Review active LinkedIn subscription features and plan how to use included benefits within the campaign. Use for setup and weekly feature reviews.
 metadata:
   author: sunny
-  version: "6.0.0-rc.17"
+  version: "6.0.0-rc.18"
 ---
 
 # LinkedIn subscription optimizer

@@ -237,7 +237,7 @@ class V6RuntimeTests(unittest.TestCase):
             NOW.isoformat(),
             "--activate-from-owner-start",
         )
-        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.17")
+        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.18")
         self.assertFalse(initialized["campaign_consent"]["renewal_required"])
         config = read_json(state_dir / "campaign-config.json")
         self.assertEqual(config["target"]["metric_a"]["goal_mode"], "increase")
@@ -348,9 +348,60 @@ class V6RuntimeTests(unittest.TestCase):
         for key in ("plugin_version", "lifecycle", "next_trigger", "profile_binding", "stage_history"):
             self.assertNotIn(key, migrated_state)
         self.assertEqual(
-            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.17"
+            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.18"
         )
         self.assertNotIn("tasks", read_json(state_dir / "work-queue.json"))
+
+    def test_six_package_completion_rejects_an_undersized_research_pool(self) -> None:
+        temporary, state_dir = self.make_campaign()
+        self.addCleanup(temporary.cleanup)
+        _, cycle = run_json(
+            "python3",
+            ORCHESTRATOR / "campaign_cycle.py",
+            state_dir,
+            "--now",
+            NOW.isoformat(),
+        )
+        queue = read_json(state_dir / "work-queue.json")
+        task_id = next(
+            item["task_id"]
+            for item in queue["items"]
+            if item["task_type"] == "six-package-replenishment"
+        )
+        failed, result = run_json(
+            "python3",
+            ORCHESTRATOR / "runtime_control.py",
+            state_dir,
+            "--now",
+            NOW.isoformat(),
+            "task-event",
+            "--task-id",
+            task_id,
+            "--event",
+            "complete",
+            "--payload",
+            json.dumps({"validation": "passed"}),
+            check=False,
+        )
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertIn("need 12 topic candidates, 6 briefs, and 6 ready packages", result["error"])
+        seed_pipeline(state_dir)
+        _, completed = run_json(
+            "python3",
+            ORCHESTRATOR / "runtime_control.py",
+            state_dir,
+            "--now",
+            NOW.isoformat(),
+            "task-event",
+            "--task-id",
+            task_id,
+            "--event",
+            "complete",
+            "--payload",
+            json.dumps({"validation": "passed"}),
+        )
+        self.assertEqual(completed["task"]["status"], "completed")
+        self.assertIsNotNone(completed["task"]["completed_at"])
 
     def test_rolling_output_uses_canonical_evidence_across_rollover(self) -> None:
         temporary, state_dir = self.make_campaign()

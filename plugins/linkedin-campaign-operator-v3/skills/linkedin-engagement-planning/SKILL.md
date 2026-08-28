@@ -3,7 +3,7 @@ name: linkedin-engagement-planning
 description: Build a relevant LinkedIn engagement plan by checking quality, timing, prior contact, duplicates, and regional fit before preparing any activity.
 metadata:
   author: sunny
-  version: "6.0.0-rc.17"
+  version: "6.0.0-rc.18"
 ---
 
 # LinkedIn engagement planning

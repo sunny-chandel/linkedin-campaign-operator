@@ -32,7 +32,7 @@ def test_parent_and_twelve_children_share_the_rc_version() -> None:
         metadata = frontmatter(skill_file)
         assert metadata["name"] == skill_file.parent.name
         assert metadata["description"]
-        assert metadata["metadata"]["version"] == "6.0.0-rc.17"
+        assert metadata["metadata"]["version"] == "6.0.0-rc.18"
         if metadata["name"] != "linkedin-campaign-orchestrator":
             assert f"`{metadata['name']}`" in parent_text
 
@@ -41,7 +41,7 @@ def test_claude_and_codex_manifests_are_aligned() -> None:
     claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
     codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
     assert claude["name"] == codex["name"] == PLUGIN.name
-    assert claude["version"] == codex["version"] == "6.0.0-rc.17"
+    assert claude["version"] == codex["version"] == "6.0.0-rc.18"
     assert claude["license"] == codex["license"] == "MIT"
     assert claude["homepage"] == codex["homepage"] == PUBLIC_SITE
     assert codex["skills"] == "./skills/"
@@ -166,6 +166,13 @@ def test_orchestrator_uses_one_deterministic_campaign_cycle() -> None:
     assert "do not answer with a terminal status while it returns executable work" in text
     assert "completion_command_template" in text
     assert "do not edit queue or stage status directly" in text
+
+
+def test_content_completion_uses_task_inventory_targets() -> None:
+    text = (SKILLS / "linkedin-content-production" / "SKILL.md").read_text()
+    assert "read `topic_candidate_target` and `required_package_count`" in text
+    assert "before running the completion command" in text
+    assert "returns the exact missing counts" in text
 
 
 def test_campaign_pacing_is_configured_and_routes_are_explicit() -> None:

@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.0.0-rc.18 — Complete Inventory Before Transition
+
+- Validates the configured topic-candidate, brief, and ready-package counts inside the durable completion command.
+- Returns exact missing counts when content replenishment is incomplete instead of letting the audit silently reopen it.
+- Makes the production skill read task-provided inventory targets before it begins parallel research.
+
 ## 6.0.0-rc.17 — Direct Verified Browser Binding
 
 - Uses a verified Chrome device ID from the current start message or saved campaign binding directly in browser calls.

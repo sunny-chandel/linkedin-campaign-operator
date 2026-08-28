@@ -3,7 +3,7 @@ name: linkedin-content-production
 description: Turn verified research into ready-to-use LinkedIn captions, response drafts, and Claude Design assets that match the campaign voice and visual style.
 metadata:
   author: sunny
-  version: "6.0.0-rc.17"
+  version: "6.0.0-rc.18"
 ---
 
 # LinkedIn content production
@@ -11,6 +11,8 @@ metadata:
 Create publication-ready packages from completed research briefs. Read [voice and design](references/voice-and-design.md) before drafting.
 
 Inherit the campaign configuration and current production task. Save the caption, design source, export, watermark validation, and final package separately so a restart resumes from the last verified artifact.
+
+For `six-package-replenishment`, read `topic_candidate_target` and `required_package_count` from the returned task. Save at least that many distinct topic candidates, then the required briefs and ready packages, before running the completion command. The runtime validates all three counts and returns the exact missing counts when replenishment is incomplete.
 
 Maintain the ready-package inventory configured by the parent. Replenish only the missing inventory and avoid stockpiling stale work. If a brief fails validation, return to `linkedin-content-research`, repair the missing fields, and resume this package.
 
