@@ -29,6 +29,9 @@ def main() -> int:
     parser.add_argument("--campaign-id", default=DEFAULT_CAMPAIGN_ID)
     parser.add_argument("--owner-name", required=True, help="LinkedIn profile display name")
     parser.add_argument("--profile-url", required=True, help="Full LinkedIn profile URL")
+    parser.add_argument("--browser-device-id")
+    parser.add_argument("--browser-device-label")
+    parser.add_argument("--browser-platform")
     parser.add_argument("--timezone", default="UTC", help="IANA timezone, for example Europe/London")
     parser.add_argument("--followers-baseline", type=int)
     parser.add_argument("--connections-baseline", type=int)
@@ -70,6 +73,8 @@ def main() -> int:
         parser.error("growth goals must be positive")
     if args.duration_days is not None and args.duration_days <= 0:
         parser.error("--duration-days must be positive")
+    if (args.browser_device_label or args.browser_platform) and not args.browser_device_id:
+        parser.error("--browser-device-label and --browser-platform require --browser-device-id")
 
     state_dir = args.state_dir.expanduser().resolve()
     if state_dir.exists() and any(state_dir.iterdir()):
@@ -162,8 +167,20 @@ def main() -> int:
             data["data_directory"] = str(state_dir)
         if output_name == "campaign-state.json":
             data["updated_at"] = now
-            data["dispatcher"]["browser_binding"]["expected_profile_url"] = args.profile_url
-            data["dispatcher"]["browser_binding"]["expected_profile_name"] = args.owner_name
+            binding = data["dispatcher"]["browser_binding"]
+            binding["expected_profile_url"] = args.profile_url
+            binding["expected_profile_name"] = args.owner_name
+            if args.browser_device_id:
+                binding.update(
+                    {
+                        "device_id": args.browser_device_id,
+                        "device_label": args.browser_device_label or "verified-start-device",
+                        "platform": args.browser_platform or "current-host",
+                        "identity_verified": False,
+                        "status": "verification-pending",
+                        "selection_policy": "reuse-pinned-device-directly",
+                    }
+                )
         if output_name == "external-executor.json":
             data["campaign_id"] = args.campaign_id
             accounts = data.get("credential_source", {}).get("keychain", {}).get("accounts", {})
@@ -381,6 +398,21 @@ def main() -> int:
             return completed.returncode
         activation = json.loads(completed.stdout)
 
+    profile_verification = None
+    if args.browser_device_id:
+        profile_verification = {
+            "required": True,
+            "device_id": args.browser_device_id,
+            "device_label": args.browser_device_label or "verified-start-device",
+            "platform": args.browser_platform or "current-host",
+            "expected_profile_url": args.profile_url,
+            "expected_profile_name": args.owner_name,
+            "selection": "use-device-id-directly",
+            "connected_browser_discovery_required": False,
+            "setup_input_required": False,
+            "owner_reply_required": False,
+            "on_identity_match": "run runtime_control.py browser-bind with this device and --identity-verified",
+        }
     print(
         json.dumps(
             {
@@ -388,6 +420,7 @@ def main() -> int:
                 "campaign_id": args.campaign_id,
                 "plugin_version": CURRENT_VERSION,
                 "campaign_consent": activation,
+                "profile_verification": profile_verification,
             }
         )
     )

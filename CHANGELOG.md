@@ -1,5 +1,12 @@
 # Changelog
 
+## 6.0.0-rc.22 — Initializer-Pinned Browser Verification
+
+- Accept the supplied Chrome device ID, label, and platform in the initializer and persist them before profile verification.
+- Return a machine-readable profile-verification contract that selects the exact device directly and resolves routine setup input.
+- Make connected-browser discovery unnecessary when a pinned device ID is already available.
+- Add clean-start regression coverage for the persisted pending binding, direct-selection contract, and verified transition.
+
 ## 6.0.0-rc.21 — Deterministic Host Continuation
 
 - Return one machine-readable continuation transition at every durable wait, including the stable task ID, dedupe key, wake time, prompt, and success-record command.

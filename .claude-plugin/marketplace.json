@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "linkedin-campaign-operator-v3",
-      "version": "6.0.0-rc.21",
+      "version": "6.0.0-rc.22",
       "source": "./plugins/linkedin-campaign-operator-v3",
       "description": "Plan and run a persistent LinkedIn content workflow with research, writing, visual creation, scheduling, measurement, and reliable continuation.",
       "author": {

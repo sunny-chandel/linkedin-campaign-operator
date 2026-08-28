@@ -3,7 +3,7 @@ name: linkedin-engagement-execution
 description: Prepare checked, relevant LinkedIn engagement work that follows campaign limits and avoids repeats. Used automatically by the campaign orchestrator.
 metadata:
   author: sunny
-  version: "6.0.0-rc.21"
+  version: "6.0.0-rc.22"
 ---
 
 # LinkedIn engagement execution

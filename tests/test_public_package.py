@@ -32,7 +32,7 @@ def test_parent_and_twelve_children_share_the_rc_version() -> None:
         metadata = frontmatter(skill_file)
         assert metadata["name"] == skill_file.parent.name
         assert metadata["description"]
-        assert metadata["metadata"]["version"] == "6.0.0-rc.21"
+        assert metadata["metadata"]["version"] == "6.0.0-rc.22"
         if metadata["name"] != "linkedin-campaign-orchestrator":
             assert f"`{metadata['name']}`" in parent_text
 
@@ -41,7 +41,7 @@ def test_claude_and_codex_manifests_are_aligned() -> None:
     claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
     codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
     assert claude["name"] == codex["name"] == PLUGIN.name
-    assert claude["version"] == codex["version"] == "6.0.0-rc.21"
+    assert claude["version"] == codex["version"] == "6.0.0-rc.22"
     assert claude["license"] == codex["license"] == "MIT"
     assert claude["homepage"] == codex["homepage"] == PUBLIC_SITE
     assert codex["skills"] == "./skills/"
@@ -147,7 +147,9 @@ def test_routine_setup_is_resolved_without_optional_owner_questions() -> None:
     assert "Routine device IDs are resolved by this order" in text
     assert "browser-bind --device-id DEVICE_ID" in text
     assert "Pass that device ID directly to the browser tab and navigation calls" in text
-    assert "do not call connected-browser discovery when an ID is already available" in text
+    assert "connected-browser discovery is unnecessary when an ID is already available" in text
+    assert "profile_verification" in text
+    assert "--browser-device-id DEVICE_ID" in text
     assert "use the packaged template defaults" in text
     assert "`unavailable` is a complete setup result" in text
     assert "Optional preferences stay at saved defaults" in text

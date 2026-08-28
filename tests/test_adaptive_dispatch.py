@@ -233,12 +233,37 @@ class V6RuntimeTests(unittest.TestCase):
             10000,
             "--duration-days",
             14,
+            "--browser-device-id",
+            "browser-1-id",
+            "--browser-device-label",
+            "Browser 1",
+            "--browser-platform",
+            "local-macos",
             "--now",
             NOW.isoformat(),
             "--activate-from-owner-start",
         )
-        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.21")
+        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.22")
         self.assertFalse(initialized["campaign_consent"]["renewal_required"])
+        verification = initialized["profile_verification"]
+        self.assertEqual(verification["device_id"], "browser-1-id")
+        self.assertEqual(verification["selection"], "use-device-id-directly")
+        self.assertFalse(verification["connected_browser_discovery_required"])
+        self.assertFalse(verification["setup_input_required"])
+        self.assertFalse(verification["owner_reply_required"])
+        state = read_json(state_dir / "campaign-state.json")
+        binding = state["dispatcher"]["browser_binding"]
+        self.assertEqual(binding["device_id"], "browser-1-id")
+        self.assertFalse(binding["identity_verified"])
+        self.assertEqual(binding["status"], "verification-pending")
+        run_json(
+            "python3", ORCHESTRATOR / "runtime_control.py", state_dir,
+            "--now", NOW.isoformat(), "browser-bind",
+            "--device-id", "browser-1-id",
+            "--device-label", "Browser 1",
+            "--platform", "local-macos",
+            "--identity-verified",
+        )
         config = read_json(state_dir / "campaign-config.json")
         self.assertEqual(config["target"]["metric_a"]["goal_mode"], "increase")
         self.assertEqual(config["target"]["metric_a"]["goal"], 1000)
@@ -348,7 +373,7 @@ class V6RuntimeTests(unittest.TestCase):
         for key in ("plugin_version", "lifecycle", "next_trigger", "profile_binding", "stage_history"):
             self.assertNotIn(key, migrated_state)
         self.assertEqual(
-            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.21"
+            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.22"
         )
         self.assertNotIn("tasks", read_json(state_dir / "work-queue.json"))
 

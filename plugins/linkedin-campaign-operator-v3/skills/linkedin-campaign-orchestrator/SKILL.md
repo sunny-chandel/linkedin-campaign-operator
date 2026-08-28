@@ -3,7 +3,7 @@ name: linkedin-campaign-orchestrator
 description: Run a durable LinkedIn campaign workspace for research, content, scheduling, measurement, and recovery. Use this as the only public entry point.
 metadata:
   author: sunny
-  version: "6.0.0-rc.21"
+  version: "6.0.0-rc.22"
 ---
 
 # LinkedIn campaign orchestrator
@@ -37,8 +37,8 @@ At the start of every new session:
 3. Read the active version from this skill's metadata. Resolve the newest installed plugin with `python scripts/resolve_latest_plugin.py --session-version ACTIVE_VERSION`. For an existing campaign, add `--state-dir STATE_DIR`.
 4. Use only the plugin root returned by that resolver. Load the returned parent skill and each child skill needed for the returned task.
 5. When the current start message or saved campaign binding supplies a verified Chrome device ID, pass that ID directly to the tab and navigation browser calls; skip connected-browser discovery. Verify the selected profile read-only before using account-specific evidence.
-6. For a new campaign, run `scripts/init_campaign.py` with the verified owner, profile URL, timezone, and the owner's stated goals. Use `--activate-from-owner-start` only when the current owner message explicitly starts that campaign scope.
-7. Immediately after initialization, save the verified Chrome binding with `python scripts/runtime_control.py STATE_DIR browser-bind --device-id DEVICE_ID --device-label DEVICE_LABEL --platform PLATFORM --identity-verified`.
+6. For a new campaign, run `scripts/init_campaign.py` with the verified owner, profile URL, timezone, and the owner's stated goals. When a verified device is supplied, include `--browser-device-id DEVICE_ID --browser-device-label DEVICE_LABEL --browser-platform PLATFORM`. Use `--activate-from-owner-start` only when the current owner message explicitly starts that campaign scope.
+7. Follow the initializer's `profile_verification` contract. Its device ID, `selection: use-device-id-directly`, `connected_browser_discovery_required: false`, and resolved input flags are authoritative. Call the browser tab or navigation operation with that exact ID. After a matching read-only identity result, save the verified binding with `python scripts/runtime_control.py STATE_DIR browser-bind --device-id DEVICE_ID --device-label DEVICE_LABEL --platform PLATFORM --identity-verified`.
 8. Run `python scripts/campaign_cycle.py STATE_DIR --session-start --session-id SESSION_ID`.
 9. Follow the returned `next_action` exactly. Do not replace the returned state, task, transition command, or wait trigger with a conversational choice.
 
@@ -52,7 +52,7 @@ When the same current message also supplies the profile, goals, duration, and ca
 
 Resolve routine setup choices directly whenever a resolution path is available:
 
-- Profile: use a verified device ID from the current start message first, then a saved profile binding. Pass that device ID directly to the browser tab and navigation calls; do not call connected-browser discovery when an ID is already available. For a new personal-profile campaign without a supplied or saved ID, inspect the current host's connected Chrome session read-only and use the signed-in personal profile. When several devices are listed and no binding exists, select in this order: the device marked local or current, the only device matching the current host platform, the most recently active matching device, then the matching device with the lexically first stable device ID. Complete the read-only identity check and save the binding. Routine device IDs are resolved by this order; owner input is needed only when the selected signed-in profile differs from the campaign profile.
+- Profile: use a verified device ID from the current start message first, then a saved profile binding. Persist a supplied ID through the initializer and follow its machine-readable `profile_verification` contract. Pass that device ID directly to the browser tab and navigation calls; connected-browser discovery is unnecessary when an ID is already available. For a new personal-profile campaign without a supplied or saved ID, inspect the current host's connected Chrome session read-only and use the signed-in personal profile. When several devices are listed and no binding exists, select in this order: the device marked local or current, the only device matching the current host platform, the most recently active matching device, then the matching device with the lexically first stable device ID. Complete the read-only identity check and save the binding. Routine device IDs are resolved by this order; owner input is needed only when the selected signed-in profile differs from the campaign profile.
 - Campaign goal: use the owner's stated goal. When the campaign name or destination already states a numeric follower goal, use that value as the primary goal. Leave unmentioned secondary goals as `unknown` rather than asking for them.
 - Baseline, niche, region, and positioning: derive them from verified profile evidence and fresh research.
 - Pacing, inventory, cooldowns, content mix, and other optional settings: reuse existing campaign configuration; otherwise use the packaged template defaults and improve them later from measured evidence.
