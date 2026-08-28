@@ -317,6 +317,9 @@ def main() -> int:
         {"min_target": 40, "max_target": 80}
     )
     merged["publishing_optimization"].update(defaults["publishing_optimization"])
+    merged.setdefault("autonomous_execution", {})["mode"] = defaults[
+        "autonomous_execution"
+    ]["mode"]
     for section in ("regional_intelligence", "content_research", "analytics_contract", "runtime_repair"):
         merged[section] = defaults[section]
     merged.setdefault("publishing_optimization", {}).setdefault(
@@ -334,9 +337,9 @@ def main() -> int:
         state = load_object(state_path)
         state["schema_version"] = "2.0"
         runtime_instructions = state.setdefault("runtime_instructions", {})
-        runtime_instructions["active_version"] = "6.0.0-rc.1"
-        runtime_instructions["detected_version"] = "6.0.0-rc.1"
-        runtime_instructions["session_version"] = "6.0.0-rc.1"
+        runtime_instructions["active_version"] = "6.0.0-rc.7"
+        runtime_instructions["detected_version"] = "6.0.0-rc.7"
+        runtime_instructions["session_version"] = "6.0.0-rc.7"
         old_scaling = state.get("engagement_scaling", {})
         if not isinstance(old_scaling, dict):
             old_scaling = {}
@@ -541,6 +544,34 @@ def main() -> int:
             consent_updated = True
 
     created: list[str] = []
+    executor_path = state_dir / "external-executor.json"
+    executor_template = load_object(assets_dir / "external-executor.template.json")
+    if not executor_path.exists():
+        executor = executor_template
+        executor["campaign_id"] = campaign_id
+        created.append(executor_path.name)
+    else:
+        executor = load_object(executor_path)
+        for key, value in executor_template.items():
+            executor.setdefault(key, value)
+        source = executor.setdefault("credential_source", {})
+        template_source = executor_template.get("credential_source", {})
+        if isinstance(source, dict) and isinstance(template_source, dict):
+            source["type"] = "environment-or-macos-keychain"
+            for key, value in template_source.items():
+                source.setdefault(key, value)
+            keychain = source.setdefault("keychain", {})
+            template_keychain = template_source.get("keychain", {})
+            if isinstance(keychain, dict) and isinstance(template_keychain, dict):
+                for key, value in template_keychain.items():
+                    keychain.setdefault(key, value)
+    executor["campaign_id"] = campaign_id
+    accounts = executor.get("credential_source", {}).get("keychain", {}).get("accounts", {})
+    if isinstance(accounts, dict):
+        for key in list(accounts):
+            if not isinstance(accounts[key], str) or accounts[key].startswith("replace-me:"):
+                accounts[key] = f"{campaign_id}:{key.replace('_', '-')}"
+    atomic_write_json(executor_path, executor)
     artifacts = {
         "brand-profile.json": {
             "schema_version": "1.0",
@@ -684,17 +715,23 @@ def main() -> int:
         "recovery-events.jsonl",
         "opportunity-health.jsonl",
         "repair-events.jsonl",
+        "external-executor-events.jsonl",
     ):
         path = state_dir / name
         if not path.exists():
             path.touch()
             created.append(path.name)
+    for status in ("pending", "running", "verified", "deferred", "ambiguous", "failed"):
+        path = state_dir / "external-action-outbox" / status
+        if not path.exists():
+            path.mkdir(parents=True, exist_ok=True)
+            created.append(str(path.relative_to(state_dir)))
 
     algorithm_path = state_dir / "working-algorithm-model.json"
     algorithm_defaults = {
         "schema_version": "2.0",
         "campaign_id": campaign_id,
-        "version": "6.0.0-rc.1",
+        "version": "6.0.0-rc.7",
         "strategy_weights": {"proven": 70, "promising": 20, "exploration": 10},
         "scheduling_models": {
             "publication_timing": {"mode": "evidence-adaptive", "observations": []},
@@ -718,7 +755,7 @@ def main() -> int:
         algorithm = load_object(algorithm_path)
         merged_algorithm, algorithm_updated = merge_missing(algorithm, algorithm_defaults)
         merged_algorithm["schema_version"] = "2.0"
-        merged_algorithm["version"] = "6.0.0-rc.1"
+        merged_algorithm["version"] = "6.0.0-rc.7"
         if algorithm_updated or merged_algorithm != algorithm:
             atomic_write_json(algorithm_path, merged_algorithm)
     else:
@@ -839,7 +876,7 @@ def main() -> int:
             {
                 "migrated": str(state_dir),
                 "schema_version": "2.0",
-                "plugin_version": "6.0.0-rc.1",
+                "plugin_version": "6.0.0-rc.7",
                 "config_updated": changed,
                 "state_updated": state_updated,
                 "consent_updated": consent_updated,

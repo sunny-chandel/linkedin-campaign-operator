@@ -16,6 +16,7 @@ from typing import Any
 ORCHESTRATOR_SCRIPTS = Path(__file__).resolve().parents[2] / "linkedin-campaign-orchestrator" / "scripts"
 sys.path.insert(0, str(ORCHESTRATOR_SCRIPTS))
 from opportunity_recovery import eligible_opportunities  # noqa: E402
+from automation_readiness import task_readiness  # noqa: E402
 
 from rolling_output import ACTION_CAP, parse_time, refresh_output  # noqa: E402
 
@@ -56,9 +57,17 @@ def main() -> int:
         state = load_object(state_dir / "campaign-state.json")
         config = load_object(state_dir / "campaign-config.json")
         document = load_object(state_dir / "engagement-opportunities.json")
+        executor = load_object(state_dir / "external-executor.json")
         output = refresh_output(state_dir, now, write=args.record)
         capacity = max(0, ACTION_CAP - int(output["actions"]["rolling_24h_actions"]))
-        eligible = eligible_opportunities(document, state, config, now)
+        eligible = [
+            item
+            for item in eligible_opportunities(document, state, config, now)
+            if task_readiness(
+                {"task_type": "engagement-burst-execution", "actions": [item]},
+                executor,
+            )["zero_human_ready"]
+        ]
         direct = [item for item in eligible if item.get("lane") == "direct-inbound"]
         counted = [item for item in eligible if item.get("lane") != "direct-inbound"][: min(10, capacity)]
         selected = (direct + counted)[:10]

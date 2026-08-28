@@ -361,7 +361,8 @@ def next_discovery_source(
     state: dict[str, Any],
     config: dict[str, Any],
     now: datetime | None = None,
-) -> str:
+    excluded_sources: set[str] | None = None,
+) -> str | None:
     settings = recovery_config(config)
     sources = settings.get("source_rotation", DEFAULT_SOURCES)
     if not isinstance(sources, list) or not sources:
@@ -372,19 +373,19 @@ def next_discovery_source(
         history = {}
     previous = recovery.get("last_discovery_source")
     now = now or datetime.now(timezone.utc)
-    candidates = []
+    excluded = excluded_sources or set()
+    available = []
     for source in sources:
         source_name = str(source)
+        if source_name in excluded:
+            continue
         record = history.get(source_name, {})
         backoff_until = _parse_time(record.get("backoff_until")) if isinstance(record, dict) else None
-        if source_name != previous and (backoff_until is None or backoff_until <= now):
-            candidates.append(source_name)
+        if backoff_until is None or backoff_until <= now:
+            available.append(source_name)
+    candidates = [source for source in available if source != previous] or available
     if not candidates:
-        candidates = [
-            str(source)
-            for source in sources
-            if (_parse_time(history.get(str(source), {}).get("backoff_until")) or now) <= now
-        ] or [str(sources[0])]
+        return None
 
     def source_score(source: str) -> tuple[float, int, str]:
         record = history.get(source, {})

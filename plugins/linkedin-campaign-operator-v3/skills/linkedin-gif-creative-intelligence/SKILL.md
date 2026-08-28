@@ -3,14 +3,14 @@ name: linkedin-gif-creative-intelligence
 description: Observe high-performing LinkedIn GIF creators, measure their visual and motion patterns, select the strongest reference per post, and maintain a self-growing GIF rule library. Use during creator observation and before GIF production.
 metadata:
   author: sunny
-  version: "6.0.0-rc.1"
+  version: "6.0.0-rc.7"
 ---
 
 # LinkedIn GIF creative intelligence
 
 Learn professional GIF construction from current high-information, high-interaction LinkedIn references and convert it into exact build specifications for Claude Design.
 
-Inherit the parent's active campaign-lifetime consent receipt and leased task. Never add a separate approval step. Checkpoint every captured reference, measurement, promoted pattern, deletion result, and creative specification so a restarted session continues from the last durable result.
+Inherit the parent's campaign configuration and leased task. Checkpoint every captured reference, measurement, promoted pattern, deletion result, and creative specification so a restarted session continues from the last durable result.
 
 ## Creator observation
 

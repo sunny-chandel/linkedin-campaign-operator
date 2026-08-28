@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "replace-me",
+  "mode": "official-linkedin-api",
+  "status": "unconfigured",
+  "zero_human": true,
+  "host_interactive_fallback_allowed": false,
+  "api_base_url": "https://api.linkedin.com",
+  "api_version": "202608",
+  "credential_source": {
+    "type": "environment-or-macos-keychain",
+    "access_token_env": "LINKEDIN_ACCESS_TOKEN",
+    "actor_urn_env": "LINKEDIN_ACTOR_URN",
+    "client_id_env": "LINKEDIN_CLIENT_ID",
+    "client_secret_env": "LINKEDIN_CLIENT_SECRET",
+    "refresh_token_env": "LINKEDIN_REFRESH_TOKEN",
+    "keychain": {
+      "service": "com.sunny.linkedin-campaign-operator",
+      "accounts": {
+        "access_token": "replace-me:access-token",
+        "actor_urn": "replace-me:actor-urn",
+        "client_id": "replace-me:client-id",
+        "client_secret": "replace-me:client-secret",
+        "refresh_token": "replace-me:refresh-token"
+      }
+    }
+  },
+  "token_refresh": {
+    "mode": "programmatic",
+    "required_for_unattended_runtime": true,
+    "refresh_before_expiry_seconds": 604800
+  },
+  "declared_scopes": [],
+  "supported_action_classes": [],
+  "unsupported_action_classes": [
+    "connection-invitation",
+    "direct-message",
+    "follow"
+  ],
+  "verification": {
+    "status": "not-run",
+    "identity_verified": false,
+    "verified_at": null,
+    "verified_actor_urn": null,
+    "write_scope_verified": false,
+    "read_scope_verified": false,
+    "token_active": false,
+    "token_expires_at_epoch": null,
+    "missing_capabilities": []
+  }
+}

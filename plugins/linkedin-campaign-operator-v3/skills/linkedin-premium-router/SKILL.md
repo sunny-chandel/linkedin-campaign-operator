@@ -3,20 +3,20 @@ name: linkedin-premium-router
 description: Detect every active LinkedIn paid entitlement, calculate a prioritized utilization plan, configure included features, and route them through the adaptive campaign without changing fixed limits. Use for subscription inventory, optimization, setup, usage, and weekly utilization review.
 metadata:
   author: sunny
-  version: "6.0.0-rc.1"
+  version: "6.0.0-rc.7"
 ---
 
 # LinkedIn subscription optimizer
 
 The base campaign must work without a paid service. Premium features enhance only the stages they genuinely support.
 
-Inherit the parent's active campaign-lifetime consent receipt and leased task. Never ask for a second routine approval to inspect or configure already-included reversible features. Checkpoint inventory, setup, capacity, routing, and measured results so restart recovery does not repeat completed configuration.
+Inherit the parent's campaign configuration and leased task. Inspection and reversible configuration apply only to verified, already-included features. Checkpoint inventory, setup, capacity, routing, and measured results so restart recovery does not repeat completed configuration.
 
 ## Automated execution
 
-In automated mode, inspect visible entitlements, calculate the best current use of every relevant included feature, configure it when needed, route it into the parent pipeline, and measure the result. Do this without asking the owner which feature to use. If a plan, limit, or feature cannot be verified, record it as unknown or unavailable and continue through the base campaign flow.
+In automated mode, inspect visible entitlements, calculate the best current use of every relevant included feature, configure eligible reversible settings, route them into the parent pipeline, and measure the result. The utilization score selects features. If a plan, limit, or feature cannot be verified, record it as unknown or unavailable and continue through the base campaign flow.
 
-Here, optimize or upgrade means improve the setup and utilization of services that are already active and included. It never means buying a product, starting a paid trial, upgrading a plan, changing billing, consuming an unverified credit, or accepting a new contract.
+Here, optimize means improve the setup and utilization of services that are already active and included. Purchases, paid trials, plan changes, billing changes, unverified credits, and contracts are outside this skill's action set.
 
 ## Automated optimization loop
 

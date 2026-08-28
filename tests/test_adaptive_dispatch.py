@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta
@@ -61,6 +62,25 @@ def initialize(state_dir: Path, now: datetime = NOW) -> None:
         "python3", ORCHESTRATOR / "runtime_control.py", state_dir,
         "--now", now.isoformat(), "consent-grant",
     )
+    executor = read_json(state_dir / "external-executor.json")
+    executor.update({
+        "mode": "test-fixture",
+        "test_fixture": True,
+        "status": "active",
+        "zero_human": True,
+        "host_interactive_fallback_allowed": False,
+        "declared_scopes": ["w_member_social", "r_member_social"],
+        "supported_action_classes": ["publication", "comment", "reply", "reaction"],
+        "verification": {
+            "status": "passed",
+            "identity_verified": True,
+            "verified_at": now.isoformat(),
+            "verified_actor_urn": "urn:li:person:test-operator",
+            "write_scope_verified": True,
+            "read_scope_verified": True,
+        },
+    })
+    write_json(state_dir / "external-executor.json", executor)
     day = now.astimezone(ZoneInfo("Asia/Kolkata")).date().isoformat()
     ledger = read_json(state_dir / "stage-ledger.json")
     ledger.setdefault("stages", []).append({
@@ -136,6 +156,10 @@ class V6RuntimeTests(unittest.TestCase):
         self.assertEqual(migration["schema_version"], "2.0")
         _, validation = run_json("python3", ORCHESTRATOR / "validate_campaign.py", state_dir)
         self.assertTrue(validation["valid"])
+        self.assertEqual(
+            read_json(state_dir / "campaign-config.json")["autonomous_execution"]["mode"],
+            "unattended-official-api",
+        )
         for name in (
             "operational-output.json", "content-pipeline.json", "regional-performance.json",
             "repair-state.json", "repair-events.jsonl",
@@ -300,6 +324,42 @@ class V6RuntimeTests(unittest.TestCase):
         self.assertNotEqual(
             decision["task"]["discovery_source"], "direct-inbound-and-notifications"
         )
+
+    def test_retry_wait_discovery_source_cannot_spawn_duplicate(self) -> None:
+        temporary, state_dir = self.make_campaign()
+        self.addCleanup(temporary.cleanup)
+        queue = read_json(state_dir / "work-queue.json")
+        queue["items"].append({
+            "task_id": "generate-opportunities-existing-targets",
+            "task_type": "opportunity-discovery",
+            "lane": "linkedin",
+            "status": "retry-wait",
+            "ready": False,
+            "requires_linkedin": True,
+            "discovery_source": "existing-targets-and-hubs",
+            "next_eligible_at": (NOW + timedelta(minutes=30)).isoformat(),
+        })
+        write_json(state_dir / "work-queue.json", queue)
+        _, decision = run_json(
+            "python3", ORCHESTRATOR / "dispatch_next_work.py", state_dir,
+            "--now", NOW.isoformat(),
+        )
+        self.assertEqual(decision["task"]["task_type"], "opportunity-discovery")
+        self.assertNotEqual(decision["task"]["discovery_source"], "existing-targets-and-hubs")
+
+    def test_all_backed_off_sources_do_not_spawn_discovery(self) -> None:
+        temporary, state_dir = self.make_campaign()
+        self.addCleanup(temporary.cleanup)
+        module_path = ORCHESTRATOR / "opportunity_recovery.py"
+        spec = importlib.util.spec_from_file_location("v6_source_backoff", module_path)
+        assert spec and spec.loader
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        state = {"opportunity_recovery": {"source_performance": {
+            source: {"backoff_until": (NOW + timedelta(minutes=30)).isoformat()}
+            for source in module.DEFAULT_SOURCES
+        }}}
+        self.assertIsNone(module.next_discovery_source(state, {}, NOW))
 
     def test_recovery_tiers_and_weekly_limit_are_locked(self) -> None:
         module_path = ORCHESTRATOR / "opportunity_recovery.py"
@@ -553,6 +613,413 @@ class V6RuntimeTests(unittest.TestCase):
         self.assertEqual(
             read_json(state_dir / "operational-output.json")["actions"]["rolling_24h_actions"], 1
         )
+
+    def test_dispatch_embeds_automatic_routine_action_authorization(self) -> None:
+        temporary, state_dir = self.make_campaign()
+        self.addCleanup(temporary.cleanup)
+        queue = read_json(state_dir / "work-queue.json")
+        queue["items"] = [{
+            "task_id": "reply-to-qualified-inbound",
+            "task_type": "direct-inbound",
+            "action_lane": "direct-inbound",
+            "status": "pending",
+            "ready": True,
+            "lane": "linkedin",
+            "requires_linkedin": True,
+            "idempotency_key": "reply:qualified-inbound",
+        }]
+        write_json(state_dir / "work-queue.json", queue)
+        _, decision = run_json(
+            "python3", ORCHESTRATOR / "dispatch_next_work.py", state_dir,
+            "--now", NOW.isoformat(), "--record",
+        )
+        authorization = decision["task"]["execution_authorization"]
+        self.assertEqual(authorization["decision"], "execute")
+        self.assertEqual(authorization["mode"], "unattended-executor")
+        self.assertTrue(authorization["executor_route_configured"])
+        self.assertTrue(authorization["routine_transition_is_deterministic"])
+        self.assertFalse(authorization["status_response_terminal"])
+        self.assertIsNotNone(authorization["receipt_id"])
+        stored = next(
+            item for item in read_json(state_dir / "work-queue.json")["items"]
+            if item["task_id"] == "reply-to-qualified-inbound"
+        )
+        self.assertEqual(stored["execution_authorization"], authorization)
+
+    def test_routine_authorization_requires_active_consent(self) -> None:
+        temporary, state_dir = self.make_campaign()
+        self.addCleanup(temporary.cleanup)
+        consent = read_json(state_dir / "consent-record.json")
+        consent["status"] = "revoked"
+        write_json(state_dir / "consent-record.json", consent)
+        _, result = run_json(
+            "python3", ORCHESTRATOR / "action_authorization.py", state_dir,
+            "--task-json", json.dumps({
+                "task_type": "engagement-burst-execution", "lane": "linkedin",
+            }),
+        )
+        paused = result["authorization"]
+        self.assertEqual(paused["decision"], "pause")
+        self.assertTrue(paused["setup_input_required"])
+        self.assertTrue(paused["owner_input_required"])
+
+    def test_approval_prompt_is_rejected_under_active_authorization(self) -> None:
+        temporary, state_dir = self.make_campaign()
+        self.addCleanup(temporary.cleanup)
+        completed, rejected_result = run_json(
+            "python3", ORCHESTRATOR / "action_authorization.py", state_dir,
+            "--task-json", json.dumps({
+                "task_type": "engagement-burst-execution", "lane": "linkedin",
+            }),
+            "--output-text", "The comment is ready. Post this?",
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 2)
+        rejected = rejected_result["output_guard"]
+        self.assertFalse(rejected["valid"])
+        self.assertEqual(
+            rejected["required_action"], "enqueue-and-return-to-dispatcher"
+        )
+        _, accepted_result = run_json(
+            "python3", ORCHESTRATOR / "action_authorization.py", state_dir,
+            "--task-json", json.dumps({
+                "task_type": "engagement-burst-execution", "lane": "linkedin",
+            }),
+            "--output-text", "Comment verified, logged, and dispatcher resumed.",
+        )
+        accepted = accepted_result["output_guard"]
+        self.assertTrue(accepted["valid"])
+
+    def test_ambiguous_external_outcome_pauses_for_reconciliation_not_approval(self) -> None:
+        temporary, state_dir = self.make_campaign()
+        self.addCleanup(temporary.cleanup)
+        _, result = run_json(
+            "python3", ORCHESTRATOR / "action_authorization.py", state_dir,
+            "--task-json", json.dumps({
+                "task_type": "publication-execution",
+                "external_outcome": "ambiguous",
+            }),
+        )
+        contract = result["authorization"]
+        self.assertEqual(contract["decision"], "pause")
+        self.assertEqual(contract["mode"], "reconcile-before-retry")
+        self.assertFalse(contract["setup_input_required"])
+        self.assertTrue(contract["routine_transition_is_deterministic"])
+
+    def test_parent_skill_requires_zero_human_executor_without_person_fallback(self) -> None:
+        parent = (PLUGIN / "skills" / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
+        execution = (PLUGIN / "skills" / "linkedin-engagement-execution" / "SKILL.md").read_text()
+        self.assertIn("Unattended operation is a verified capability state", parent)
+        self.assertIn("autonomous-executor-unavailable", parent)
+        self.assertIn("autonomous-executor-unavailable", execution)
+        self.assertNotIn("ACTION_APPROVAL_PACKET", parent)
+        self.assertNotIn("supervising observer", execution)
+
+    def test_unconfigured_executor_blocks_external_action_without_person_input(self) -> None:
+        temporary, state_dir = self.make_campaign()
+        self.addCleanup(temporary.cleanup)
+        executor = read_json(state_dir / "external-executor.json")
+        executor.update({
+            "mode": "official-linkedin-api",
+            "status": "unconfigured",
+            "declared_scopes": [],
+            "supported_action_classes": [],
+            "verification": {
+                "status": "not-run",
+                "identity_verified": False,
+                "write_scope_verified": False,
+                "read_scope_verified": False,
+            },
+        })
+        executor.pop("test_fixture", None)
+        write_json(state_dir / "external-executor.json", executor)
+        _, result = run_json(
+            "python3", ORCHESTRATOR / "action_authorization.py", state_dir,
+            "--task-json", json.dumps({"task_type": "comment", "action_type": "comment"}),
+        )
+        contract = result["authorization"]
+        self.assertEqual(contract["decision"], "pause")
+        self.assertEqual(contract["mode"], "executor-readiness-required")
+        self.assertFalse(contract["setup_input_required"])
+        self.assertFalse(contract["owner_input_required"])
+        self.assertEqual(
+            contract["automation_readiness"]["blocker"],
+            "autonomous-executor-unavailable",
+        )
+
+    def test_dispatcher_persists_zero_human_blocker_without_leasing_external_task(self) -> None:
+        temporary, state_dir = self.make_campaign()
+        self.addCleanup(temporary.cleanup)
+        executor = read_json(state_dir / "external-executor.json")
+        executor.update({
+            "mode": "official-linkedin-api",
+            "status": "unconfigured",
+            "declared_scopes": [],
+            "supported_action_classes": [],
+            "verification": {
+                "status": "not-run",
+                "identity_verified": False,
+                "write_scope_verified": False,
+                "read_scope_verified": False,
+            },
+        })
+        executor.pop("test_fixture", None)
+        write_json(state_dir / "external-executor.json", executor)
+        queue = read_json(state_dir / "work-queue.json")
+        queue["items"] = [{
+            "task_id": "external-comment",
+            "task_type": "comment",
+            "action_type": "comment",
+            "status": "pending",
+            "ready": True,
+            "lane": "linkedin",
+            "requires_linkedin": True,
+        }]
+        write_json(state_dir / "work-queue.json", queue)
+        _, decision = run_json(
+            "python3", ORCHESTRATOR / "dispatch_next_work.py", state_dir,
+            "--now", NOW.isoformat(), "--record",
+        )
+        self.assertNotEqual(decision.get("task", {}).get("task_id"), "external-comment")
+        stored_task = read_json(state_dir / "work-queue.json")["items"][0]
+        self.assertEqual(stored_task["status"], "pending")
+        runtime = read_json(state_dir / "campaign-state.json")["autonomous_execution"]
+        self.assertFalse(runtime["zero_human_ready"])
+        self.assertIn("executor-status-active", runtime["missing_capabilities"])
+
+    def test_public_adapter_never_covers_messages_connections_or_follows(self) -> None:
+        temporary, state_dir = self.make_campaign()
+        self.addCleanup(temporary.cleanup)
+        for action_type in ("direct-message", "connection-invitation", "follow"):
+            _, result = run_json(
+                "python3", ORCHESTRATOR / "automation_readiness.py", state_dir,
+                "--task-json", json.dumps({"action_type": action_type}),
+            )
+            readiness = result["readiness"]
+            self.assertFalse(readiness["zero_human_ready"])
+            self.assertFalse(readiness["owner_input_required"])
+            self.assertFalse(readiness["observer_input_required"])
+            self.assertIn(
+                f"unsupported-action-class:{action_type}",
+                readiness["missing_capabilities"],
+            )
+
+    def test_official_executor_builds_supported_api_mutations(self) -> None:
+        spec = importlib.util.spec_from_file_location(
+            "execute_external_action",
+            ORCHESTRATOR / "execute_external_action.py",
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        sys.path.insert(0, str(ORCHESTRATOR))
+        try:
+            spec.loader.exec_module(module)
+        finally:
+            sys.path.remove(str(ORCHESTRATOR))
+        post_path, post_body = module.request_parts(
+            {"action_class": "publication", "text": "Evidence-backed update."},
+            "urn:li:person:test",
+        )
+        self.assertEqual(post_path, "/rest/posts")
+        self.assertEqual(post_body["author"], "urn:li:person:test")
+        comment_path, comment_body = module.request_parts(
+            {
+                "action_class": "comment",
+                "target_urn": "urn:li:ugcPost:123",
+                "object_urn": "urn:li:activity:123",
+                "text": "Useful detail.",
+            },
+            "urn:li:person:test",
+        )
+        self.assertEqual(comment_path, "/rest/socialActions/urn%3Ali%3AugcPost%3A123/comments")
+        self.assertEqual(comment_body["message"]["text"], "Useful detail.")
+        reaction_path, reaction_body = module.request_parts(
+            {
+                "action_class": "reaction",
+                "target_urn": "urn:li:activity:123",
+                "reaction_type": "INTEREST",
+            },
+            "urn:li:person:test",
+        )
+        self.assertEqual(
+            reaction_path, "/rest/reactions?actor=urn%3Ali%3Aperson%3Atest"
+        )
+        self.assertEqual(reaction_body["root"], "urn:li:activity:123")
+        self.assertEqual(reaction_body["reactionType"], "INTEREST")
+
+    def test_programmatic_refresh_credentials_satisfy_unattended_availability(self) -> None:
+        spec = importlib.util.spec_from_file_location(
+            "credential_manager", ORCHESTRATOR / "credential_manager.py"
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        try:
+            spec.loader.exec_module(module)
+        finally:
+            sys.modules.pop(spec.name, None)
+        executor = {
+            "credential_source": {
+                "type": "environment-or-macos-keychain",
+                "access_token_env": "LI_ACCESS",
+                "actor_urn_env": "LI_ACTOR",
+                "client_id_env": "LI_CLIENT",
+                "client_secret_env": "LI_SECRET",
+                "refresh_token_env": "LI_REFRESH",
+            },
+            "token_refresh": {"mode": "programmatic"},
+            "verification": {},
+        }
+        availability = module.credential_availability(
+            executor,
+            {
+                "LI_ACTOR": "urn:li:person:test",
+                "LI_CLIENT": "client",
+                "LI_SECRET": "secret",
+                "LI_REFRESH": "refresh",
+            },
+        )
+        self.assertTrue(availability["access_token_resolvable"])
+        self.assertTrue(availability["programmatic_refresh_ready"])
+
+    def test_executor_preflight_derives_scope_coverage_without_persisting_secrets(self) -> None:
+        spec = importlib.util.spec_from_file_location(
+            "executor_preflight", ORCHESTRATOR / "executor_preflight.py"
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        sys.path.insert(0, str(ORCHESTRATOR))
+        try:
+            spec.loader.exec_module(module)
+        finally:
+            sys.path.remove(str(ORCHESTRATOR))
+        executor = {
+            "mode": "official-linkedin-api",
+            "status": "unconfigured",
+            "zero_human": True,
+            "host_interactive_fallback_allowed": False,
+            "credential_source": {
+                "type": "environment",
+                "access_token_env": "LI_ACCESS",
+                "actor_urn_env": "LI_ACTOR",
+                "client_id_env": "LI_CLIENT",
+                "client_secret_env": "LI_SECRET",
+                "refresh_token_env": "LI_REFRESH",
+            },
+            "token_refresh": {"mode": "programmatic"},
+            "verification": {},
+        }
+        report = module.evaluate_preflight(
+            executor,
+            {
+                "autonomous_execution": {
+                    "required_action_classes": ["publication", "comment", "reply", "reaction"]
+                }
+            },
+            {"owner": {"display_name": "Test Operator"}},
+            environ={
+                "LI_ACCESS": "access",
+                "LI_ACTOR": "urn:li:person:test",
+                "LI_CLIENT": "client",
+                "LI_SECRET": "secret",
+                "LI_REFRESH": "refresh",
+            },
+            introspector=lambda token, client, secret: {
+                "active": True,
+                "status": "active",
+                "scope": "w_member_social_feed,r_member_social_feed,openid,profile",
+                "expires_at": 1900000000,
+                "auth_type": "3L",
+            },
+            identity_fetcher=lambda token: {
+                "actor_urn": "urn:li:person:test",
+                "display_name": "Test Operator",
+                "source": "fixture",
+            },
+            now=NOW,
+        )
+        self.assertTrue(report["zero_human_ready"])
+        self.assertEqual(
+            executor["supported_action_classes"],
+            ["comment", "publication", "reaction", "reply"],
+        )
+        serialized = json.dumps(executor)
+        self.assertNotIn(': "access"', serialized)
+        self.assertNotIn(': "secret"', serialized)
+        self.assertNotIn(': "refresh"', serialized)
+
+    def test_leased_publication_is_enqueued_for_daemon_without_chat_action(self) -> None:
+        temporary, state_dir = self.make_campaign()
+        self.addCleanup(temporary.cleanup)
+        draft_path = state_dir / "logs" / "draft.json"
+        asset_path = state_dir / "logs" / "asset.png"
+        write_json(draft_path, {"caption": "Canonical validated caption."})
+        asset_path.write_bytes(b"fixture-png")
+        pipeline = read_json(state_dir / "content-pipeline.json")
+        pipeline["packages"] = [{
+            "package_id": "pkg-daemon",
+            "source_path": "logs/draft.json",
+            "asset_path": "logs/asset.png",
+            "region": "india",
+            "topic": "Reliable agents",
+            "publication_decision": {
+                "decision": "publish-now",
+                "opportunity_score": 72,
+            },
+        }]
+        write_json(state_dir / "content-pipeline.json", pipeline)
+        queue = read_json(state_dir / "work-queue.json")
+        queue["items"] = [{
+            "task_id": "publish-daemon",
+            "task_type": "publication-execution",
+            "lane": "linkedin",
+            "status": "leased",
+            "ready": True,
+            "requires_linkedin": True,
+            "lease_id": "lease-daemon",
+            "package_id": "pkg-daemon",
+            "region": "india",
+            "idempotency_key": "publish:pkg-daemon",
+        }]
+        write_json(state_dir / "work-queue.json", queue)
+        _, result = run_json(
+            "python3", ORCHESTRATOR / "enqueue_external_action.py", state_dir,
+            "--task-id", "publish-daemon",
+        )
+        self.assertEqual(result["decision"], "queued-for-autonomous-daemon")
+        self.assertEqual(len(result["enqueued"]), 1)
+        action = read_json(state_dir / result["enqueued"][0])
+        self.assertEqual(action["text"], "Canonical validated caption.")
+        self.assertEqual(action["source_lease_id"], "lease-daemon")
+        self.assertTrue(Path(action["media_file"]).is_file())
+
+    def test_daemon_stays_idle_with_ready_fixture_and_blocks_without_readiness(self) -> None:
+        temporary, state_dir = self.make_campaign()
+        self.addCleanup(temporary.cleanup)
+        _, idle = run_json(
+            "python3", ORCHESTRATOR / "autonomous_executor_daemon.py", state_dir,
+            "--once",
+        )
+        self.assertEqual(idle["decision"], "idle")
+        executor = read_json(state_dir / "external-executor.json")
+        executor.update({
+            "mode": "official-linkedin-api",
+            "status": "unconfigured",
+            "declared_scopes": [],
+            "supported_action_classes": [],
+            "verification": {"status": "not-run"},
+        })
+        executor.pop("test_fixture", None)
+        write_json(state_dir / "external-executor.json", executor)
+        completed, blocked = run_json(
+            "python3", ORCHESTRATOR / "autonomous_executor_daemon.py", state_dir,
+            "--once", check=False,
+        )
+        self.assertEqual(completed.returncode, 2)
+        self.assertEqual(blocked["decision"], "readiness-blocked")
 
     def test_runtime_repair_scope_is_persisted_and_dispatched(self) -> None:
         temporary, state_dir = self.make_campaign()

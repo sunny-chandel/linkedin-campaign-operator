@@ -3,7 +3,7 @@ name: linkedin-runtime-repair
 description: Recover unhealthy Chrome, Claude Design, upload, computer-use, Codex, or campaign runtime capabilities while preserving checkpoints and resuming the original task. Internal child of linkedin-campaign-orchestrator.
 metadata:
   author: sunny
-  version: "6.0.0-rc.1"
+  version: "6.0.0-rc.7"
 ---
 
 # LinkedIn runtime repair

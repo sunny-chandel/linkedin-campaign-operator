@@ -162,6 +162,24 @@
       "low_yield_backoff_minutes": 30
     }
   },
+  "autonomous_execution": {
+    "mode": "unattended-official-api",
+    "executor_config": "external-executor.json",
+    "outbox_path": "external-action-outbox",
+    "daemon_required": true,
+    "programmatic_token_refresh_required": true,
+    "credential_persistence": "macos-keychain",
+    "host_interactive_fallback_allowed": false,
+    "owner_or_observer_approval_fallback_allowed": false,
+    "required_action_classes": [
+      "publication",
+      "comment",
+      "reply",
+      "reaction"
+    ],
+    "unsupported_action_policy": "exclude-from-dispatch-and-report-capability-blocker",
+    "continue_unaffected_offline_work": true
+  },
   "publishing_optimization": {
     "mode": "fully-dynamic",
     "production_priority_window": {

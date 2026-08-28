@@ -3,18 +3,18 @@ name: linkedin-content-production
 description: Turn a completed, verified research brief into LinkedIn captions and Claude Design assets using the campaign's voices, active watermark kit, and per-post GIF creative specification. Use for daily post packages and response drafts.
 metadata:
   author: sunny
-  version: "6.0.0-rc.1"
+  version: "6.0.0-rc.7"
 ---
 
 # LinkedIn content production
 
-Create publication-ready packages from completed, verified research briefs. Read [voice and design](references/voice-and-design.md) before drafting. In automated mode, a valid brief is sufficient authorization to continue; do not ask the owner to approve the brief or to start production.
+Create publication-ready packages from completed, verified research briefs. Read [voice and design](references/voice-and-design.md) before drafting. In automated mode, a valid brief is the complete input contract for production.
 
-Inherit the parent's active campaign-lifetime consent receipt and leased task. Never request a second approval after a restart or model change. Checkpoint the caption, design source, export, watermark validation, and final package separately so self-revival resumes from the last verified artifact without rebuilding completed work.
+Inherit the parent's campaign configuration and leased task. A restart or model change resumes the same stage. Checkpoint the caption, design source, export, watermark validation, and final package separately so self-revival resumes from the last verified artifact without rebuilding completed work.
 
 Maintain six validated unpublished normal packages in the rolling inventory and replenish one after every publication. Build from the six selected briefs and regional allocation. When the dispatcher issues recovery content, produce exactly one fresh, distinct package and store no second unpublished recovery package.
 
-If a brief is missing or fails validation, return automatically to `linkedin-content-research`, repair only the missing fields, and resume production. If an asset build or export fails, save the last valid artifact, retry safely, then rebuild with another supported format or workflow while preserving the content and design requirements. Do not ask the owner to select routine design options, wording, format, or export settings. Escalate only when the parent orchestrator classifies the required design or upload capability as a hard blocker.
+If a brief is missing or fails validation, return automatically to `linkedin-content-research`, repair only the missing fields, and resume production. If an asset build or export fails, save the last valid artifact, retry safely, then rebuild with another supported format or workflow while preserving the content and design requirements. Campaign state and the portfolio model select routine design options, wording, format, and export settings. Escalate only when the parent orchestrator classifies the required design or upload capability as a hard blocker.
 
 ## Flagship post workflow
 
@@ -53,6 +53,6 @@ Include:
 
 ## Tier 3 responses
 
-Comments, DMs, and replies are one to four short lines and can be one word. Use deliberately imperfect loose grammar and inconsistent capitalization. Always be adversarial by challenging the other person's view or a common assumption. Use no em dash or en dash. Fact-check every claim regardless of length.
+Comments and replies are one to four short lines and can be one word. Use deliberately imperfect loose grammar and varied capitalization. Add value by constructively challenging a view or a common assumption. Use no em dash or en dash. Fact-check every claim regardless of length.
 
-In automated mode, sending a preview to chat is informational, not an approval gate. Continue automatically through production and return the validated package to publishing operations. Maintain six verified normal publications in the rolling 24-hour window. Recovery publications may raise the total to eight, never nine.
+In automated mode, a chat preview is an informational progress artifact. Continue through production and return the validated package to publishing operations. Maintain six verified normal publications in the rolling 24-hour window. Recovery publications may raise the total to eight, with eight as the cap.

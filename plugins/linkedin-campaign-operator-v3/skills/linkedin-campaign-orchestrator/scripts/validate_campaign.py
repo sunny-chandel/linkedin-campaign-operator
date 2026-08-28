@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 REQUIRED_FILES = ("campaign-config.json", "consent-record.json", "campaign-state.json")
 REQUIRED_ARTIFACTS = (
+    "external-executor.json",
     "work-queue.json",
     "stage-ledger.json",
     "working-algorithm-model.json",
@@ -27,6 +28,7 @@ REQUIRED_ARTIFACTS = (
     "regional-performance.json",
     "repair-state.json",
     "repair-events.jsonl",
+    "external-executor-events.jsonl",
 )
 VALID_STATES = {"ready", "running", "recovering", "hard-blocked", "completed", "user-stopped"}
 
@@ -61,6 +63,24 @@ def main() -> int:
     for name in REQUIRED_ARTIFACTS:
         if not (state_dir / name).is_file():
             errors.append(f"missing file: {name}")
+    executor = load_json(state_dir / "external-executor.json", errors)
+    if executor:
+        if executor.get("zero_human") is not True:
+            errors.append("external-executor.json zero_human must equal true")
+        if executor.get("host_interactive_fallback_allowed") is not False:
+            errors.append(
+                "external-executor.json host_interactive_fallback_allowed must equal false"
+            )
+        if executor.get("status") not in {"unconfigured", "active", "blocked", "disabled"}:
+            errors.append("external-executor.json status is invalid")
+        credential_source = executor.get("credential_source", {})
+        if not isinstance(credential_source, dict) or credential_source.get("type") not in {
+            "environment", "environment-or-macos-keychain"
+        }:
+            errors.append("external-executor.json credential_source type is invalid")
+        token_refresh = executor.get("token_refresh", {})
+        if not isinstance(token_refresh, dict) or token_refresh.get("mode") != "programmatic":
+            errors.append("external-executor.json must require programmatic token refresh")
 
     ids = {doc.get("campaign_id") for doc in docs.values() if doc}
     if not ids or None in ids or "replace-me" in ids:

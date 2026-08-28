@@ -13,6 +13,7 @@ TEMPLATES = {
     "campaign-config.template.json": "campaign-config.json",
     "consent-record.template.json": "consent-record.json",
     "campaign-state.template.json": "campaign-state.json",
+    "external-executor.template.json": "external-executor.json",
 }
 
 DEFAULT_CAMPAIGN_ID = "linkedin-growth"
@@ -79,6 +80,12 @@ def main() -> int:
             data["updated_at"] = now
             data["dispatcher"]["browser_binding"]["expected_profile_url"] = args.profile_url
             data["dispatcher"]["browser_binding"]["expected_profile_name"] = args.owner_name
+        if output_name == "external-executor.json":
+            data["campaign_id"] = args.campaign_id
+            accounts = data.get("credential_source", {}).get("keychain", {}).get("accounts", {})
+            if isinstance(accounts, dict):
+                for key in list(accounts):
+                    accounts[key] = f"{args.campaign_id}:{key.replace('_', '-')}"
         (state_dir / output_name).write_text(
             json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
@@ -142,7 +149,7 @@ def main() -> int:
         "working-algorithm-model.json": {
             "schema_version": "2.0",
             "campaign_id": args.campaign_id,
-            "version": "6.0.0-rc.1",
+            "version": "6.0.0-rc.7",
             "strategy_weights": {"proven": 70, "promising": 20, "exploration": 10},
             "scheduling_models": {
                 "publication_timing": {"mode": "evidence-adaptive", "observations": []},
@@ -257,10 +264,13 @@ def main() -> int:
         "recovery-events.jsonl",
         "opportunity-health.jsonl",
         "repair-events.jsonl",
+        "external-executor-events.jsonl",
     ):
         (state_dir / name).touch()
     (state_dir / "logs").mkdir()
     (state_dir / "brand" / "watermarks").mkdir(parents=True)
+    for status in ("pending", "running", "verified", "deferred", "ambiguous", "failed"):
+        (state_dir / "external-action-outbox" / status).mkdir(parents=True, exist_ok=True)
     (state_dir / "gif-reference-captures").mkdir()
 
     print(json.dumps({"initialized": str(state_dir), "campaign_id": args.campaign_id}))

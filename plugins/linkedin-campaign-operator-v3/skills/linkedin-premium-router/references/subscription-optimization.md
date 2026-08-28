@@ -64,7 +64,7 @@ Append one record per setup, use, or measurement event. Include timestamp, featu
 1. Inspect the connected account and official current product information.
 2. Separate product-level access from feature-level access. A product name alone is not proof that a feature is available.
 3. Normalize verified features and run the deterministic scorer.
-4. Complete reversible setup for `activate-now` features when it does not require a purchase, plan change, billing change, paid-trial start, contract acceptance, or another account's approval.
+4. Complete reversible setup for `activate-now` features when it stays within already-included entitlements and introduces no purchase, plan change, billing change, paid-trial start, contract acceptance, or dependency on another account.
 5. Route planned use into the existing stage. Do not create extra publishing or engagement windows.
 6. Record capacity before and after use whenever the interface exposes it.
 7. Attribute measurable results, then recalculate weekly. Increase priority for repeatable positive outcomes; reduce priority when the feature adds no measurable value or consumes scarce capacity inefficiently.

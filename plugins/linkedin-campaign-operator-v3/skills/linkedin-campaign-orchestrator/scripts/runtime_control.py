@@ -964,6 +964,7 @@ def reserve_pass(args, state_dir: Path, state: dict[str, Any], now) -> dict[str,
     config = load_object(state_dir / "campaign-config.json")
     queue = load_object(state_dir / "work-queue.json")
     item = find_task(queue, args.task_id)
+    source = item.get("discovery_source")
     rules = config.get("automation_reliability", {}).get("reserve", {})
     max_pages = int(rules.get("max_pages_per_pass", 5) or 5)
     max_minutes = float(rules.get("max_minutes_per_pass", 8) or 8)
@@ -1002,16 +1003,35 @@ def reserve_pass(args, state_dir: Path, state: dict[str, Any], now) -> dict[str,
     reserve["low_yield_streak"] = low_yield_streak
     max_low_yield = max(1, int(rules.get("max_low_yield_passes", 2) or 2))
     limit_reached = args.pages >= max_pages or args.elapsed_minutes >= max_minutes or low_yield
+    next_eligible_at = now + timedelta(
+        minutes=cooldown * min(max(1, low_yield_streak), max_low_yield)
+    )
+    if source:
+        recovery = state.setdefault("opportunity_recovery", {})
+        source_history = recovery.setdefault("source_performance", {})
+        stats = source_history.setdefault(str(source), {})
+        stats["attempts"] = int(stats.get("attempts", 0) or 0) + 1
+        stats["inspected"] = int(stats.get("inspected", 0) or 0) + inspected
+        stats["accepted_candidates"] = int(stats.get("accepted_candidates", 0) or 0) + max(
+            0, args.qualified_found
+        )
+        stats["rejected"] = int(stats.get("rejected", 0) or 0) + rejected
+        stats["last_yield"] = round(yield_per_page, 4)
+        stats["last_attempt_at"] = iso_time(now)
+        stats["backoff_until"] = iso_time(next_eligible_at) if low_yield else None
+        recovery["last_discovery_source"] = str(source)
+        recovery["next_discovery_source"] = next_discovery_source(state, config, now)
     if target_reached:
         item["status"] = "completed"
         item["completed_at"] = iso_time(now)
         item["completion_reason"] = "adaptive-reserve-target-reached"
     elif limit_reached:
-        item["status"] = "retry-wait"
+        item["status"] = "completed" if source else "retry-wait"
         item["ready"] = False
-        item["next_eligible_at"] = iso_time(
-            now + timedelta(minutes=cooldown * min(max(1, low_yield_streak), max_low_yield))
-        )
+        item["next_eligible_at"] = iso_time(next_eligible_at) if not source else None
+        item["not_before"] = iso_time(next_eligible_at)
+        item["completed_at"] = iso_time(now) if source else None
+        item["completion_reason"] = "opportunity-generation-pass-recorded" if source else None
         item["last_failure_reason"] = "reserve-pass-stopping-condition"
     else:
         item["status"] = "pending"
@@ -1028,7 +1048,7 @@ def reserve_pass(args, state_dir: Path, state: dict[str, Any], now) -> dict[str,
     item["lease_expires_at"] = None
     state.setdefault("runtime_continuity", {})["last_heartbeat_at"] = iso_time(now)
     state["last_confirmed_action"] = f"reserve-checkpoint:{args.task_id}"
-    state["current_stage"] = "dispatch" if target_reached else "adaptive-reserve"
+    state["current_stage"] = "dispatch" if source or target_reached else "adaptive-reserve"
     state["updated_at"] = iso_time(now)
     queue["updated_at"] = iso_time(now)
     write_runtime(state_dir, state, queue)

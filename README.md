@@ -22,7 +22,7 @@ Claude LinkedIn is the public interface for LinkedIn Campaign Operator: a free, 
 
 **Website:** [linkedin-campaign-operator.sunnychandel73.chatgpt.site](https://linkedin-campaign-operator.sunnychandel73.chatgpt.site)
 
-Version 6.0.0-rc.1 adds rolling 24-hour operational contracts, a 160-action target with a 200-action cap, six-to-eight verified publications, a six-package rolling inventory, regional diversification, four analytics checkpoints per post, and automatic runtime repair. It preserves durable consent, canonical engagement evidence, staged 65/60/55 recovery gates, task leases, and crash-safe resumption.
+Version 6.0.0-rc.7 publishes the repaired skill set as a distinct system-install build. It includes the neutral interactive context and clean-state migration on top of the durable action outbox, unattended macOS LaunchAgent executor, Keychain-backed credentials, programmatic token refresh, API preflight, and exact verification for supported LinkedIn mutations. Claude prepares and enqueues canonical work; the separate official-API service performs external mutation and verification. It retains the rolling 24-hour 160-action target, 200-action cap, six-to-eight verified publications, regional diversification, automatic runtime repair, durable consent, task leases, and crash-safe resumption.
 
 It runs in Claude Code and Codex, keeps mutable campaign data outside the plugin, and resumes from verified state instead of starting over every day.
 

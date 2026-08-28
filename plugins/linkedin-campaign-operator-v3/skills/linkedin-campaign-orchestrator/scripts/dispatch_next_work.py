@@ -26,6 +26,8 @@ from opportunity_recovery import (
     next_discovery_source,
     opportunity_document,
 )
+from action_authorization import authorization_contract
+from automation_readiness import normalize_action_class, readiness_report, task_readiness
 
 
 ACTIVE_STATUSES = {"pending", "recovering", "missed-recovering"}
@@ -229,6 +231,7 @@ def future_wake_candidates(
     items: list[dict[str, Any]],
     dispatcher: dict[str, Any],
     now_dt: datetime,
+    recovery: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     wakes: list[dict[str, Any]] = []
     circuits = dispatcher.get("lane_circuits", {})
@@ -288,6 +291,20 @@ def future_wake_candidates(
                         "task_id": None,
                     }
                 )
+    source_performance = (recovery or {}).get("source_performance", {})
+    if isinstance(source_performance, dict):
+        for source, record in source_performance.items():
+            if not isinstance(record, dict):
+                continue
+            backoff_until = parse_time(record.get("backoff_until"))
+            if backoff_until and backoff_until > now_dt:
+                wakes.append(
+                    {
+                        "at": backoff_until,
+                        "trigger": f"discovery-source-backoff-expired:{source}",
+                        "task_id": None,
+                    }
+                )
     recorded_at = parse_time(dispatcher.get("next_wake_at"))
     if recorded_at and recorded_at > now_dt and dispatcher.get("next_wake_reason"):
         wakes.append(
@@ -327,7 +344,44 @@ def main() -> int:
         dispatcher = state.get("dispatcher", {})
         health_evaluation = evaluate_health(state_dir, state, config, now_dt)
         canonical = opportunity_document(state_dir, str(state.get("campaign_id") or ""))
+        consent = load_object(state_dir / "consent-record.json")
+        executor = load_object(state_dir / "external-executor.json")
+        configured_required = config.get("autonomous_execution", {}).get(
+            "required_action_classes", ["publication", "comment", "reply", "reaction"]
+        )
+        campaign_readiness = readiness_report(
+            executor,
+            {
+                action_class
+                for value in configured_required
+                if (action_class := normalize_action_class(value))
+            },
+        )
+        engagement_executor_ready = any(
+            readiness_report(executor, {action_class})["zero_human_ready"]
+            for action_class in ("comment", "reply", "reaction")
+        )
+        if args.record:
+            state.setdefault("autonomous_execution", {}).update(
+                {
+                    "readiness_path": "external-executor.json",
+                    "zero_human_ready": campaign_readiness["zero_human_ready"],
+                    "last_checked_at": now,
+                    "missing_capabilities": campaign_readiness["missing_capabilities"],
+                }
+            )
         canonical_candidates = eligible_opportunities(canonical, state, config, now_dt)
+        canonical_candidates = [
+            candidate
+            for candidate in canonical_candidates
+            if task_readiness(
+                {
+                    "task_type": "engagement-burst-execution",
+                    "actions": [candidate],
+                },
+                executor,
+            )["zero_human_ready"]
+        ]
         reserve = state.setdefault("engagement_scaling", {}).setdefault("adaptive_reserve", {})
         reserve["qualified_count"] = len(canonical_candidates)
         reserve["count_source"] = "engagement-opportunities.json"
@@ -364,6 +418,9 @@ def main() -> int:
                 "checkpoint": state.get("last_confirmed_action"),
                 "idempotency_key": f"runtime-repair:{state.get('campaign_id')}",
             }
+            repair_task["execution_authorization"] = authorization_contract(
+                repair_task, consent, state, executor
+            )
             if args.record and existing_repair is None:
                 blocker_items.append(repair_task)
             if args.record and repair_task.get("status") in ACTIVE_STATUSES:
@@ -396,7 +453,7 @@ def main() -> int:
                 "decided_at": now,
                 "priority": 0,
                 "reason": reconciliation["consent_reason"],
-                "prompt": "I will run your configured LinkedIn operating system in fully automated mode, perform pre-flight checks, store this campaign-lifetime consent, recover unfinished work after restarts, and stop asking for routine approvals. Start?",
+                "prompt": "Start the configured LinkedIn campaign? Pre-flight will verify the account and executor, store the operating receipt, and resume unfinished work from durable checkpoints.",
                 "unfinished_work_count": 0,
             }
             if args.record:
@@ -425,7 +482,12 @@ def main() -> int:
         pending_count = sum(
             1 for item in items if isinstance(item, dict) and item.get("status") in UNFINISHED_STATUSES
         ) + len(debts)
-        future_wakes = future_wake_candidates(items, dispatcher, now_dt)
+        future_wakes = future_wake_candidates(
+            items,
+            dispatcher,
+            now_dt,
+            state.get("opportunity_recovery", {}),
+        )
         deferred_task_ids = {
             wake.get("task_id") for wake in future_wakes if wake.get("task_id")
         }
@@ -603,14 +665,48 @@ def main() -> int:
         reserve_target = max(40, int(scaling.get("adaptive_reserve", {}).get("target_count", 40) or 40))
         supply_weak = len(canonical_candidates) < reserve_target
         action_deficit = base_used < min(base_ceiling, int(health_evaluation["expected_actions"]))
+        discovery_types = {"engagement-opportunity-generation", "opportunity-discovery"}
+        active_discovery_exists = any(
+            isinstance(item, dict)
+            and item.get("task_type") in discovery_types
+            and item.get("status") in ACTIVE_STATUSES | {"leased", "running"}
+            for item in items
+        )
+        blocked_discovery_sources = {
+            str(item.get("discovery_source"))
+            for item in items
+            if isinstance(item, dict)
+            and item.get("task_type") in discovery_types
+            and item.get("status") == "retry-wait"
+            and parse_time(item.get("next_eligible_at")) is not None
+            and parse_time(item.get("next_eligible_at")) > now_dt
+            and item.get("discovery_source")
+        }
+        unknown_retry_wait_exists = any(
+            isinstance(item, dict)
+            and item.get("task_type") in discovery_types
+            and item.get("status") == "retry-wait"
+            and parse_time(item.get("next_eligible_at")) is not None
+            and parse_time(item.get("next_eligible_at")) > now_dt
+            and not item.get("discovery_source")
+            for item in items
+        )
         if (
             supply_weak
+            and engagement_executor_ready
             and base_used < base_ceiling
             and (recovery.get("active") is True or action_deficit or base_used < 160)
             and dispatcher.get("linkedin_lane", "ready") == "ready"
-            and not any(item.get("task_type") in {"engagement-opportunity-generation", "opportunity-discovery"} for item in candidates)
+            and not active_discovery_exists
+            and not unknown_retry_wait_exists
+            and not any(item.get("task_type") in discovery_types for item in candidates)
         ):
-            source = next_discovery_source(state, config, now_dt)
+            source = next_discovery_source(
+                state,
+                config,
+                now_dt,
+                excluded_sources=blocked_discovery_sources,
+            )
             attempts = sum(
                 1
                 for item in items
@@ -618,7 +714,8 @@ def main() -> int:
                 and item.get("task_type") in {"engagement-opportunity-generation", "opportunity-discovery"}
                 and item.get("content_day_local") == current_budget_day
             ) + 1
-            candidates.append(
+            if source is not None:
+                candidates.append(
                 {
                     "task_id": f"generate-opportunities-{current_budget_day}-{attempts}-{source}",
                     "task_type": "opportunity-discovery",
@@ -633,7 +730,7 @@ def main() -> int:
                     "canonical_output": "engagement-opportunities.json",
                     "idempotency_key": f"opportunity-generation:{current_budget_day}:{attempts}:{source}",
                 }
-            )
+                )
 
         minimum_posts = int(config.get("publishing_optimization", {}).get("minimum_posts_rolling_24h", 6) or 6)
         maximum_posts = int(config.get("publishing_optimization", {}).get("maximum_posts_rolling_24h", 8) or 8)
@@ -693,6 +790,24 @@ def main() -> int:
                         "idempotency_key": f"publish-recovery:{current_budget_day}:{posts_published + 1}",
                     }
                 )
+
+        blocked_external: list[dict[str, Any]] = []
+        executable_candidates: list[dict[str, Any]] = []
+        for item in candidates:
+            readiness = task_readiness(item, executor)
+            if readiness["zero_human_ready"]:
+                executable_candidates.append(item)
+            else:
+                blocked_external.append(
+                    {
+                        "task_id": item.get("task_id"),
+                        "task_type": item.get("task_type"),
+                        "reason": readiness["blocker"],
+                        "required_action_classes": readiness["required_action_classes"],
+                        "missing_capabilities": readiness["missing_capabilities"],
+                    }
+                )
+        candidates = executable_candidates
 
         for item in candidates:
             task_type = str(item.get("task_type", ""))
@@ -760,6 +875,9 @@ def main() -> int:
                     - concentration_penalty * 100,
                     2,
                 )
+            selected["execution_authorization"] = authorization_contract(
+                selected, consent, state, executor
+            )
             result = {
                 "valid": True,
                 "decision": "execute",
@@ -789,20 +907,35 @@ def main() -> int:
                     wake_trigger,
                 ),
             }
+        elif blocked_external:
+            result = {
+                "valid": True,
+                "decision": "blocked",
+                "decided_at": now,
+                "unfinished_work_count": pending_count,
+                "blocked_external": blocked_external,
+                "reason": "external work is parked until unattended executor readiness passes",
+                "owner_input_required": False,
+                "setup_event": "executor-readiness",
+            }
         elif pending_count:
             offline_available = dispatcher.get("offline_lane", "ready") != "blocked"
             if offline_available:
+                recovery_task = {
+                    "task_id": f"opportunity-health-recovery-{current_budget_day}",
+                    "task_type": "opportunity-health-evaluation",
+                    "lane": "offline",
+                    "priority": 7,
+                    "requires_linkedin": False,
+                }
+                recovery_task["execution_authorization"] = authorization_contract(
+                    recovery_task, consent, state, executor
+                )
                 result = {
                     "valid": True,
                     "decision": "execute",
                     "decided_at": now,
-                    "task": {
-                        "task_id": f"opportunity-health-recovery-{current_budget_day}",
-                        "task_type": "opportunity-health-evaluation",
-                        "lane": "offline",
-                        "priority": 7,
-                        "requires_linkedin": False,
-                    },
+                    "task": recovery_task,
                     "unfinished_work_count": pending_count,
                     "rejected": rejected,
                     "reason": "unfinished work is ineligible; refresh health and exact task evidence without a reconciliation loop",
@@ -837,17 +970,21 @@ def main() -> int:
                     "continuation": continuation,
                 }
             else:
+                investigation_task = {
+                    "task_id": "investigate-next-opportunity",
+                    "task_type": "analytics-and-investigation",
+                    "lane": "offline",
+                    "priority": 8,
+                    "requires_linkedin": False,
+                }
+                investigation_task["execution_authorization"] = authorization_contract(
+                    investigation_task, consent, state, executor
+                )
                 result = {
                     "valid": True,
                     "decision": "execute",
                     "decided_at": now,
-                    "task": {
-                        "task_id": "investigate-next-opportunity",
-                        "task_type": "analytics-and-investigation",
-                        "lane": "offline",
-                        "priority": 8,
-                        "requires_linkedin": False,
-                    },
+                    "task": investigation_task,
                     "unfinished_work_count": 0,
                     "reason": "waiting is invalid until an evidence-backed wake trigger exists",
                 }
@@ -856,6 +993,7 @@ def main() -> int:
         result["reconciliation"] = reconciliation
         result["opportunity_health"] = health_evaluation
         result["canonical_eligible_candidates"] = len(canonical_candidates)
+        result["automation_readiness"] = campaign_readiness
         if args.record:
             if result.get("decision") == "execute" and isinstance(result.get("task"), dict):
                 selected = result["task"]
@@ -870,6 +1008,10 @@ def main() -> int:
                 if stored is None:
                     stored = dict(selected)
                     items.append(stored)
+                else:
+                    stored["execution_authorization"] = selected.get(
+                        "execution_authorization"
+                    )
                 lease_minutes = int(
                     config.get("automation_reliability", {}).get("task_lease_minutes", 15) or 15
                 )

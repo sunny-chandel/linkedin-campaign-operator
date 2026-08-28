@@ -3,20 +3,20 @@ name: linkedin-engagement-planning
 description: Build and validate adaptive LinkedIn action queues with qualified-growth scoring, qualification, cooldown, deduplication, and regional relevance. Use before any proactive action cluster.
 metadata:
   author: sunny
-  version: "6.0.0-rc.1"
+  version: "6.0.0-rc.7"
 ---
 
 # LinkedIn engagement planning
 
 Prepare high-quality queues for the continuous dispatcher. The rolling 24-hour counted-action target is 160 and the hard cap is 200. Genuine direct inbound replies remain outside the cap and are logged separately.
 
-Inherit the parent's active campaign-lifetime consent receipt, pinned browser binding, lane circuit, and leased task. Never ask for device selection or action approval. Persist each qualified candidate immediately, and finish every discovery pass through `runtime_control.py reserve-pass` so page, duration, yield, adaptive target, backoff, and restart state are deterministic.
+Inherit the parent's campaign configuration, pinned browser binding, lane circuit, and leased task. Use the pinned device and the executor-covered action classes from state. Persist each qualified candidate immediately, and finish every sourced discovery pass through `runtime_control.py opportunity-pass` so canonical upserts, yield, source-specific backoff, rotation, and restart state are deterministic. `reserve-pass` is only a compatibility checkpoint for legacy unsourced reserve work and must not be used for new `opportunity-discovery` tasks.
 
 ## Automated execution
 
-In automated mode, build, score, validate, and hand the queue back to the parent without asking the owner to choose targets, action types, topics, or regions. Evaluate every eligible comment, reply, reaction, DM, follow, profile view when available, and connection event. Route each action through `proactive`, `soft-reciprocity`, or `direct-inbound`, then choose the action with the strongest predicted qualified-growth value. Discover replacements automatically when a candidate is stale, duplicated, below the new-user gate, inside cooldown, irrelevant, unavailable, or below the 65-point action threshold. Execute only the verified subset and reduce the correct budget counter; never invent candidates, force a mix, violate a limit, compensate later, or ask for permission.
+In automated mode, read targets, action classes, topics, and regions from state, then build, score, validate, and hand the queue back to the parent. Evaluate eligible API-covered comments, replies, and reactions plus read-only discovery signals. Route each action through `proactive`, `soft-reciprocity`, or `direct-inbound`, then choose the action with the strongest predicted qualified-growth value. Discover replacements automatically when a candidate is stale, duplicated, below the new-user gate, inside cooldown, irrelevant, unavailable, or below the 65-point action threshold. Enqueue only the verified subset and reduce the correct budget counter after external verification.
 
-Qualification precedes drafting and presentation. Materialize the discovered candidates, run `rank_actions.py`, and only draft or surface actions from its `selected` array. A failed gate or score is a normal automatic rejection, never a hard blocker, exception, override opportunity, or reason to consult the owner. Do not draft a comment, label a candidate “borderline,” say “your call,” or offer an override for a rejected candidate. Record the rejection reason, continue discovery within the current pass limits, and return control to the dispatcher when the pass ends. When no candidate qualifies, return `owner_input_required: false` and `next_step: continue-discovery`; do not ask a question.
+Qualification precedes drafting. Materialize discovered candidates, run `rank_actions.py`, and draft only actions from its `selected` array. A failed gate or score is a normal automatic rejection with a machine-readable reason. Continue discovery within the current pass limits and return control to the dispatcher when the pass ends. When no candidate qualifies, return `owner_input_required: false` and `next_step: continue-discovery`.
 
 ## Priority order
 
@@ -44,7 +44,7 @@ Read [queue rules](references/queue-rules.md) for scoring and output fields.
 - Avoid repetitive response-bank text and repeated targeting.
 - Every response must be relevant to the specific post or conversation.
 - Run `python scripts/rank_actions.py <candidates> --mode <normal|expansion|intensive> --limit 10` for structured candidate sets. The tier fixes the exact score and new-target follower floors.
-- Treat the ranker output as authoritative. `rejected` items are terminal for the current opportunity and must never be presented for owner approval; follow the output's `next_step` automatically.
+- Treat the ranker output as authoritative. `rejected` items are terminal for the current opportunity; follow the output's `next_step` automatically.
 - After each confirmed external action, run `python scripts/record_action.py <state-dir> <action.json>` so lane metadata and the correct base or overage counter are committed.
 - A proactive or mixed burst contains at most 10 actions and stops earlier when candidate quality drops below the active tier floor, expected marginal value declines, or the base budget is exhausted. A single qualified canonical record is enough for a one-action burst.
 

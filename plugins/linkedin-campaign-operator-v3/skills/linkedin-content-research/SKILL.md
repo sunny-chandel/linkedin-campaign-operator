@@ -3,20 +3,20 @@ name: linkedin-content-research
 description: Research fresh LinkedIn campaign topics, primary sources, platform changes, and credible trends. Use when creating research briefs or checking claims and algorithm advice.
 metadata:
   author: sunny
-  version: "6.0.0-rc.1"
+  version: "6.0.0-rc.7"
 ---
 
 # LinkedIn content research
 
 Produce evidence-ranked research briefs for the campaign. Do not draft the final post until the brief is complete.
 
-Inherit the parent's active campaign-lifetime consent receipt and leased task. Never request separate approval after routing or restart. Checkpoint each verified source set and completed regional brief so recovery continues from durable evidence.
+Inherit the parent's campaign configuration and leased task. Routing or restart resumes the same local research stage. Checkpoint each verified source set and completed regional brief so recovery continues from durable evidence.
 
 Discover and score at least 12 candidate topics for the rolling portfolio, then produce six distinct selected briefs. Use the regional allocation supplied by `linkedin-regional-intelligence`. Maintain six ready packages without stockpiling beyond that inventory. Research at most one unpublished recovery package after all six normal posts are verified.
 
 ## Automated execution
 
-In automated mode, start immediately when routed by the parent orchestrator. Never ask the owner to choose a topic, niche, audience, region, source, or angle. Read them from campaign state and the connected profile; if an optional value is unavailable, infer it from verified recent evidence or record it as `unknown` and continue. If a preferred source is unavailable, try another primary source and then the strongest credible alternative. Return the best fact-checked brief possible with uncertainty clearly marked. Escalate only when no usable evidence can be obtained after safe recovery and a truthful publication package cannot be produced.
+In automated mode, start immediately when routed by the parent orchestrator. Read topic, niche, audience, region, source, and angle from campaign state and the connected profile; infer an optional value from verified recent evidence or record it as `unknown`. If a preferred source is unavailable, try another primary source and then the strongest credible alternative. Return the best fact-checked brief possible with uncertainty clearly marked. Escalate only when no usable evidence can be obtained after safe recovery and a truthful publication package cannot be produced.
 
 ## Workflow
 

@@ -3,18 +3,18 @@ name: linkedin-analytics-learning
 description: Normalize LinkedIn campaign analytics, run controlled experiments, and update a versioned runtime learning layer without editing the governing skill. Use for daily and weekly reviews.
 metadata:
   author: sunny
-  version: "6.0.0-rc.1"
+  version: "6.0.0-rc.7"
 ---
 
 # LinkedIn analytics and learning
 
 Maintain runtime learning separately from immutable system and skill instructions. Read [learning system](references/learning-system.md) before promoting or rolling back a finding.
 
-Inherit the parent's active campaign-lifetime consent receipt and leased task. Never ask for a separate approval. Checkpoint every saved snapshot, learning, experiment decision, and measurement trigger through the parent runtime before returning control.
+Inherit the parent's campaign configuration and leased task. Checkpoint every saved snapshot, learning, experiment decision, and measurement trigger through the parent runtime before returning control.
 
 ## Automated execution
 
-In automated mode, collect every available metric, compute the valid comparisons, update the ledger, and return control to the parent without asking the owner which metrics, experiments, or adjustments to use. Record unavailable metrics as `unknown`; do not block the daily cycle or fabricate values. If a script fails, preserve its inputs, retry safely, then compute the same documented result through an available fallback. Apply allowed learning changes automatically within the fixed bounds and log every change and trigger. Never modify a fixed campaign invariant or the skill instructions.
+In automated mode, collect every available metric, compute valid comparisons, update the ledger, and return control to the parent. The active experiment plan supplies metrics and bounded adjustments. Record unavailable metrics as `unknown`; keep the daily cycle moving with truthful available evidence. If a script fails, preserve its inputs, retry safely, then compute the same documented result through an available fallback. Apply allowed learning changes automatically within the fixed bounds and log every change and trigger. Fixed campaign invariants and skill instructions remain unchanged.
 
 Raw analytics alone never complete the analytics stage. Every snapshot must produce a provisional or validated learning record, an experiment registration or explicit `no-change` decision, and a next measurement trigger. Write those completion fields to the mandatory stage ledger before the parent auditor can mark the stage complete.
 

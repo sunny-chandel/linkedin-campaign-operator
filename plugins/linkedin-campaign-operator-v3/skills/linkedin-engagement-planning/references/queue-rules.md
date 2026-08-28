@@ -41,7 +41,7 @@ Select candidates at the active tier floor: 65 normal, 60 expansion, or 55 inten
 
 Follower count is a qualification gate for new additions, not a substitute for relevance.
 
-Run hard gates before drafting any action text. A failed hard gate or score below the active tier is a terminal rejection for that opportunity, not an approval checkpoint. Persist its machine-readable reason in the canonical queue and continue discovery automatically. If selected is empty, rotate to the next measured-yield source; if selected contains even one candidate, dispatch it without waiting for a batch of ten.
+Run hard gates before drafting any action text. A failed hard gate or score below the active tier is a terminal rejection for that opportunity. Persist its machine-readable reason in the canonical queue and continue discovery automatically. If selected is empty, rotate to the next measured-yield source; if selected contains even one candidate, dispatch it without waiting for a batch of ten.
 
 ## Reciprocity routing
 

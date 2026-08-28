@@ -3,14 +3,14 @@ name: linkedin-brand-system
 description: Build and maintain a profile-derived LinkedIn watermark kit in Claude Design, validate its transparent PNG exports, and route the correct variant into every GIF. Use during pre-flight and GIF production.
 metadata:
   author: sunny
-  version: "6.0.0-rc.1"
+  version: "6.0.0-rc.7"
 ---
 
 # LinkedIn brand system
 
 Create a persistent visual identity from the recognized owner's verified LinkedIn profile. Do not turn brand creation into onboarding.
 
-Inherit the parent's active campaign-lifetime consent receipt and leased task. Never request separate approval for profile inspection, watermark creation, validation, or application. Persist each validated export as a checkpoint so restart recovery resumes from the last good variant.
+Inherit the parent's campaign configuration and leased task. Profile inspection, watermark creation, validation, and application are local reversible stages. Persist each validated export as a checkpoint so restart recovery resumes from the last good variant.
 
 ## Pre-flight workflow
 
@@ -20,9 +20,9 @@ Inherit the parent's active campaign-lifetime consent receipt and leased task. N
 4. If the kit is missing, invalid, or stale, open or create the campaign's Brand Identity project in Claude Design.
 5. Create light and dark horizontal marks at 1600 by 320 pixels and light and dark compact avatar marks at 512 by 512 pixels. Export transparent PNG files.
 6. Run `python scripts/validate_watermark.py <png>` for every export, then update the manifest.
-7. Apply the kit automatically to the next asset. A chat preview is informational and is not an approval gate.
+7. Apply the kit automatically to the next asset. A chat preview is an informational progress artifact.
 
-If the owner later supplies custom brand information, store it as an explicit override and regenerate the kit at the next pre-flight. Do not ask for custom information when verified profile data is available.
+If the owner later supplies custom brand information, store it as an explicit override and regenerate the kit at the next pre-flight. Verified profile data supplies the default brand information.
 
 Read [watermark system](references/watermark-system.md) when creating, refreshing, or applying the kit.
 
