@@ -1,12 +1,12 @@
-# Official-API executor service
+# Connected LinkedIn service
 
 Use this reference when configuring or diagnosing the campaign's external executor service.
 
 ## Boundary
 
-The interactive host and the external executor have separate responsibilities. Claude Desktop reads evidence, prepares validated canonical work, and atomically writes local outbox records. It performs no LinkedIn write action. A separately configured official-API service owns API submission, read verification, durable evidence, and retries. This architecture keeps externally visible activity outside the interactive chat boundary.
+Claude Desktop and the connected LinkedIn service have separate responsibilities. Claude Desktop reads evidence, prepares checked work, and writes local queue records. It makes no LinkedIn change itself. The separately configured service submits supported requests, verifies results, saves evidence, and handles safe retries.
 
-The operating receipt configures the local dispatcher; it is not a substitute for interactive-host confirmation because the host is never assigned an external action. If a task cannot be represented as a validated local outbox request for the ready executor, keep it outside executable supply. Never fall back to browser clicks or direct interactive-host API calls.
+The saved setup record configures the local work queue; it is not a substitute for Claude Desktop's own rules because Claude Desktop is never assigned a LinkedIn change. If a task cannot be represented as a checked local request for the ready service, keep it outside executable supply. Never fall back to browser clicks or a direct LinkedIn write from Claude Desktop.
 
 The supported executor mode is `official-linkedin-api`. `external-executor.json` stores environment-variable names and macOS Keychain coordinates; access tokens remain in the Keychain-backed credential layer. A LinkedIn developer application, one three-legged OAuth credential grant, and the matching LinkedIn scopes are platform setup prerequisites. Production readiness requires:
 

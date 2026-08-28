@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.0.0-rc.10 — Plain-Language Claude Code Experience
+
+- Rewrote the public Claude Code role and connected-service boundary in calm, plain language.
+- Added a user-facing communication contract that keeps internal implementation terms out of routine updates.
+- Replaced generic warnings and long technical explanations with concise capability status and one exact next setup step.
+
 ## 6.0.0-rc.9 — Explicit Interactive-Host Boundary
 
 - Made the responsibility boundary explicit at the top of the public orchestrator: the interactive host performs local preparation and outbox writes only, while the separate official-API service owns every externally visible change.

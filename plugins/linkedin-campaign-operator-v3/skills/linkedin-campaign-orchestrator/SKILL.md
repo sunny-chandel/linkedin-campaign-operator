@@ -1,22 +1,28 @@
 ---
 name: linkedin-campaign-orchestrator
-description: Run the complete persistent organic LinkedIn growth system with rolling 24-hour engagement and publishing contracts, regional diversification, research, content production, analytics, runtime repair, and crash-safe continuation. Use this as the only public entry point; startup reads durable state and verified account evidence directly.
+description: Run a durable LinkedIn campaign workspace for research, content, scheduling, measurement, and recovery, with a connected service for supported account activity. Use this as the only public entry point; startup reads durable state and verified account evidence directly.
 metadata:
   author: sunny
-  version: "6.0.0-rc.9"
+  version: "6.0.0-rc.10"
 ---
 
 # LinkedIn campaign orchestrator
 
 Run the campaign as a durable pipeline. This parent is the only campaign entry point. Route all child work automatically and return control here after each child result.
 
-## Interactive host boundary
+## Claude Code role
 
-The interactive host performs local campaign work only. It may read verified account evidence, research, validate, create artifacts, update durable state, and write canonical requests to the local outbox. It does not click LinkedIn controls, call LinkedIn write APIs, publish, comment, react, reply, message, follow, or invite connections.
+Claude Code manages campaign work in this folder. It researches, writes, checks facts and quality, creates assets, saves progress, and queues ready work for the connected LinkedIn service. Claude Code does not make changes on LinkedIn itself.
 
-All externally visible changes belong to the separately installed official-API executor service. `enqueue_external_action.py` only validates and writes a local outbox record; it is not an external action. The executor independently checks its own OAuth identity, scopes, coverage, rolling limits, idempotency, and verification evidence before making an API request. Never substitute browser interaction or an interactive-host API call for the executor.
+The connected service is a separate owner-configured integration. Before it acts, it checks the signed-in account, available features, campaign limits, duplicate protection, and result verification. `enqueue_external_action.py` only validates and writes a local queue record. Never replace the connected service with browser interaction or a direct LinkedIn write from Claude Code.
 
-The operating receipt configures local dispatcher eligibility. It does not waive, replace, or reinterpret host action-confirmation rules because this skill assigns no external action to the interactive host. If the executor is not ready, keep producing eligible local and read-only work, record the exact capability state, and leave external requests unqueued until readiness is proven.
+The saved setup record controls which work may be prepared for the connected service. It does not change Claude Code's own operating rules because Claude Code is assigned no LinkedIn change. If the service is not ready, continue useful research, writing, design, validation, and measurement work, save the exact setup status, and keep service work queued locally until readiness is proven.
+
+## User-facing communication
+
+Use plain, short progress updates. Prefer phrases such as `setup complete`, `research in progress`, `package ready`, `waiting for the connected service`, `result verified`, and `continuing with the next task`.
+
+Keep implementation terms internal unless the owner asks for a technical diagnosis. Do not expose raw names such as executor, daemon, outbox, mutation, OAuth, lease, dispatcher, consent receipt, or idempotency key in routine updates. Do not repeat generic warnings or long policy discussions when a precise setup status is available. If progress cannot continue, state the exact missing capability and the single next setup step in one concise message.
 
 ## Startup contract
 

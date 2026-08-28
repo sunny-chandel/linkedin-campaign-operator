@@ -22,7 +22,7 @@ Claude LinkedIn is the public interface for LinkedIn Campaign Operator: a free, 
 
 **Website:** [linkedin-campaign-operator.sunnychandel73.chatgpt.site](https://linkedin-campaign-operator.sunnychandel73.chatgpt.site)
 
-Version 6.0.0-rc.9 makes the interactive-host boundary explicit. Claude performs local research, validation, artifact creation, durable state updates, and outbox writes only. The separately installed official-API service owns externally visible API activity and verification. The operating receipt configures dispatcher eligibility without replacing host action-confirmation rules, and no browser or direct interactive-host write fallback is allowed. The release retains the clean-state migration, Keychain-backed credentials, programmatic token refresh, API preflight, rolling 24-hour contracts, runtime repair, task leases, and crash-safe resumption.
+Version 6.0.0-rc.10 gives Claude Code a plain-language operating model. Claude handles local research, writing, validation, assets, saved progress, and local service queues. The separately connected LinkedIn service handles supported account activity and verifies results. Routine updates stay short and human-readable, while implementation details remain available for technical diagnosis. The release retains clean-state startup, secure credentials, service preflight, rolling 24-hour contracts, runtime repair, safe task ownership, and crash-safe resumption.
 
 It supports Claude Code and Codex as independent hosts, keeps mutable campaign data outside the plugin, and resumes from verified state instead of starting over every day. The Claude runtime does not depend on Codex.
 
