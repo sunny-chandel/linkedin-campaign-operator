@@ -73,6 +73,20 @@ def runtime_version(state_dir: Path) -> str | None:
     return str(version) if version else None
 
 
+def continuation_identity(state_dir: Path) -> tuple[str, str]:
+    """Return the stable campaign ID and continuation dedupe key."""
+    path = state_dir / "campaign-state.json"
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError("campaign-state.json must contain an object")
+    campaign_id = str(value.get("campaign_id") or state_dir.name)
+    dispatcher = value.get("dispatcher", {})
+    continuation = dispatcher.get("continuation", {}) if isinstance(dispatcher, dict) else {}
+    saved_key = continuation.get("dedupe_key") if isinstance(continuation, dict) else None
+    dedupe_key = str(saved_key or f"linkedin-campaign-continuation:{campaign_id}")
+    return campaign_id, dedupe_key
+
+
 def shell_command(parts: list[str]) -> str:
     """Return a copy-ready command while preserving paths and JSON placeholders."""
     return " ".join(shlex.quote(part) for part in parts)
@@ -187,10 +201,47 @@ def main() -> int:
                 ),
             }
         elif decision.get("decision") == "wait":
+            campaign_id, dedupe_key = continuation_identity(state_dir)
+            next_wake_at = decision.get("predicted_next_opportunity")
+            control_script = str(script_dir / "runtime_control.py")
             report["next_action"] = {
                 "kind": "wait-for-recorded-trigger",
-                "next_wake_at": decision.get("predicted_next_opportunity"),
+                "next_wake_at": next_wake_at,
                 "wake_trigger": decision.get("wake_trigger"),
+                "required_transition": "create-or-update-single-host-continuation",
+                "transition_status": "execute-now",
+                "setup_input_required": False,
+                "owner_reply_required": False,
+                "authorization_source": "active-campaign-lifetime-receipt",
+                "continuation": {
+                    "campaign_id": campaign_id,
+                    "dedupe_key": dedupe_key,
+                    "task_id": f"linkedin-campaign-continuation-{campaign_id}",
+                    "schedule_at": next_wake_at,
+                    "update_existing": True,
+                    "prompt": (
+                        f"Resume campaign {campaign_id} from durable state at {state_dir}. "
+                        "Resolve the latest installed plugin, run campaign_cycle.py, follow its "
+                        "next_action through saved task transitions, and update this same "
+                        "deduplicated continuation when the next durable wait is reached."
+                    ),
+                    "on_success_command_template": shell_command(
+                        [
+                            sys.executable,
+                            control_script,
+                            str(state_dir),
+                            "continuation-event",
+                            "--event",
+                            "armed",
+                            "--adapter",
+                            "host-native-scheduled-wake",
+                            "--automation-id",
+                            "ACTUAL_AUTOMATION_ID",
+                            "--next-wake-at",
+                            str(next_wake_at or "ACTUAL_NEXT_WAKE_AT"),
+                        ]
+                    ),
+                },
             }
         elif decision.get("decision") == "consent-required":
             report["next_action"] = {

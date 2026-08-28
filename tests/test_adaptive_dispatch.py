@@ -237,7 +237,7 @@ class V6RuntimeTests(unittest.TestCase):
             NOW.isoformat(),
             "--activate-from-owner-start",
         )
-        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.20")
+        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.21")
         self.assertFalse(initialized["campaign_consent"]["renewal_required"])
         config = read_json(state_dir / "campaign-config.json")
         self.assertEqual(config["target"]["metric_a"]["goal_mode"], "increase")
@@ -348,7 +348,7 @@ class V6RuntimeTests(unittest.TestCase):
         for key in ("plugin_version", "lifecycle", "next_trigger", "profile_binding", "stage_history"):
             self.assertNotIn(key, migrated_state)
         self.assertEqual(
-            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.20"
+            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.21"
         )
         self.assertNotIn("tasks", read_json(state_dir / "work-queue.json"))
 
@@ -725,6 +725,33 @@ class V6RuntimeTests(unittest.TestCase):
         )
         self.assertEqual(stored_health["status"], "completed")
         self.assertNotIn("lease_id", stored_health)
+        _, cycle = run_json(
+            "python3", ORCHESTRATOR / "campaign_cycle.py", state_dir,
+            "--now", (NOW + timedelta(minutes=1)).isoformat(),
+        )
+        next_action = cycle["next_action"]
+        self.assertEqual(next_action["kind"], "wait-for-recorded-trigger")
+        self.assertEqual(
+            next_action["required_transition"],
+            "create-or-update-single-host-continuation",
+        )
+        self.assertEqual(next_action["transition_status"], "execute-now")
+        self.assertFalse(next_action["setup_input_required"])
+        self.assertFalse(next_action["owner_reply_required"])
+        self.assertEqual(
+            next_action["authorization_source"],
+            "active-campaign-lifetime-receipt",
+        )
+        continuation = next_action["continuation"]
+        self.assertEqual(
+            continuation["task_id"], "linkedin-campaign-continuation-v6-test"
+        )
+        self.assertEqual(
+            continuation["dedupe_key"],
+            "linkedin-campaign-continuation:v6-test",
+        )
+        self.assertTrue(continuation["update_existing"])
+        self.assertIn("continuation-event", continuation["on_success_command_template"])
 
     def test_ready_package_requires_scored_decision_before_live_execution(self) -> None:
         temporary, state_dir = self.make_campaign()

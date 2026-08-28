@@ -3,7 +3,7 @@ name: linkedin-campaign-orchestrator
 description: Run a durable LinkedIn campaign workspace for research, content, scheduling, measurement, and recovery. Use this as the only public entry point.
 metadata:
   author: sunny
-  version: "6.0.0-rc.20"
+  version: "6.0.0-rc.21"
 ---
 
 # LinkedIn campaign orchestrator
@@ -76,7 +76,9 @@ Repeat this loop while eligible work remains:
 8. Run the exact command returned in `after_save` immediately after the saved transition.
 9. Continue from the new `next_action`; do not answer with a terminal status while it returns executable work.
 
-Wait only when `campaign_cycle.py` returns `wait-for-recorded-trigger`. Confirm that its reason, unfinished-work count, next evidence opportunity, and wake trigger are saved. Maintain one campaign continuation schedule and update it rather than creating duplicates.
+Wait only when `campaign_cycle.py` returns `wait-for-recorded-trigger`. Confirm that its reason, unfinished-work count, next evidence opportunity, and wake trigger are saved. Its `required_transition` is the next campaign step: create or update the one host-native continuation using the returned task ID, dedupe key, time, and prompt, then save the returned automation ID with `on_success_command_template`.
+
+An active campaign-lifetime receipt that includes `automatic-recovery-and-continuation` already resolves this transition. Treat `setup_input_required: false` and `owner_reply_required: false` as authoritative. Create or update the schedule immediately; the host may still display its own required tool-permission control, and execution resumes as soon as that control is granted. Maintain one campaign continuation schedule and update it rather than creating duplicates.
 
 If a capability is unavailable, save that observation and rerun the cycle. The dispatcher may route another local task or `linkedin-runtime-repair`; capability absence by itself is not a reason to invent a manual workflow or end the campaign.
 

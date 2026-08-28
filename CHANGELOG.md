@@ -1,5 +1,13 @@
 # Changelog
 
+## 6.0.0-rc.21 — Deterministic Host Continuation
+
+- Return one machine-readable continuation transition at every durable wait, including the stable task ID, dedupe key, wake time, prompt, and success-record command.
+- Mark that transition `execute-now` with owner reply and setup input explicitly resolved by the active campaign-lifetime receipt.
+- Direct Claude Code to create or update the same host-native schedule immediately and save its returned automation ID.
+- Preserve the host's own required tool-permission control as the only possible one-time UI gate.
+- Add regression coverage for the full wait-to-continuation contract.
+
 ## 6.0.0-rc.20 — Fixed Public Startup Surface
 
 - Limit model-facing startup to resolver, initializer, runtime control, and campaign-cycle entry points.
