@@ -32,7 +32,7 @@ def test_parent_and_twelve_children_share_the_rc_version() -> None:
         metadata = frontmatter(skill_file)
         assert metadata["name"] == skill_file.parent.name
         assert metadata["description"]
-        assert metadata["metadata"]["version"] == "6.0.0-rc.12"
+        assert metadata["metadata"]["version"] == "6.0.0-rc.13"
         if metadata["name"] != "linkedin-campaign-orchestrator":
             assert f"`{metadata['name']}`" in parent_text
 
@@ -41,7 +41,7 @@ def test_claude_and_codex_manifests_are_aligned() -> None:
     claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
     codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
     assert claude["name"] == codex["name"] == PLUGIN.name
-    assert claude["version"] == codex["version"] == "6.0.0-rc.12"
+    assert claude["version"] == codex["version"] == "6.0.0-rc.13"
     assert claude["license"] == codex["license"] == "MIT"
     assert claude["homepage"] == codex["homepage"] == PUBLIC_SITE
     assert codex["skills"] == "./skills/"
@@ -132,6 +132,15 @@ def test_continuation_never_becomes_an_owner_choice() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
     assert "Maintain one campaign continuation schedule" in text
     assert "update it rather than creating duplicates" in text
+
+
+def test_routine_setup_is_resolved_without_optional_owner_questions() -> None:
+    text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
+    assert "Resolve routine setup choices directly" in text
+    assert "choose the device matching the current host platform" in text
+    assert "use the packaged template defaults" in text
+    assert "record `unavailable`" in text
+    assert "Optional preferences stay at saved defaults" in text
 
 
 def test_orchestrator_uses_deterministic_plugin_path_resolution() -> None:

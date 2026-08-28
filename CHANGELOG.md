@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.0.0-rc.13 — Deterministic Routine Setup
+
+- Added evidence-driven startup rules for profile binding, campaign goals, optional settings, and connected-service availability.
+- Made packaged defaults and explicit unknown values the normal fallback for optional setup fields.
+- Prevented optional cadence, secondary-goal, device, and service-identification questions from stopping the next useful local task.
+
 ## 6.0.0-rc.12 — Clear Internal Campaign Instructions
 
 - Reworked the orchestrator and child skill bodies around a simple local-workspace and connected-service boundary.

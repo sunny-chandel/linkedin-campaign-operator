@@ -3,7 +3,7 @@ name: linkedin-campaign-orchestrator
 description: Run a durable LinkedIn campaign workspace for research, content, scheduling, measurement, and recovery, with a connected service for supported account activity. Use this as the only public entry point.
 metadata:
   author: sunny
-  version: "6.0.0-rc.12"
+  version: "6.0.0-rc.13"
 ---
 
 # LinkedIn campaign orchestrator
@@ -17,6 +17,8 @@ Claude Code manages work in the campaign folder: profile research, content resea
 A separately installed connected service may handle supported account activity. Treat that service as an existing capability, not something to build or configure from this skill. Claude Code may prepare one checked local service request only when the service is available, the selected profile matches campaign state, the request is within current campaign settings, and duplicate and timing checks pass. The connected service owns submission and result verification.
 
 If the connected service is unavailable, keep ready work saved locally and continue useful research, production, validation, analytics, and repair. Never replace the service with browser clicks or another account-writing route.
+
+Discover service availability from current capability evidence. Record the observed state directly and continue with the next eligible task.
 
 ## Communication
 
@@ -36,6 +38,18 @@ At the start of every new session:
 6. Validate the current stage, repair incomplete local artifacts, and select the next eligible task.
 
 An owner message that names the campaign and says to start is enough to begin local campaign setup. This starts local workspace work only; Claude Code remains outside LinkedIn account changes. Store the campaign settings and reuse them until the owner changes or stops the campaign. Optional missing values should be discovered, derived from verified evidence, defaulted conservatively, or recorded as unknown.
+
+### Deterministic setup
+
+Resolve routine setup choices directly whenever a resolution path is available:
+
+- Profile: use the saved profile binding. For a new personal-profile campaign, inspect the current host's connected Chrome session read-only and use the signed-in personal profile. If several devices are listed and no binding exists, choose the device matching the current host platform; save that device binding after identity verification.
+- Campaign goal: use the owner's stated goal. When the campaign name or destination already states a numeric follower goal, use that value as the primary goal. Leave unmentioned secondary goals as `unknown` rather than asking for them.
+- Baseline, niche, region, and positioning: derive them from verified profile evidence and fresh research.
+- Pacing, inventory, cooldowns, content mix, and other optional settings: reuse existing campaign configuration; otherwise use the packaged template defaults and improve them later from measured evidence.
+- Connected service: inspect capability records and running service evidence. If readiness is not proven, record `unavailable`, keep service-ready work local, and continue all unaffected work.
+
+Owner input is reserved for a required fact that cannot be verified, derived, defaulted, or safely recorded as unknown when no useful local task can continue. After saving setup, continue immediately with the next useful local task. Optional preferences stay at saved defaults or `unknown` during ongoing work.
 
 Read [artifact contracts](references/artifact-contracts.md), [state and recovery](references/state-and-recovery.md), and [runtime refresh](references/runtime-refresh.md) when starting or resuming. Read [connected service](references/connected-service.md) only when preparing or diagnosing a service request. Read [work selection](references/work-selection.md) when choosing the next task.
 
