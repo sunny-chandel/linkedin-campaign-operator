@@ -32,7 +32,7 @@ def test_parent_and_twelve_children_share_the_rc_version() -> None:
         metadata = frontmatter(skill_file)
         assert metadata["name"] == skill_file.parent.name
         assert metadata["description"]
-        assert metadata["metadata"]["version"] == "6.0.0-rc.24"
+        assert metadata["metadata"]["version"] == "6.0.0-rc.25"
         if metadata["name"] != "linkedin-campaign-orchestrator":
             assert f"`{metadata['name']}`" in parent_text
 
@@ -41,7 +41,7 @@ def test_claude_and_codex_manifests_are_aligned() -> None:
     claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
     codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
     assert claude["name"] == codex["name"] == PLUGIN.name
-    assert claude["version"] == codex["version"] == "6.0.0-rc.24"
+    assert claude["version"] == codex["version"] == "6.0.0-rc.25"
     assert claude["license"] == codex["license"] == "MIT"
     assert claude["homepage"] == codex["homepage"] == PUBLIC_SITE
     assert codex["skills"] == "./skills/"
@@ -89,6 +89,15 @@ def test_routine_user_updates_use_plain_language() -> None:
     assert "service unavailable; prepared work saved; next check scheduled" in text
     assert "Keep credential names and service implementation details internal" in text
     assert "routine campaign progress does not require an owner reply" in text
+
+
+def test_model_context_uses_compact_current_evidence_only() -> None:
+    text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
+    assert "Treat the compact result from `campaign_cycle.py` as the model-facing control surface" in text
+    assert "Do not paste raw configuration files" in text
+    assert "It does not reproduce prior chat history" in text
+    assert "claims that an agreement occurred when no durable record proves it" in text
+    assert "project only the available local task" in text
 
 
 def test_public_descriptions_are_plain_language() -> None:

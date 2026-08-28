@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.0.0-rc.25 — Compact Model Context
+
+- Projects campaign-cycle output down to the current task, transition, and essential evidence instead of exposing nested runtime diagnostics.
+- Keeps raw configuration, internal counters, service schemas, and unrelated historical logs out of child and continuation prompts.
+- Requires fresh prompts to use current owner instructions and verified durable evidence without fabricating prior agreement or reproducing earlier conversation history.
+
 ## 6.0.0-rc.24 — Persistent Desktop Continuation
 
 - Require the campaign continuation to survive the current Claude session.

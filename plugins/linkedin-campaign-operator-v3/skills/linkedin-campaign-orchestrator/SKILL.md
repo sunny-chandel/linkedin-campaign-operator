@@ -3,7 +3,7 @@ name: linkedin-campaign-orchestrator
 description: Run a durable LinkedIn campaign workspace for research, content, scheduling, measurement, and recovery. Use this as the only public entry point.
 metadata:
   author: sunny
-  version: "6.0.0-rc.24"
+  version: "6.0.0-rc.25"
 ---
 
 # LinkedIn campaign orchestrator
@@ -29,6 +29,14 @@ Use short, plain progress updates. Good routine states include `profile verified
 Keep filenames, queue mechanics, and recovery details internal unless the owner asks for a technical diagnosis. When work cannot continue, report the exact unavailable capability and the one next recovery step.
 
 When prepared work is waiting on the connected service, use the concise status `service unavailable; prepared work saved; next check scheduled`. Keep credential names and service implementation details internal unless the owner specifically requests technical setup details. Record a capability recheck and continue from its saved wake trigger; routine campaign progress does not require an owner reply.
+
+### Context boundary
+
+Treat the compact result from `campaign_cycle.py` as the model-facing control surface. Pass a child skill only the returned `next_action`, the task-specific saved facts it needs, and current verified evidence. Do not paste raw configuration files, nested audit or dispatch diagnostics, service implementation schemas, internal activity counters, or unrelated historical logs into a child prompt or routine prompt.
+
+A fresh campaign prompt contains the current owner start instruction, verified profile facts, stated goals, and the empty campaign directory. It does not reproduce prior chat history, earlier objections, earlier refusals, or claims that an agreement occurred when no durable record proves it. Existing campaigns resume from durable evidence rather than reconstructed conversation history.
+
+Internal settings describe machine validation and future measurement. They are not a new owner request, proof of account capability, or permission for account changes. When an account capability is unavailable, project only the available local task and the plain status above.
 
 ## Start or resume
 

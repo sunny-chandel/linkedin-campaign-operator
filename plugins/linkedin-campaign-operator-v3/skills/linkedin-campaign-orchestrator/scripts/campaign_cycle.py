@@ -92,6 +92,81 @@ def shell_command(parts: list[str]) -> str:
     return " ".join(shlex.quote(part) for part in parts)
 
 
+def project_fields(value: dict[str, Any], fields: tuple[str, ...]) -> dict[str, Any]:
+    """Keep the model-facing cycle report focused on the next useful transition."""
+    return {field: value[field] for field in fields if field in value}
+
+
+def project_task(task: dict[str, Any]) -> dict[str, Any]:
+    """Return task facts needed for execution without nested runtime diagnostics."""
+    projected = project_fields(
+        task,
+        (
+            "task_id",
+            "task_type",
+            "lane",
+            "priority",
+            "status",
+            "ready",
+            "requires_linkedin",
+            "stage_id",
+            "idempotency_key",
+            "attempt_count",
+            "lease_id",
+            "leased_at",
+            "lease_expires_at",
+            "package_id",
+            "target_scope",
+            "required_regions",
+            "required_package_count",
+            "topic_candidate_target",
+            "normal_package_limit",
+            "inventory_target",
+            "inventory_ready",
+            "content_day_local",
+        ),
+    )
+    contract = task.get("dispatch_contract")
+    if isinstance(contract, dict):
+        projected["dispatch_contract"] = project_fields(
+            contract,
+            (
+                "schema_version",
+                "routine_external_action",
+                "receipt_id",
+                "setup_input_required",
+                "routine_transition_is_deterministic",
+                "status_response_terminal",
+                "mode",
+                "decision",
+                "reason",
+            ),
+        )
+    return projected
+
+
+def project_dispatch(decision: dict[str, Any]) -> dict[str, Any]:
+    """Remove internal scoring and service diagnostics from the control response."""
+    projected = project_fields(
+        decision,
+        (
+            "valid",
+            "decision",
+            "reason",
+            "unfinished_work_count",
+            "deferred_work_count",
+            "predicted_next_opportunity",
+            "wake_trigger",
+            "budget_day_local",
+            "budget_day_reset",
+        ),
+    )
+    task = decision.get("task")
+    if isinstance(task, dict):
+        projected["task"] = project_task(task)
+    return projected
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("state_dir", type=Path)
@@ -111,7 +186,18 @@ def main() -> int:
     }
     try:
         if args.session_start or runtime_version(state_dir) != CURRENT_VERSION:
-            report["migration"] = run_json(script_dir, "migrate_campaign.py", timed)
+            migration = run_json(script_dir, "migrate_campaign.py", timed)
+            report["migration"] = project_fields(
+                migration,
+                (
+                    "valid",
+                    "from_version",
+                    "to_version",
+                    "migrated",
+                    "changed",
+                    "updated_files",
+                ),
+            )
         consent_path = state_dir / "consent-record.json"
         consent = (
             json.loads(consent_path.read_text(encoding="utf-8"))
@@ -120,8 +206,11 @@ def main() -> int:
         )
         consent_active = isinstance(consent, dict) and consent.get("status") == "active"
         validation_arguments = common if consent_active else [*common, "--allow-draft"]
-        report["validation"] = run_json(
+        validation = run_json(
             script_dir, "validate_campaign.py", validation_arguments
+        )
+        report["validation"] = project_fields(
+            validation, ("valid", "errors", "warnings")
         )
         if not consent_active:
             report["next_action"] = {
@@ -135,16 +224,38 @@ def main() -> int:
             resume_arguments = [*common, "--session-id", args.session_id]
             if args.now:
                 resume_arguments.extend(["--now", args.now])
-            report["resume"] = run_json(script_dir, "resume_campaign.py", resume_arguments)
+            resume = run_json(script_dir, "resume_campaign.py", resume_arguments)
+            report["resume"] = project_fields(
+                resume,
+                (
+                    "valid",
+                    "status",
+                    "session_id",
+                    "restart_count",
+                    "recovery_status",
+                    "next_action",
+                ),
+            )
         audit_arguments = [*common, "--write"]
         if args.now:
             audit_arguments.extend(["--now", args.now])
-        report["audit"] = run_json(script_dir, "audit_pipeline.py", audit_arguments)
+        audit = run_json(script_dir, "audit_pipeline.py", audit_arguments)
+        report["audit"] = project_fields(
+            audit,
+            (
+                "valid",
+                "ready_package_count",
+                "repaired",
+                "issues",
+                "errors",
+                "warnings",
+            ),
+        )
         dispatch_arguments = [*common, "--record"]
         if args.now:
             dispatch_arguments.extend(["--now", args.now])
         decision = run_json(script_dir, "dispatch_next_work.py", dispatch_arguments)
-        report["dispatch"] = decision
+        report["dispatch"] = project_dispatch(decision)
         task = decision.get("task")
         if decision.get("decision") == "execute" and isinstance(task, dict):
             task_type = str(task.get("task_type") or "")

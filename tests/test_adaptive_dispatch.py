@@ -248,7 +248,7 @@ class V6RuntimeTests(unittest.TestCase):
             NOW.isoformat(),
             "--activate-from-owner-start",
         )
-        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.24")
+        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.25")
         self.assertFalse(initialized["campaign_consent"]["renewal_required"])
         verification = initialized["profile_verification"]
         self.assertEqual(verification["device_id"], "browser-1-id")
@@ -293,6 +293,17 @@ class V6RuntimeTests(unittest.TestCase):
         self.assertEqual(cycle["dispatch"]["decision"], "execute")
         self.assertEqual(cycle["next_action"]["kind"], "execute-child-task")
         self.assertFalse(cycle["dispatch"]["task"]["dispatch_contract"]["setup_input_required"])
+        projected = json.dumps(cycle, sort_keys=True).lower()
+        for internal_term in (
+            "rolling_output",
+            "rolling_24h_action_target",
+            "required_action_classes",
+            "programmatic-token-refresh",
+            "external-executor.json",
+            "opportunity_health",
+            "reconciliation",
+        ):
+            self.assertNotIn(internal_term, projected)
         self.assertIn("runtime_control.py", cycle["next_action"]["checkpoint_command"])
         self.assertIn("runtime_control.py", cycle["next_action"]["completion_command_template"])
         self.assertIn("campaign_cycle.py", cycle["next_action"]["after_save"])
@@ -378,7 +389,7 @@ class V6RuntimeTests(unittest.TestCase):
         for key in ("plugin_version", "lifecycle", "next_trigger", "profile_binding", "stage_history"):
             self.assertNotIn(key, migrated_state)
         self.assertEqual(
-            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.24"
+            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.25"
         )
         self.assertNotIn("tasks", read_json(state_dir / "work-queue.json"))
 
