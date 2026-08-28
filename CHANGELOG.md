@@ -1,5 +1,13 @@
 # Changelog
 
+## 6.0.0-rc.23 — Explicit Local Campaign Scope
+
+- Define the owner start receipt and host continuation as automatic local-workspace operation only.
+- State prominently that later account-activity capability changes never broaden the local receipt into future account changes.
+- Return a machine-readable campaign-scope contract with scope confirmation already resolved.
+- Remove obsolete LinkedIn mutation classes and high-volume activity settings from the public consent template and migration output.
+- Reframe service configuration as a separate input whose authorization is never inferred from the campaign start.
+
 ## 6.0.0-rc.22 — Initializer-Pinned Browser Verification
 
 - Accept the supplied Chrome device ID, label, and platform in the initializer and persist them before profile verification.

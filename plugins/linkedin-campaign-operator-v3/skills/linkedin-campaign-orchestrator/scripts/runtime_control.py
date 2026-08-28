@@ -133,7 +133,7 @@ def consent_grant(args, state_dir: Path, state: dict[str, Any], now) -> dict[str
                 "granted_at": iso_time(now),
                 "granted_by": granted_by,
                 "source": args.source,
-                "automation_mode": "fully-automated",
+                "automation_mode": "automatic-local-workspace",
                 "portable_across_model_sessions": True,
             },
             "renewal_policy": {

@@ -212,7 +212,7 @@ def main() -> int:
                 "transition_status": "execute-now",
                 "setup_input_required": False,
                 "owner_reply_required": False,
-                "authorization_source": "active-campaign-lifetime-receipt",
+                "authorization_source": "active-local-campaign-receipt",
                 "continuation": {
                     "campaign_id": campaign_id,
                     "dedupe_key": dedupe_key,

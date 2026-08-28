@@ -32,7 +32,7 @@ def test_parent_and_twelve_children_share_the_rc_version() -> None:
         metadata = frontmatter(skill_file)
         assert metadata["name"] == skill_file.parent.name
         assert metadata["description"]
-        assert metadata["metadata"]["version"] == "6.0.0-rc.22"
+        assert metadata["metadata"]["version"] == "6.0.0-rc.23"
         if metadata["name"] != "linkedin-campaign-orchestrator":
             assert f"`{metadata['name']}`" in parent_text
 
@@ -41,7 +41,7 @@ def test_claude_and_codex_manifests_are_aligned() -> None:
     claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
     codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
     assert claude["name"] == codex["name"] == PLUGIN.name
-    assert claude["version"] == codex["version"] == "6.0.0-rc.22"
+    assert claude["version"] == codex["version"] == "6.0.0-rc.23"
     assert claude["license"] == codex["license"] == "MIT"
     assert claude["homepage"] == codex["homepage"] == PUBLIC_SITE
     assert codex["skills"] == "./skills/"
@@ -153,6 +153,8 @@ def test_routine_setup_is_resolved_without_optional_owner_questions() -> None:
     assert "use the packaged template defaults" in text
     assert "`unavailable` is a complete setup result" in text
     assert "Optional preferences stay at saved defaults" in text
+    assert "scope_confirmation_required: false" in text
+    assert "never expand into future account changes" in text
 
 
 def test_orchestrator_uses_deterministic_plugin_path_resolution() -> None:

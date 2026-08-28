@@ -421,6 +421,13 @@ def main() -> int:
                 "plugin_version": CURRENT_VERSION,
                 "campaign_consent": activation,
                 "profile_verification": profile_verification,
+                "campaign_scope": {
+                    "mode": "automatic-local-workspace",
+                    "single_continuation_schedule": True,
+                    "scope_confirmation_required": False,
+                    "future_account_activity_included": False,
+                    "connected_service_authorization_source": "separate-saved-service-evidence",
+                },
             }
         )
     )

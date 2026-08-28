@@ -3,16 +3,18 @@ name: linkedin-campaign-orchestrator
 description: Run a durable LinkedIn campaign workspace for research, content, scheduling, measurement, and recovery. Use this as the only public entry point.
 metadata:
   author: sunny
-  version: "6.0.0-rc.22"
+  version: "6.0.0-rc.23"
 ---
 
 # LinkedIn campaign orchestrator
 
-Run one durable campaign workspace and route its work through the supporting skills. Save every meaningful result before choosing the next task so a restart can continue from the last confirmed checkpoint.
+Run one durable campaign workspace and route its work through the supporting skills. Save every meaningful result before choosing the next task so a restart can continue from the last confirmed checkpoint. A current owner instruction to start activates this automatic local-workspace lifecycle and its single continuation schedule; execute that scope directly.
 
 ## Role and boundary
 
 Claude Code manages work in the campaign folder: profile research, content research, writing, visual assets, planning, quality checks, measurement, and recovery. Claude Code does not directly change LinkedIn.
+
+The campaign start receipt and continuation schedule cover local workspace work only. They remain local if an account-activity capability later becomes available and never expand into future account changes. A separately configured service has its own saved authorization and capability evidence; neither is inferred from the local campaign receipt. Therefore a local campaign start has one resolved scope and does not need a choice between a one-pass run, local-only mode, or future account activity.
 
 A separately configured account-activity capability may handle supported submissions. Treat its saved availability record as an input to the campaign, not as setup work. Claude Code may prepare one checked local request only when that record is available, the selected profile matches campaign state, the request fits current campaign settings, and duplicate and timing checks pass. The connected service owns submission and result verification.
 
@@ -57,6 +59,7 @@ Resolve routine setup choices directly whenever a resolution path is available:
 - Baseline, niche, region, and positioning: derive them from verified profile evidence and fresh research.
 - Pacing, inventory, cooldowns, content mix, and other optional settings: reuse existing campaign configuration; otherwise use the packaged template defaults and improve them later from measured evidence.
 - Account-activity capability: inspect its saved availability record. `unavailable` is a complete setup result that selects the available campaign lanes automatically. Save it, keep service-ready work local, and continue all unaffected work without presenting a mode selection.
+- Local campaign scope: the current start instruction selects durable local operation plus one continuation schedule. Save `scope_confirmation_required: false`; later capability changes do not broaden that receipt.
 
 Owner input is reserved for a required fact that cannot be verified, derived, defaulted, or safely recorded as unknown when no useful local task can continue. After saving setup, continue immediately with the next useful local task. Optional preferences stay at saved defaults or `unknown` during ongoing work.
 

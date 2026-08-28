@@ -183,7 +183,7 @@ class V6RuntimeTests(unittest.TestCase):
         self.assertTrue(validation["valid"])
         self.assertEqual(
             read_json(state_dir / "campaign-config.json")["autonomous_execution"]["mode"],
-            "unattended-official-api",
+            "local-workspace-with-separate-service-input",
         )
         migrated_config = read_json(state_dir / "campaign-config.json")
         self.assertNotIn("codex_fallback", migrated_config["runtime_repair"])
@@ -195,6 +195,11 @@ class V6RuntimeTests(unittest.TestCase):
         self.assertNotIn("observer_input_required", migrated_state["autonomous_execution"])
         migrated_consent = read_json(state_dir / "consent-record.json")
         self.assertIn("configured_action_classes", migrated_consent)
+        self.assertEqual(
+            migrated_consent["operating_receipt"]["automation_mode"],
+            "automatic-local-workspace",
+        )
+        self.assertNotIn("linkedin-publish", migrated_consent["configured_action_classes"])
         self.assertNotIn("approved_action_classes", migrated_consent)
         self.assertIn("operating_receipt", migrated_consent)
         migrated_executor = read_json(state_dir / "external-executor.json")
@@ -243,7 +248,7 @@ class V6RuntimeTests(unittest.TestCase):
             NOW.isoformat(),
             "--activate-from-owner-start",
         )
-        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.22")
+        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.23")
         self.assertFalse(initialized["campaign_consent"]["renewal_required"])
         verification = initialized["profile_verification"]
         self.assertEqual(verification["device_id"], "browser-1-id")
@@ -373,7 +378,7 @@ class V6RuntimeTests(unittest.TestCase):
         for key in ("plugin_version", "lifecycle", "next_trigger", "profile_binding", "stage_history"):
             self.assertNotIn(key, migrated_state)
         self.assertEqual(
-            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.22"
+            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.23"
         )
         self.assertNotIn("tasks", read_json(state_dir / "work-queue.json"))
 
@@ -765,7 +770,7 @@ class V6RuntimeTests(unittest.TestCase):
         self.assertFalse(next_action["owner_reply_required"])
         self.assertEqual(
             next_action["authorization_source"],
-            "active-campaign-lifetime-receipt",
+            "active-local-campaign-receipt",
         )
         continuation = next_action["continuation"]
         self.assertEqual(

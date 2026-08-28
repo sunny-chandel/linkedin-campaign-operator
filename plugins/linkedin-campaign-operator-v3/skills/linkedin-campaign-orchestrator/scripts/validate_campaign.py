@@ -166,20 +166,17 @@ def main() -> int:
         errors.append("campaign-config.json timezone must be a valid IANA timezone")
     persistent_settings = consent.get("persistent_settings", [])
     required_settings = {
-        "automated-mode",
-        "rolling-160-action-target-200-cap",
-        "continuous-24-hour-dispatch",
-        "direct-inbound-overage",
-        "fully-dynamic-publishing",
+        "automatic-local-workspace",
+        "continuous-local-dispatch",
+        "evidence-based-scheduling",
         "automatic-profile-watermark",
-        "permanent-dominant-gif-learning-deletion",
+        "creative-pattern-learning",
         "campaign-start-operating-receipt",
         "campaign-lifetime-receipt-reload",
         "automatic-recovery-and-continuation",
         "opportunity-recovery-controller",
-        "six-to-eight-rolling-publications",
+        "six-package-ready-inventory",
         "regional-diversification",
-        "relationship-only-proactive-dms",
         "automatic-runtime-repair",
     }
     if not isinstance(persistent_settings, list) or not required_settings.issubset(set(persistent_settings)):

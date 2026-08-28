@@ -163,12 +163,12 @@
     }
   },
   "autonomous_execution": {
-    "mode": "unattended-official-api",
+    "mode": "local-workspace-with-separate-service-input",
     "executor_config": "external-executor.json",
     "outbox_path": "external-action-outbox",
-    "daemon_required": true,
-    "programmatic_token_refresh_required": true,
-    "credential_persistence": "macos-keychain",
+    "daemon_required": false,
+    "programmatic_token_refresh_required": false,
+    "credential_persistence": "service-owned-not-managed-by-plugin",
     "interactive_fallback_enabled": false,
     "interactive_mutation_fallback_enabled": false,
     "required_action_classes": [

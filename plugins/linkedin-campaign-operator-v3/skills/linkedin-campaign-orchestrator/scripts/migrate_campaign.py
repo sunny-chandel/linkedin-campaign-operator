@@ -581,6 +581,35 @@ def main() -> int:
             configured_classes = []
         if isinstance(legacy_classes, list):
             configured_classes = list(dict.fromkeys([*configured_classes, *legacy_classes]))
+        legacy_account_classes = {
+            "chrome-preflight",
+            "engagement-queue-preparation",
+            "linkedin-read",
+            "linkedin-publish",
+            "linkedin-comment",
+            "linkedin-reply",
+            "linkedin-direct-message",
+            "linkedin-reaction",
+            "linkedin-connection-request",
+            "signal-reciprocity",
+        }
+        configured_classes = [
+            value for value in configured_classes if value not in legacy_account_classes
+        ]
+        local_action_classes = [
+            "profile-read-verification",
+            "research",
+            "content-drafting",
+            "asset-production",
+            "conversation-opportunity-planning",
+            "service-request-preparation",
+            "service-capability-recheck",
+            "adaptive-scheduling",
+            "opportunity-recovery",
+            "performance-recovery-content",
+            "analytics",
+            "state-and-log-updates",
+        ]
         legacy_renewal = consent.pop("reconfirmation_policy", None)
         if "renewal_policy" not in consent and isinstance(legacy_renewal, dict):
             consent["renewal_policy"] = legacy_renewal
@@ -598,20 +627,17 @@ def main() -> int:
         if "campaign_stop_signals" not in consent and isinstance(legacy_stop_signals, list):
             consent["campaign_stop_signals"] = legacy_stop_signals
         required_settings = [
-            "automated-mode",
-            "rolling-160-action-target-200-cap",
-            "continuous-24-hour-dispatch",
-            "direct-inbound-overage",
-            "fully-dynamic-publishing",
+            "automatic-local-workspace",
+            "continuous-local-dispatch",
+            "evidence-based-scheduling",
             "automatic-profile-watermark",
-            "permanent-dominant-gif-learning-deletion",
+            "creative-pattern-learning",
             "campaign-start-operating-receipt",
             "campaign-lifetime-receipt-reload",
             "automatic-recovery-and-continuation",
             "opportunity-recovery-controller",
-            "six-to-eight-rolling-publications",
+            "six-package-ready-inventory",
             "regional-diversification",
-            "relationship-only-proactive-dms",
             "automatic-runtime-repair",
         ]
         current_settings = consent.get("persistent_settings", [])
@@ -624,11 +650,23 @@ def main() -> int:
             "one-time-high-value-consent",
             "campaign-lifetime-consent-reload",
             "automatic-recovery-without-routine-questions",
+            "automated-mode",
+            "rolling-160-action-target-200-cap",
+            "continuous-24-hour-dispatch",
+            "direct-inbound-overage",
+            "fully-dynamic-publishing",
+            "permanent-dominant-gif-learning-deletion",
+            "six-to-eight-rolling-publications",
+            "relationship-only-proactive-dms",
         }
         current_settings = [value for value in current_settings if value not in obsolete_settings]
         merged_settings = list(dict.fromkeys([*current_settings, *required_settings]))
         receipt = consent.get("operating_receipt", {})
         receipt_missing = not isinstance(receipt, dict) or not receipt.get("receipt_id")
+        receipt_mode_stale = (
+            isinstance(receipt, dict)
+            and receipt.get("automation_mode") != "automatic-local-workspace"
+        )
         owner = consent.get("owner", {})
         owner_name = owner.get("display_name") if isinstance(owner, dict) else None
         needs_update = (
@@ -642,6 +680,7 @@ def main() -> int:
             or legacy_routine is not None
             or legacy_triggers is not None
             or legacy_stop_signals is not None
+            or receipt_mode_stale
             or (consent.get("status") == "active" and receipt_missing)
         )
         if needs_update:
@@ -650,14 +689,12 @@ def main() -> int:
             consent["scope"] = "campaign-lifetime"
             consent["persistent_settings"] = merged_settings
             consent["configured_action_classes"] = list(
-                dict.fromkeys([
-                    *configured_classes,
-                    "adaptive-scheduling",
-                    "signal-reciprocity",
-                    "opportunity-recovery",
-                    "performance-recovery-content",
-                ])
+                dict.fromkeys([*configured_classes, *local_action_classes])
             )
+            if isinstance(consent.get("operating_receipt"), dict):
+                consent["operating_receipt"]["automation_mode"] = (
+                    "automatic-local-workspace"
+                )
             if consent.get("status") == "active" and receipt_missing:
                 if not owner_name or owner_name == "replace-me":
                     consent["status"] = "pending"
@@ -669,7 +706,7 @@ def main() -> int:
                         "granted_at": granted_at,
                         "granted_by": owner_name,
                         "source": "migrated-existing-explicit-owner-consent",
-                        "automation_mode": "fully-automated",
+                        "automation_mode": "automatic-local-workspace",
                         "portable_across_model_sessions": True,
                     }
             consent["renewal_policy"] = {
