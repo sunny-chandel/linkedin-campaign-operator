@@ -105,7 +105,7 @@ def recognized_identity(consent: dict[str, Any]) -> tuple[str, str]:
 def consent_grant(args, state_dir: Path, state: dict[str, Any], now) -> dict[str, Any]:
     consent_path = state_dir / "consent-record.json"
     consent = load_object(consent_path)
-    existing = consent.get("authorization_receipt", {})
+    existing = consent.get("operating_receipt", {})
     if consent.get("status") == "active" and isinstance(existing, dict) and existing.get("receipt_id"):
         sync_consent_snapshot(state_dir, state, now)
         write_runtime(state_dir, state)
@@ -114,7 +114,7 @@ def consent_grant(args, state_dir: Path, state: dict[str, Any], now) -> dict[str
             "already_active": True,
             "receipt_id": existing["receipt_id"],
             "scope": consent.get("scope"),
-            "reconfirmation_required": False,
+            "renewal_required": False,
         }
     expected_owner, _ = recognized_identity(consent)
     granted_by = args.owner or expected_owner
@@ -128,7 +128,7 @@ def consent_grant(args, state_dir: Path, state: dict[str, Any], now) -> dict[str
             "status": "active",
             "scope": "campaign-lifetime",
             "activated_at": iso_time(now),
-            "authorization_receipt": {
+            "operating_receipt": {
                 "receipt_id": receipt_id,
                 "granted_at": iso_time(now),
                 "granted_by": granted_by,
@@ -136,10 +136,10 @@ def consent_grant(args, state_dir: Path, state: dict[str, Any], now) -> dict[str
                 "automation_mode": "fully-automated",
                 "portable_across_model_sessions": True,
             },
-            "reconfirmation_policy": {
-                "routine_reconfirmation_required": False,
+            "renewal_policy": {
+                "routine_renewal_required": False,
                 "reload_on_every_session_start": True,
-                "reask_only_when": [
+                "renew_only_when": [
                     "owner-revoked",
                     "consent-record-missing-or-invalid",
                     "verified-account-identity-changed",
@@ -149,9 +149,9 @@ def consent_grant(args, state_dir: Path, state: dict[str, Any], now) -> dict[str
     )
     settings = consent.setdefault("persistent_settings", [])
     for setting in (
-        "one-time-high-value-consent",
-        "campaign-lifetime-consent-reload",
-        "automatic-recovery-without-routine-questions",
+        "campaign-start-operating-receipt",
+        "campaign-lifetime-receipt-reload",
+        "automatic-recovery-and-continuation",
     ):
         if setting not in settings:
             settings.append(setting)
@@ -165,7 +165,7 @@ def consent_grant(args, state_dir: Path, state: dict[str, Any], now) -> dict[str
         "already_active": False,
         "receipt_id": receipt_id,
         "scope": "campaign-lifetime",
-        "reconfirmation_required": False,
+        "renewal_required": False,
     }
 
 
@@ -203,7 +203,7 @@ def browser_bind(args, state_dir: Path, state: dict[str, Any], now) -> dict[str,
             "bound_at": binding.get("bound_at") or iso_time(now),
             "last_seen_at": iso_time(now),
             "status": "ready" if args.identity_verified else "unverified",
-            "selection_policy": "reuse-pinned-device-without-question",
+            "selection_policy": "reuse-pinned-device-directly",
         }
     )
     state["updated_at"] = iso_time(now)
@@ -352,16 +352,16 @@ def continuation_event(args, state_dir: Path, state: dict[str, Any], now) -> dic
             {
                 "mode": "automatic",
                 "status": "armed",
-                "owner_input_required": False,
+                "setup_input_required": False,
                 "active_adapter": args.adapter,
                 "automation_id": args.automation_id,
                 "next_wake_at": args.next_wake_at or dispatcher.get("next_wake_at"),
                 "dedupe_key": f"linkedin-campaign-continuation:{state.get('campaign_id') or state_dir.name}",
                 "armed_at": timestamp,
-                "expiry_policy": "renew-before-host-limit-until-target-or-owner-stop",
+                "expiry_policy": "renew-before-host-limit-until-target-or-stop-signal",
                 "renew_existing_automation": True,
                 "renewal_due_before_expiry": True,
-                "campaign_completion_or_owner_stop_required_to_end": True,
+                "campaign_completion_or_stop_signal_required_to_end": True,
                 "last_error": None,
             }
         )
@@ -370,7 +370,7 @@ def continuation_event(args, state_dir: Path, state: dict[str, Any], now) -> dic
             {
                 "mode": "automatic",
                 "status": "active",
-                "owner_input_required": False,
+                "setup_input_required": False,
                 "active_adapter": args.adapter or continuation.get("active_adapter"),
                 "automation_id": args.automation_id or continuation.get("automation_id"),
                 "last_woke_at": timestamp,
@@ -385,7 +385,7 @@ def continuation_event(args, state_dir: Path, state: dict[str, Any], now) -> dic
             {
                 "mode": "automatic",
                 "status": "fallback-required",
-                "owner_input_required": False,
+                "setup_input_required": False,
                 "last_failed_at": timestamp,
                 "last_error": args.reason,
             }

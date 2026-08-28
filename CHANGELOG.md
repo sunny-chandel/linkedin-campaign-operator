@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.0.0-rc.8 — Calm Unattended Runtime
+
+- Replaced legacy interactive-control fields with neutral operating receipts, deterministic dispatch contracts, and executor readiness states.
+- Removed the Codex repair path from the campaign runtime; application recovery is local and external mutations remain assigned to the official LinkedIn API executor.
+- Added migration cleanup for legacy control keys in campaign state, executor state, consent records, and queued tasks so fresh Claude sessions cannot inherit the earlier interaction loop.
+
 ## 6.0.0-rc.7 — System Install Refresh
 
 - Publishes the complete 13-skill repair as a distinct package version so Claude Desktop cannot reuse the earlier installation record.

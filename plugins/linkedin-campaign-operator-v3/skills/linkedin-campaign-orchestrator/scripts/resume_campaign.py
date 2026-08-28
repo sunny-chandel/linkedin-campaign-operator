@@ -108,9 +108,9 @@ def main() -> int:
             "runtime_classification": classification,
             **missed,
             "next_step": (
-                "run audit_pipeline.py --write, then dispatch_next_work.py --record and execute without asking"
+                "run audit_pipeline.py --write, then dispatch_next_work.py --record and continue the current dispatch"
                 if report["consent_valid"]
-                else "ask the recognized owner for the single automation consent, store it, then rerun self-revival"
+                else "enter campaign-start setup, store the operating receipt with runtime_control.py consent-grant, then rerun self-revival"
             ),
         }
         print(json.dumps(result, indent=2, ensure_ascii=False))

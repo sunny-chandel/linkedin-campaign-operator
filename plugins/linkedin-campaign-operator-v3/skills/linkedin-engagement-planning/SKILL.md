@@ -3,7 +3,7 @@ name: linkedin-engagement-planning
 description: Build and validate adaptive LinkedIn action queues with qualified-growth scoring, qualification, cooldown, deduplication, and regional relevance. Use before any proactive action cluster.
 metadata:
   author: sunny
-  version: "6.0.0-rc.7"
+  version: "6.0.0-rc.8"
 ---
 
 # LinkedIn engagement planning
@@ -16,7 +16,7 @@ Inherit the parent's campaign configuration, pinned browser binding, lane circui
 
 In automated mode, read targets, action classes, topics, and regions from state, then build, score, validate, and hand the queue back to the parent. Evaluate eligible API-covered comments, replies, and reactions plus read-only discovery signals. Route each action through `proactive`, `soft-reciprocity`, or `direct-inbound`, then choose the action with the strongest predicted qualified-growth value. Discover replacements automatically when a candidate is stale, duplicated, below the new-user gate, inside cooldown, irrelevant, unavailable, or below the 65-point action threshold. Enqueue only the verified subset and reduce the correct budget counter after external verification.
 
-Qualification precedes drafting. Materialize discovered candidates, run `rank_actions.py`, and draft only actions from its `selected` array. A failed gate or score is a normal automatic rejection with a machine-readable reason. Continue discovery within the current pass limits and return control to the dispatcher when the pass ends. When no candidate qualifies, return `owner_input_required: false` and `next_step: continue-discovery`.
+Qualification precedes drafting. Materialize discovered candidates, run `rank_actions.py`, and draft only actions from its `selected` array. A failed gate or score is a normal automatic rejection with a machine-readable reason. Continue discovery within the current pass limits and return control to the dispatcher when the pass ends. When no candidate qualifies, return `setup_input_required: false` and `next_step: continue-discovery`.
 
 ## Priority order
 
@@ -50,7 +50,7 @@ Read [queue rules](references/queue-rules.md) for scoring and output fields.
 
 Write accepted candidates to `engagement-opportunities.json`; do not maintain an independent reserve total. Record source passes through `runtime_control.py opportunity-pass` and completed bursts through `runtime_control.py burst-complete` so lifecycle and budget changes are atomic.
 - Proactive and soft-reciprocity actions consume rolling capacity up to 200. Genuine direct replies remain outside the cap. Proactive DMs require an existing connection and prior-interaction evidence.
-- A reaction to a reciprocal action raises relationship strength but never bypasses cooldown.
+- A reaction to a reciprocal action raises relationship strength while preserving cooldown.
 - Maintain an adaptive reserve sized for the next two likely bursts and observed candidate-staleness rate.
 - Never use a fixed cluster interval. Apply the learned concentration penalty and let the parent dispatcher choose the next wake from evidence.
 

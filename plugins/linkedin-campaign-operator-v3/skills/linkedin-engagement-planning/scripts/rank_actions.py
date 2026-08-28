@@ -221,7 +221,7 @@ def main() -> int:
                 "rolling_action_cap": base_ceiling,
                 "direct_inbound_replies": projected_overage,
             },
-            "owner_input_required": False,
+            "setup_input_required": False,
             "next_step": "execute-selected" if selected else "continue-discovery",
         }
         rendered = json.dumps(output, indent=2, ensure_ascii=False) + "\n"

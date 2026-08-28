@@ -16,7 +16,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
-from automation_readiness import normalize_action_class, task_readiness
+from executor_readiness import normalize_action_class, task_readiness
 from credential_manager import resolve_credentials
 
 
@@ -242,7 +242,7 @@ def main() -> int:
             {"action_type": action.get("action_class") or action.get("action_type")},
             executor,
         )
-        if not readiness["zero_human_ready"]:
+        if not readiness["unattended_ready"]:
             print(json.dumps({"valid": False, "readiness": readiness}, indent=2))
             return 2
         credentials = resolve_credentials(executor)

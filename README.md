@@ -22,9 +22,9 @@ Claude LinkedIn is the public interface for LinkedIn Campaign Operator: a free, 
 
 **Website:** [linkedin-campaign-operator.sunnychandel73.chatgpt.site](https://linkedin-campaign-operator.sunnychandel73.chatgpt.site)
 
-Version 6.0.0-rc.7 publishes the repaired skill set as a distinct system-install build. It includes the neutral interactive context and clean-state migration on top of the durable action outbox, unattended macOS LaunchAgent executor, Keychain-backed credentials, programmatic token refresh, API preflight, and exact verification for supported LinkedIn mutations. Claude prepares and enqueues canonical work; the separate official-API service performs external mutation and verification. It retains the rolling 24-hour 160-action target, 200-action cap, six-to-eight verified publications, regional diversification, automatic runtime repair, durable consent, task leases, and crash-safe resumption.
+Version 6.0.0-rc.8 publishes the repaired skill set as a distinct system-install build. It includes the neutral interactive context and clean-state migration on top of the durable action outbox, unattended macOS LaunchAgent executor, Keychain-backed credentials, programmatic token refresh, API preflight, and exact verification for supported LinkedIn mutations. Claude prepares and enqueues canonical work; the separate official-API service performs external mutation and verification. It retains the rolling 24-hour 160-action target, 200-action cap, six-to-eight verified publications, regional diversification, automatic runtime repair, durable consent, task leases, and crash-safe resumption.
 
-It runs in Claude Code and Codex, keeps mutable campaign data outside the plugin, and resumes from verified state instead of starting over every day.
+It supports Claude Code and Codex as independent hosts, keeps mutable campaign data outside the plugin, and resumes from verified state instead of starting over every day. The Claude runtime does not depend on Codex.
 
 ## What it does
 
@@ -72,7 +72,7 @@ Then run:
 
 ## Automated startup and recovery
 
-The parent starts the configured organic LinkedIn system. On the first run it asks one automation-consent question and stores the resulting campaign-lifetime receipt. Later sessions self-revive from durable state without asking again, reconcile missed rolling obligations, reuse valid pre-flight evidence, and route automatically through all twelve child skills. It does not open a generic campaign-setup form or use fixed engagement clusters.
+The parent starts the configured organic LinkedIn system. Initial campaign setup stores one campaign-lifetime operating receipt. Later sessions self-revive from durable state, reconcile missed rolling obligations, reuse valid pre-flight evidence, and route automatically through all twelve child skills. Setup uses the campaign state directly rather than a generic form or fixed engagement clusters.
 
 ## Install in Codex
 

@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from automation_readiness import task_readiness
+from executor_readiness import task_readiness
 
 
 ROUTINE_EXTERNAL_TASK_TYPES = {
@@ -26,12 +26,11 @@ ROUTINE_EXTERNAL_TASK_TYPES = {
     "soft-reciprocity",
 }
 
-APPROVAL_SEEKING_PATTERNS = (
+WORKFLOW_CHOICE_PATTERNS = (
     re.compile(r"\bpost this\s*\?", re.IGNORECASE),
     re.compile(r"\b(?:should|shall|may|can) i\s+(?:post|publish|send|reply|comment|react|connect)\b", re.IGNORECASE),
     re.compile(r"\b(?:do|would) you (?:want|like) me to\s+(?:post|publish|send|reply|comment|react|connect|continue)\b", re.IGNORECASE),
     re.compile(r"\bwant me to\s+(?:post|publish|send|reply|comment|react|connect|continue)\b", re.IGNORECASE),
-    re.compile(r"\b(?:approve|confirm) (?:this|the)\s+(?:post|publication|comment|reply|message|action)\b", re.IGNORECASE),
 )
 
 
@@ -43,10 +42,10 @@ def load_object(path: Path) -> dict[str, Any]:
 
 
 def _receipt(consent: dict[str, Any]) -> str | None:
-    authorization = consent.get("authorization_receipt", {})
-    if not isinstance(authorization, dict):
+    receipt = consent.get("operating_receipt", {})
+    if not isinstance(receipt, dict):
         return None
-    receipt_id = authorization.get("receipt_id")
+    receipt_id = receipt.get("receipt_id")
     return str(receipt_id) if receipt_id else None
 
 
@@ -81,7 +80,7 @@ def _ambiguous_outcome(task: dict[str, Any]) -> bool:
     )
 
 
-def authorization_contract(
+def dispatch_contract(
     task: dict[str, Any],
     consent: dict[str, Any],
     state: dict[str, Any],
@@ -97,9 +96,8 @@ def authorization_contract(
         "receipt_id": receipt_id,
         "setup_input_required": False,
         "routine_transition_is_deterministic": True,
-        "owner_input_required": False,
         "status_response_terminal": False,
-        "after_owner_status_response": "run-audit-dispatch-and-resume-current-lease",
+        "after_status_response": "run-audit-dispatch-and-resume-current-lease",
         "required_terminal_states": [
             "verified-completed",
             "hard-blocked",
@@ -121,7 +119,6 @@ def authorization_contract(
             "decision": "pause",
             "setup_input_required": True,
             "routine_transition_is_deterministic": False,
-            "owner_input_required": True,
             "executor_route_configured": False,
             "reason": "campaign operating receipt is missing, revoked, or invalid",
         }
@@ -142,17 +139,16 @@ def authorization_contract(
             "reason": "external outcome is ambiguous and must be verified before retry",
         }
     readiness = task_readiness(task, executor or {})
-    if readiness.get("zero_human_ready") is not True:
+    if readiness.get("unattended_ready") is not True:
         return {
             **base,
-            "mode": "executor-readiness-required",
+            "mode": "executor-setup-pending",
             "decision": "pause",
             "executor_route_configured": True,
             "setup_input_required": False,
             "routine_transition_is_deterministic": True,
-            "owner_input_required": False,
-            "reason": "the unattended executor has not yet proved coverage for this action class",
-            "automation_readiness": readiness,
+            "reason": "executor setup is pending for this action class; local lanes continue",
+            "executor_readiness": readiness,
         }
     return {
         **base,
@@ -160,7 +156,7 @@ def authorization_contract(
         "decision": "execute",
         "executor_route_configured": True,
         "reason": "the campaign receipt and verified executor cover this action class",
-        "automation_readiness": readiness,
+        "executor_readiness": readiness,
         "execution_sequence": [
             "repair-tier-3-voice-violations",
             "verify-current-duplicate-and-cooldown-evidence",
@@ -174,7 +170,7 @@ def authorization_contract(
 
 def guard_output(contract: dict[str, Any], text: str) -> dict[str, Any]:
     """Keep routine output aligned with the deterministic dispatcher transition."""
-    matches = [pattern.pattern for pattern in APPROVAL_SEEKING_PATTERNS if pattern.search(text)]
+    matches = [pattern.pattern for pattern in WORKFLOW_CHOICE_PATTERNS if pattern.search(text)]
     deterministic = contract.get("routine_transition_is_deterministic") is True
     valid = not (deterministic and matches)
     return {
@@ -185,7 +181,7 @@ def guard_output(contract: dict[str, Any], text: str) -> dict[str, Any]:
             "enqueue-and-return-to-dispatcher"
             if not valid and contract.get("decision") == "execute"
             else "record-executor-readiness-and-continue-eligible-local-work"
-            if not valid and contract.get("mode") == "executor-readiness-required"
+            if not valid and contract.get("mode") == "executor-setup-pending"
             else "resume-outcome-reconciliation"
             if not valid
             else "none"
@@ -222,8 +218,8 @@ def main() -> int:
                 raise ValueError("--task-json must decode to an object")
         else:
             task = find_task(load_object(state_dir / "work-queue.json"), str(args.task_id))
-        contract = authorization_contract(task, consent, state, executor)
-        result: dict[str, Any] = {"valid": True, "authorization": contract}
+        contract = dispatch_contract(task, consent, state, executor)
+        result: dict[str, Any] = {"valid": True, "dispatch_contract": contract}
         if args.output_text is not None:
             result["output_guard"] = guard_output(contract, args.output_text)
             result["valid"] = result["output_guard"]["valid"]

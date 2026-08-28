@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from automation_readiness import readiness_report
+from executor_readiness import readiness_report
 
 
 def load_object(path: Path) -> dict[str, Any]:
@@ -40,7 +40,7 @@ def main() -> int:
             if isinstance(value, str)
         }
         keychain_readiness = readiness_report(executor, required, environ={})
-        if not keychain_readiness["zero_human_ready"]:
+        if not keychain_readiness["unattended_ready"]:
             print(json.dumps({
                 "valid": False,
                 "decision": "keychain-backed-readiness-required",

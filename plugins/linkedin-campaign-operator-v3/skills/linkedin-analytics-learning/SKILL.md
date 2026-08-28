@@ -3,7 +3,7 @@ name: linkedin-analytics-learning
 description: Normalize LinkedIn campaign analytics, run controlled experiments, and update a versioned runtime learning layer without editing the governing skill. Use for daily and weekly reviews.
 metadata:
   author: sunny
-  version: "6.0.0-rc.7"
+  version: "6.0.0-rc.8"
 ---
 
 # LinkedIn analytics and learning
@@ -43,6 +43,6 @@ Raw analytics alone never complete the analytics stage. Every snapshot must prod
 
 ## Adjustable variables
 
-Runtime learning may change topic weighting, content-pillar weighting, hook style, GIF information density, post length within voice rules, question style, target type, regional priority, queue ordering, action-score inputs, Tier 3 tone within bounds, approved premium-feature priority, research-source priority, publication opportunity scoring, response-latency priority, adaptive reserve size, and concentration-penalty decay.
+Runtime learning may change topic weighting, content-pillar weighting, hook style, GIF information density, post length within voice rules, question style, target type, regional priority, queue ordering, action-score inputs, Tier 3 tone within bounds, configured premium-feature priority, research-source priority, publication opportunity scoring, response-latency priority, adaptive reserve size, and concentration-penalty decay.
 
 It may not change consent, identities, the six-to-eight rolling publication contract, the 160-action target, the 200-action cap, the 10-action burst cap, direct-inbound outside-cap behavior, active recovery gates, cooldowns, runtime repair scope, or skill instructions.

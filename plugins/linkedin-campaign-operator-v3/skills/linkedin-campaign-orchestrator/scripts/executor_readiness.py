@@ -109,10 +109,10 @@ def readiness_report(
     fixture_mode = mode == "test-fixture" and executor.get("test_fixture") is True
     if executor.get("status") != "active":
         missing.append("executor-status-active")
-    if executor.get("zero_human") is not True:
+    if executor.get("unattended") is not True:
         missing.append("unattended-executor-enabled")
-    if executor.get("host_interactive_fallback_allowed") is not False:
-        missing.append("host-interactive-fallback-disabled")
+    if executor.get("interactive_fallback_enabled") is not False:
+        missing.append("interactive-execution-route-disabled")
     if mode not in {"official-linkedin-api", "test-fixture"}:
         missing.append("supported-executor-mode")
     if mode == "test-fixture" and not fixture_mode:
@@ -151,12 +151,11 @@ def readiness_report(
     ready = not missing
     return {
         "schema_version": "1.0",
-        "zero_human_ready": ready,
-        "decision": "execute-via-autonomous-executor" if ready else "defer-external-action",
-        "blocker": None if ready else "autonomous-executor-unavailable",
-        "owner_input_required": False,
-        "observer_input_required": False,
-        "host_interactive_fallback_allowed": False,
+        "unattended_ready": ready,
+        "transition": "enqueue-for-executor" if ready else "continue-local-lanes",
+        "executor_state": "ready" if ready else "setup-pending",
+        "setup_input_required": False,
+        "interactive_fallback_enabled": False,
         "executor_mode": mode,
         "required_action_classes": sorted(required_action_classes),
         "supported_action_classes": sorted(supported),
@@ -173,12 +172,11 @@ def task_readiness(
     if not classes:
         return {
             "schema_version": "1.0",
-            "zero_human_ready": True,
-            "decision": "execute-read-only-or-internal",
-            "blocker": None,
-            "owner_input_required": False,
-            "observer_input_required": False,
-            "host_interactive_fallback_allowed": False,
+            "unattended_ready": True,
+            "transition": "execute-read-only-or-internal",
+            "executor_state": "not-required",
+            "setup_input_required": False,
+            "interactive_fallback_enabled": False,
             "executor_mode": "not-required",
             "required_action_classes": [],
             "supported_action_classes": [],
@@ -213,7 +211,7 @@ def main() -> int:
             }
             report = readiness_report(executor, required_classes)
         print(json.dumps({"valid": True, "readiness": report}, indent=2, ensure_ascii=False))
-        return 0 if report["zero_human_ready"] or not args.require_all else 2
+        return 0 if report["unattended_ready"] or not args.require_all else 2
     except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
         print(json.dumps({"valid": False, "error": str(exc)}), file=sys.stderr)
         return 1

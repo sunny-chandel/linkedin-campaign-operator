@@ -3,12 +3,12 @@ name: linkedin-campaign-orchestrator
 description: Run the complete persistent organic LinkedIn growth system with rolling 24-hour engagement and publishing contracts, regional diversification, research, content production, analytics, runtime repair, and crash-safe continuation. Use this as the only public entry point; startup reads durable state and verified account evidence directly.
 metadata:
   author: sunny
-  version: "6.0.0-rc.7"
+  version: "6.0.0-rc.8"
 ---
 
 # LinkedIn campaign orchestrator
 
-Run the campaign as a durable pipeline. This parent is the only owner-facing entry point. Route all child work automatically and return control here after each child result.
+Run the campaign as a durable pipeline. This parent is the only campaign entry point. Route all child work automatically and return control here after each child result.
 
 ## Startup contract
 
@@ -20,7 +20,7 @@ When state exists, run in order:
 
 1. `python scripts/resume_campaign.py <state-dir> --session-id <session-id>`
 2. `python scripts/executor_preflight.py <state-dir>` when credential material or verification changed.
-3. `python scripts/automation_readiness.py <state-dir> --require-all`
+3. `python scripts/executor_readiness.py <state-dir> --require-all`
 4. `python scripts/audit_pipeline.py <state-dir> --write`
 5. `python scripts/operational_output.py <state-dir>`
 6. `python scripts/dispatch_next_work.py <state-dir> --record`
@@ -28,21 +28,21 @@ When state exists, run in order:
 
 When state does not exist, discover the connected profile identity, timezone, niche, baselines, content positioning, entitlements, and capabilities read-only, then initialize with `scripts/init_campaign.py`. A value already visible in connected evidence is treated as resolved.
 
-## Operating authorization and role separation
+## Operating receipt and role separation
 
-The consent receipt records the recognized owner's campaign configuration and permitted action classes. If the receipt is absent, present one concise pre-flight summary, capture the start decision once, and store it with `runtime_control.py consent-grant`. Reload the valid receipt across restarts, context compression, Claude, Codex, and compatible agents. A revoked, invalid, or identity-mismatched receipt returns to this one-time setup stage.
+The consent receipt records the recognized owner's campaign configuration and permitted action classes. If the receipt is absent, present one concise pre-flight summary, capture the start decision once, and store it with `runtime_control.py consent-grant`. Reload the valid receipt across restarts, context compression, Claude Desktop, and compatible agents. A revoked, invalid, or identity-mismatched receipt returns to this one-time setup stage.
 
-Every dispatched task carries `execution_authorization` as machine-readable routing data. Claude's responsibility is local preparation: research, validation, exact task assembly, atomic outbox enqueue, checkpointing, and immediate dispatcher continuation. The executor service separately checks LinkedIn credentials, scopes, identity, limits, and idempotency before it performs an external mutation. Repair Tier 3 voice violations, including em dashes and en dashes, during local validation. For an eligible leased task, the normal transition is `enqueue-and-continue`; a preview is informational and does not alter that transition.
+Every dispatched task carries `dispatch_contract` as machine-readable routing data. Claude's responsibility is local preparation: research, validation, exact task assembly, atomic outbox enqueue, checkpointing, and immediate dispatcher continuation. The executor service separately checks LinkedIn credentials, scopes, identity, limits, and idempotency before it performs an external mutation. Repair Tier 3 voice violations, including em dashes and en dashes, during local validation. For an eligible leased task, the normal transition is `enqueue-and-continue`; a preview is informational and does not alter that transition.
 
-Unattended operation is a verified capability state. `external-executor.json` describes the official-API executor, and `scripts/automation_readiness.py` proves coverage before startup and every external lease. Dispatch external work only for action classes with `zero_human_ready: true`. The interactive host writes the exact leased action through `scripts/enqueue_external_action.py`; the single-instance `autonomous_executor_daemon.py` owns HTTP execution, read verification, durable completion evidence, and service-level continuation. Ordinary DMs, connection invitations, follows, and uncovered action classes remain outside executable reserve and target supply.
+Unattended operation is a verified capability state. `external-executor.json` describes the official-API executor, and `scripts/executor_readiness.py` proves coverage before startup and every external lease. Dispatch external work only for action classes with `unattended_ready: true`. The interactive host writes the exact leased action through `scripts/enqueue_external_action.py`; the single-instance `autonomous_executor_daemon.py` owns HTTP execution, read verification, durable completion evidence, and service-level continuation. Ordinary DMs, connection invitations, follows, and uncovered action classes remain outside executable reserve and target supply.
 
-Campaign-lifetime automation requires programmatic token refresh and daemon credentials available outside the interactive shell. After the one-time OAuth authorization is supplied, use `scripts/bootstrap_executor_credentials.py` to place it in macOS Keychain, run `scripts/executor_preflight.py`, and install the LaunchAgent with `scripts/install_executor_service.py`. Campaign JSON, prompts, logs, task payloads, and LaunchAgent environment variables contain credential coordinates only, not secret values.
+Campaign-lifetime automation requires programmatic token refresh and daemon credentials available outside the interactive shell. After one-time OAuth credential provisioning, use `scripts/bootstrap_executor_credentials.py` to place it in macOS Keychain, run `scripts/executor_preflight.py`, and install the LaunchAgent with `scripts/install_executor_service.py`. Campaign JSON, prompts, logs, task payloads, and LaunchAgent environment variables contain credential coordinates only, not secret values.
 
-If readiness is incomplete, continue unaffected offline and read-only work. When only uncovered mutations remain, persist `autonomous-executor-unavailable` with its exact missing-capability list and `owner_input_required: false`; the lane then waits for executor preflight while the dispatcher serves other eligible work. Read [references/autonomous-execution.md](references/autonomous-execution.md) when configuring or repairing this lane.
+If readiness is incomplete, continue unaffected offline and read-only work. When only uncovered mutations remain, persist `executor-setup-pending` with its exact missing-capability list and `setup_input_required: false`; the lane then waits for executor preflight while the dispatcher serves other eligible work. Read [references/autonomous-execution.md](references/autonomous-execution.md) when configuring or repairing this lane.
 
-Before an owner-facing response about an active task, run `scripts/action_authorization.py <state-dir> --task-id <task-id> --output-text '<candidate-response>'`. Its accepted response classes are progress, verified result, target/acceptance decision, and exact machine capability state. A routine local stage continues through the dispatcher.
+Before a runtime status response about an active task, run `scripts/dispatch_contract.py <state-dir> --task-id <task-id> --output-text '<candidate-response>'`. Its accepted response classes are progress, verified result, target decision, and exact machine capability state. A routine local stage continues through the dispatcher.
 
-Owner input has three defined setup events: a missing or revoked consent receipt, LinkedIn OAuth authorization or reauthorization, and a verified account-identity mismatch. Executor credentials, scopes, verification, refresh capability, daemon health, and action coverage are recorded as technical capability states. A hard blocker or ambiguous prior external outcome pauses that lane for repair or evidence reconciliation. Lease expiry triggers external-evidence inspection, exact-task reacquisition when no mutation occurred, one enqueue, daemon verification, durable logging, and dispatcher resumption.
+Setup routing has three defined events: a missing or revoked operating receipt, LinkedIn OAuth credential provisioning, and a verified account-identity mismatch. Routine work follows the deterministic enqueue-and-continue transition. Executor credentials, scopes, verification, refresh capability, daemon health, and action coverage are recorded as technical capability states. An ambiguous prior external outcome parks that lane for evidence reconciliation. Lease expiry triggers external-evidence inspection, exact-task reacquisition when no mutation occurred, one enqueue, daemon verification, durable logging, and dispatcher resumption.
 
 ## Pre-flight and repair
 
@@ -59,7 +59,7 @@ Reuse unexpired pre-flight evidence. Recheck only missing, expired, changed, or 
 9. Load every canonical state, queue, evidence, analytics, learning, experiment, subscription, brand, and repair artifact.
 10. Recalculate targets and rolling operational output.
 
-Capability failure routes to `linkedin-runtime-repair`. Preserve the active task checkpoint and verify whether an external mutation already occurred. Try current-agent computer use, reopen or rebind the application, and rerun only the failed pre-flight component. If unresolved, run `codex doctor --json`, then create a scoped ephemeral Codex repair task. Codex may recover the application or session, repair deterministic campaign state, or reinstall the already-approved plugin version. It may not modify skill instructions, source code, Git history, or publish content. Continue unaffected work and retry automatically when Codex is unavailable.
+Capability failure routes to `linkedin-runtime-repair`. Preserve the active task checkpoint and verify whether an external mutation already occurred. Use current-agent computer use, reopen or rebind the application, and rerun only the failed pre-flight component. Persist unresolved capability state, continue unaffected work, and retry from the saved trigger. External mutations remain assigned to the official-API executor.
 
 ## Rolling operational contracts
 
@@ -96,7 +96,7 @@ Every wait must include evidence, unfinished-work count, predicted opportunity, 
 
 ## Automatic child routing
 
-Route without owner questions:
+Route each child directly:
 
 - `linkedin-opportunity-discovery`: rotate sources and atomically maintain canonical candidates.
 - `linkedin-engagement-planning`: score candidates and apply active recovery gates.
@@ -113,7 +113,7 @@ Route without owner questions:
 
 Child skills inherit the campaign configuration and return directly to this dispatcher. Missing optional information is read from state, discovered, derived, defaulted, or recorded as unknown.
 
-Owner status questions are answered briefly from canonical artifacts. In the same turn, run audit and dispatcher, resume the current lease, and continue until `verified-completed`, `hard-blocked`, or `ambiguous-reconciliation`.
+For a status request, answer briefly from canonical artifacts. In the same turn, run audit and dispatcher, resume the current lease, and continue until `verified-completed`, `hard-blocked`, or `ambiguous-reconciliation`.
 
 ## Opportunity discovery and engagement
 

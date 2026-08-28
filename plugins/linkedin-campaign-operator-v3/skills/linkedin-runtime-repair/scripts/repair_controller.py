@@ -6,14 +6,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 
-CAPABILITIES = {"chrome", "claude-design", "file-upload", "computer-use", "codex"}
+CAPABILITIES = {"chrome", "claude-design", "file-upload", "computer-use", "campaign-runtime"}
 
 
 def load_object(path: Path) -> dict[str, Any]:
@@ -50,8 +49,6 @@ def main() -> int:
     parser.add_argument("--capability", choices=sorted(CAPABILITIES))
     parser.add_argument("--failure-evidence", type=Path)
     parser.add_argument("--checkpoint", type=Path)
-    parser.add_argument("--doctor", action="store_true")
-    parser.add_argument("--invoke-codex", action="store_true")
     parser.add_argument("--result", type=Path)
     parser.add_argument("--now")
     args = parser.parse_args()
@@ -80,23 +77,6 @@ def main() -> int:
             evidence = load_object(args.failure_evidence) if args.failure_evidence else {}
             checkpoint = load_object(args.checkpoint) if args.checkpoint else {}
             repair_id = f"repair-{args.capability}-{now.strftime('%Y%m%dT%H%M%SZ')}"
-            doctor_result: dict[str, Any] | None = None
-            if args.doctor:
-                try:
-                    completed = subprocess.run(
-                        ["codex", "doctor", "--json"],
-                        check=False,
-                        capture_output=True,
-                        text=True,
-                        timeout=120,
-                    )
-                    doctor_result = {
-                        "exit_code": completed.returncode,
-                        "stdout": completed.stdout[-12000:],
-                        "stderr": completed.stderr[-4000:],
-                    }
-                except (OSError, subprocess.TimeoutExpired) as exc:
-                    doctor_result = {"error": str(exc)}
             request = {
                 "repair_id": repair_id,
                 "capability": args.capability,
@@ -107,71 +87,21 @@ def main() -> int:
                     "current-agent-computer-use",
                     "reopen-refresh-or-rebind",
                     "rerun-specific-preflight",
-                    "codex-doctor-json",
-                    "scoped-ephemeral-codex-repair",
-                    "verify-and-resume-lease",
+                    "verify-capability",
+                    "resume-original-lease",
                 ],
-                "codex_scope": {
-                    "allowed": [
+                "repair_scope": {
+                    "operations": [
                         "application-session-recovery",
                         "deterministic-campaign-state-repair",
-                        "reinstall-currently-approved-plugin-version",
+                        "reload-current-plugin-runtime",
                     ],
-                    "forbidden": [
-                        "modify-skill-instructions",
-                        "modify-source-code",
-                        "modify-git-history",
-                        "publish-linkedin-content",
-                    ],
+                    "state_boundary": "campaign-directory",
+                    "external_execution_route": "official-api-executor",
                 },
-                "doctor_result": doctor_result,
                 "retry_trigger": (now + timedelta(minutes=15)).isoformat(),
                 "continue_unaffected_work": True,
             }
-            if args.invoke_codex:
-                schema_path = Path(__file__).resolve().parent.parent / "assets" / "repair-result.schema.json"
-                with tempfile.NamedTemporaryFile(prefix="codex-repair-result-", suffix=".json", delete=False) as handle:
-                    result_path = Path(handle.name)
-                prompt = (
-                    "Perform only scoped runtime recovery. Do not modify skill instructions, source code, "
-                    "Git history, or publish LinkedIn content. You may recover the application/session, "
-                    "repair deterministic state under the campaign directory, or reinstall the already-approved "
-                    f"plugin version. Capability: {args.capability}. Campaign: {state_dir}. "
-                    f"Failure evidence: {json.dumps(evidence, ensure_ascii=False)}. "
-                    f"Resume checkpoint: {json.dumps(checkpoint, ensure_ascii=False)}. "
-                    "Use computer use when available, verify the result, and return the required JSON."
-                )
-                command = [
-                    "codex", "exec", "--ephemeral", "--json", "--sandbox", "workspace-write",
-                    "--approve-for-me", "--skip-git-repo-check", "-C", str(state_dir),
-                    "-c", "features.computer_use=true", "--output-schema", str(schema_path),
-                    "--output-last-message", str(result_path), prompt,
-                ]
-                try:
-                    completed = subprocess.run(
-                        command, check=False, capture_output=True, text=True, timeout=900
-                    )
-                    codex_result = None
-                    if result_path.is_file() and result_path.stat().st_size:
-                        try:
-                            codex_result = load_object(result_path)
-                        except (OSError, json.JSONDecodeError, ValueError):
-                            codex_result = None
-                    request["codex_handoff"] = {
-                        "exit_code": completed.returncode,
-                        "result": codex_result,
-                        "stdout_tail": completed.stdout[-12000:],
-                        "stderr_tail": completed.stderr[-4000:],
-                        "ephemeral": True,
-                        "computer_use_requested": True,
-                    }
-                except (OSError, subprocess.TimeoutExpired) as exc:
-                    request["codex_handoff"] = {"error": str(exc), "retry_required": True}
-                finally:
-                    try:
-                        result_path.unlink()
-                    except FileNotFoundError:
-                        pass
             state["status"] = "repair-pending"
             state["active_repair"] = request
             event_type = "repair-requested"

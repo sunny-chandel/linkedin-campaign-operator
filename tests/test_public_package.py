@@ -32,7 +32,7 @@ def test_parent_and_twelve_children_share_the_rc_version() -> None:
         metadata = frontmatter(skill_file)
         assert metadata["name"] == skill_file.parent.name
         assert metadata["description"]
-        assert metadata["metadata"]["version"] == "6.0.0-rc.7"
+        assert metadata["metadata"]["version"] == "6.0.0-rc.8"
         if metadata["name"] != "linkedin-campaign-orchestrator":
             assert f"`{metadata['name']}`" in parent_text
 
@@ -41,24 +41,34 @@ def test_claude_and_codex_manifests_are_aligned() -> None:
     claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
     codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
     assert claude["name"] == codex["name"] == PLUGIN.name
-    assert claude["version"] == codex["version"] == "6.0.0-rc.7"
+    assert claude["version"] == codex["version"] == "6.0.0-rc.8"
     assert claude["license"] == codex["license"] == "MIT"
     assert claude["homepage"] == codex["homepage"] == PUBLIC_SITE
     assert codex["skills"] == "./skills/"
 
 
-def test_orchestrator_selects_exact_pinned_browser_without_question() -> None:
+def test_orchestrator_selects_exact_pinned_browser_directly() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
     assert "Resolve the pinned Chrome device" in text
     assert "verify the stored profile identity" in text
     assert "routes to `linkedin-runtime-repair`" in text
-    assert "retry automatically" in text
+    assert "retry from the saved trigger" in text
 
 
-def test_runtime_classification_is_agent_neutral() -> None:
+def test_runtime_classification_is_host_neutral() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
-    assert "Claude, Codex, and compatible agents" in text
+    assert "Claude Desktop, and compatible agents" in text
     assert "canonical" in text
+
+
+def test_claude_runtime_has_no_codex_dependency() -> None:
+    runtime_text = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in SKILLS.rglob("*")
+        if path.is_file() and path.suffix in {".md", ".py", ".json"}
+    )
+    assert "Codex" not in runtime_text
+    assert "invoke-codex" not in runtime_text.lower()
 
 
 def test_continuation_never_becomes_an_owner_choice() -> None:

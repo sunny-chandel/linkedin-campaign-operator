@@ -112,7 +112,7 @@ def reconcile_recovered_lane_continuation(
     continuation.update(
         {
             "status": "active",
-            "owner_input_required": False,
+            "setup_input_required": False,
             "next_wake_at": None,
             "wake_trigger": None,
             "action": None,
@@ -197,8 +197,8 @@ def consent_fingerprint(consent: dict[str, Any]) -> str:
         "owner": consent.get("owner"),
         "status": consent.get("status"),
         "scope": consent.get("scope"),
-        "receipt_id": consent.get("authorization_receipt", {}).get("receipt_id"),
-        "approved_action_classes": consent.get("approved_action_classes"),
+        "receipt_id": consent.get("operating_receipt", {}).get("receipt_id"),
+        "configured_action_classes": consent.get("configured_action_classes"),
         "persistent_settings": consent.get("persistent_settings"),
     }
     encoded = json.dumps(stable, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -214,7 +214,7 @@ def sync_consent_snapshot(
     if not path.is_file():
         return False, "consent-record-missing"
     consent = load_object(path)
-    receipt = consent.get("authorization_receipt", {})
+    receipt = consent.get("operating_receipt", {})
     owner = consent.get("owner", {})
     account_profiles = [
         account
@@ -242,7 +242,7 @@ def sync_consent_snapshot(
             "receipt_id": receipt.get("receipt_id") if isinstance(receipt, dict) else None,
             "fingerprint": consent_fingerprint(consent),
             "loaded_at": iso_time(now),
-            "reconfirmation_required": not valid,
+            "renewal_required": not valid,
         }
     )
     if account_profiles and account_profiles[0].get("url"):

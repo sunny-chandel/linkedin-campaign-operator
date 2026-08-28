@@ -26,8 +26,8 @@ from opportunity_recovery import (
     next_discovery_source,
     opportunity_document,
 )
-from action_authorization import authorization_contract
-from automation_readiness import normalize_action_class, readiness_report, task_readiness
+from dispatch_contract import dispatch_contract
+from executor_readiness import normalize_action_class, readiness_report, task_readiness
 
 
 ACTIVE_STATUSES = {"pending", "recovering", "missed-recovering"}
@@ -210,12 +210,12 @@ def automatic_continuation(
     campaign_id = str(config.get("campaign_id") or state_dir.name)
     return {
         "mode": "automatic",
-        "owner_input_required": False,
+        "setup_input_required": False,
         "action": "arm-or-update-single-host-wake",
         "dedupe_key": f"linkedin-campaign-continuation:{campaign_id}",
-        "expiry_policy": "renew-before-host-limit-until-target-or-owner-stop",
+        "expiry_policy": "renew-before-host-limit-until-target-or-stop-signal",
         "renew_existing_automation": True,
-        "campaign_completion_or_owner_stop_required_to_end": True,
+        "campaign_completion_or_stop_signal_required_to_end": True,
         "host_adapter_priority": [str(adapter) for adapter in adapters],
         "next_wake_at": wake_at,
         "wake_trigger": wake_trigger,
@@ -358,14 +358,14 @@ def main() -> int:
             },
         )
         engagement_executor_ready = any(
-            readiness_report(executor, {action_class})["zero_human_ready"]
+            readiness_report(executor, {action_class})["unattended_ready"]
             for action_class in ("comment", "reply", "reaction")
         )
         if args.record:
             state.setdefault("autonomous_execution", {}).update(
                 {
                     "readiness_path": "external-executor.json",
-                    "zero_human_ready": campaign_readiness["zero_human_ready"],
+                    "unattended_ready": campaign_readiness["unattended_ready"],
                     "last_checked_at": now,
                     "missing_capabilities": campaign_readiness["missing_capabilities"],
                 }
@@ -380,7 +380,7 @@ def main() -> int:
                     "actions": [candidate],
                 },
                 executor,
-            )["zero_human_ready"]
+            )["unattended_ready"]
         ]
         reserve = state.setdefault("engagement_scaling", {}).setdefault("adaptive_reserve", {})
         reserve["qualified_count"] = len(canonical_candidates)
@@ -418,7 +418,7 @@ def main() -> int:
                 "checkpoint": state.get("last_confirmed_action"),
                 "idempotency_key": f"runtime-repair:{state.get('campaign_id')}",
             }
-            repair_task["execution_authorization"] = authorization_contract(
+            repair_task["dispatch_contract"] = dispatch_contract(
                 repair_task, consent, state, executor
             )
             if args.record and existing_repair is None:
@@ -795,14 +795,14 @@ def main() -> int:
         executable_candidates: list[dict[str, Any]] = []
         for item in candidates:
             readiness = task_readiness(item, executor)
-            if readiness["zero_human_ready"]:
+            if readiness["unattended_ready"]:
                 executable_candidates.append(item)
             else:
                 blocked_external.append(
                     {
                         "task_id": item.get("task_id"),
                         "task_type": item.get("task_type"),
-                        "reason": readiness["blocker"],
+                        "executor_state": readiness["executor_state"],
                         "required_action_classes": readiness["required_action_classes"],
                         "missing_capabilities": readiness["missing_capabilities"],
                     }
@@ -875,7 +875,7 @@ def main() -> int:
                     - concentration_penalty * 100,
                     2,
                 )
-            selected["execution_authorization"] = authorization_contract(
+            selected["dispatch_contract"] = dispatch_contract(
                 selected, consent, state, executor
             )
             result = {
@@ -915,7 +915,7 @@ def main() -> int:
                 "unfinished_work_count": pending_count,
                 "blocked_external": blocked_external,
                 "reason": "external work is parked until unattended executor readiness passes",
-                "owner_input_required": False,
+                "setup_input_required": False,
                 "setup_event": "executor-readiness",
             }
         elif pending_count:
@@ -928,7 +928,7 @@ def main() -> int:
                     "priority": 7,
                     "requires_linkedin": False,
                 }
-                recovery_task["execution_authorization"] = authorization_contract(
+                recovery_task["dispatch_contract"] = dispatch_contract(
                     recovery_task, consent, state, executor
                 )
                 result = {
@@ -977,7 +977,7 @@ def main() -> int:
                     "priority": 8,
                     "requires_linkedin": False,
                 }
-                investigation_task["execution_authorization"] = authorization_contract(
+                investigation_task["dispatch_contract"] = dispatch_contract(
                     investigation_task, consent, state, executor
                 )
                 result = {
@@ -993,7 +993,7 @@ def main() -> int:
         result["reconciliation"] = reconciliation
         result["opportunity_health"] = health_evaluation
         result["canonical_eligible_candidates"] = len(canonical_candidates)
-        result["automation_readiness"] = campaign_readiness
+        result["executor_readiness"] = campaign_readiness
         if args.record:
             if result.get("decision") == "execute" and isinstance(result.get("task"), dict):
                 selected = result["task"]
@@ -1009,8 +1009,8 @@ def main() -> int:
                     stored = dict(selected)
                     items.append(stored)
                 else:
-                    stored["execution_authorization"] = selected.get(
-                        "execution_authorization"
+                    stored["dispatch_contract"] = selected.get(
+                        "dispatch_contract"
                     )
                 lease_minutes = int(
                     config.get("automation_reliability", {}).get("task_lease_minutes", 15) or 15

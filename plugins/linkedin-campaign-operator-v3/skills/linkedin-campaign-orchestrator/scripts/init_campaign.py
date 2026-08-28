@@ -149,7 +149,7 @@ def main() -> int:
         "working-algorithm-model.json": {
             "schema_version": "2.0",
             "campaign_id": args.campaign_id,
-            "version": "6.0.0-rc.7",
+            "version": "6.0.0-rc.8",
             "strategy_weights": {"proven": 70, "promising": 20, "exploration": 10},
             "scheduling_models": {
                 "publication_timing": {"mode": "evidence-adaptive", "observations": []},

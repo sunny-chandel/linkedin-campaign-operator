@@ -3,8 +3,8 @@
   "campaign_id": "replace-me",
   "mode": "official-linkedin-api",
   "status": "unconfigured",
-  "zero_human": true,
-  "host_interactive_fallback_allowed": false,
+  "unattended": true,
+  "interactive_fallback_enabled": false,
   "api_base_url": "https://api.linkedin.com",
   "api_version": "202608",
   "credential_source": {

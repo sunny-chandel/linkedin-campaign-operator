@@ -6,7 +6,7 @@
   "activated_at": null,
   "status": "pending",
   "scope": "campaign-lifetime",
-  "authorization_receipt": {
+  "operating_receipt": {
     "receipt_id": null,
     "granted_at": null,
     "granted_by": null,
@@ -14,10 +14,10 @@
     "automation_mode": "fully-automated",
     "portable_across_model_sessions": true
   },
-  "reconfirmation_policy": {
-    "routine_reconfirmation_required": false,
+  "renewal_policy": {
+    "routine_renewal_required": false,
     "reload_on_every_session_start": true,
-    "reask_only_when": [
+    "renew_only_when": [
       "owner-revoked",
       "consent-record-missing-or-invalid",
       "verified-account-identity-changed"
@@ -30,7 +30,7 @@
       "url": "https://www.linkedin.com/in/replace-me/"
     }
   ],
-  "approved_action_classes": [
+  "configured_action_classes": [
     "chrome-preflight",
     "research",
     "content-drafting",
@@ -59,9 +59,9 @@
     "fully-dynamic-publishing",
     "automatic-profile-watermark",
     "permanent-dominant-gif-learning-deletion",
-    "one-time-high-value-consent",
-    "campaign-lifetime-consent-reload",
-    "automatic-recovery-without-routine-questions",
+    "campaign-start-operating-receipt",
+    "campaign-lifetime-receipt-reload",
+    "automatic-recovery-and-continuation",
     "opportunity-recovery-controller",
     "six-to-eight-rolling-publications",
     "regional-diversification",
@@ -69,5 +69,5 @@
     "automatic-runtime-repair"
   ],
   "data_directory": "",
-  "owner_stop_signals": ["stop", "pause", "cancel", "revoke", "end campaign"]
+  "campaign_stop_signals": ["stop", "pause", "cancel", "revoke", "end campaign"]
 }

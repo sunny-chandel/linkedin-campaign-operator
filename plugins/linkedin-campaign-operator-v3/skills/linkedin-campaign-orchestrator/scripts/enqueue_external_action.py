@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Mapping
 
-from automation_readiness import normalize_action_class, task_readiness
+from executor_readiness import normalize_action_class, task_readiness
 from execute_external_action import request_parts
 
 
@@ -152,7 +152,7 @@ def enqueue_task(state_dir: Path, task_id: str) -> dict[str, Any]:
     if not isinstance(task.get("lease_id"), str) or not task.get("lease_id"):
         raise ValueError("external task requires an active lease_id")
     readiness = task_readiness(task, executor)
-    if not readiness["zero_human_ready"]:
+    if not readiness["unattended_ready"]:
         return {"valid": False, "readiness": readiness, "enqueued": []}
     actions = canonical_actions(state_dir, task)
     if not actions:
@@ -183,8 +183,7 @@ def enqueue_task(state_dir: Path, task_id: str) -> dict[str, Any]:
         "lease_id": task.get("lease_id"),
         "enqueued": enqueued,
         "already_present": existing,
-        "owner_input_required": False,
-        "observer_input_required": False,
+        "setup_input_required": False,
     }
 
 

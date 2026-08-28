@@ -316,10 +316,18 @@ def main() -> int:
     merged["automation_reliability"]["reserve"].update(
         {"min_target": 40, "max_target": 80}
     )
+    browser_rules = merged["automation_reliability"].setdefault("browser_binding", {})
+    browser_rules.pop("routine_device_questions_allowed", None)
+    browser_rules["direct_pinned_device_selection"] = True
     merged["publishing_optimization"].update(defaults["publishing_optimization"])
     merged.setdefault("autonomous_execution", {})["mode"] = defaults[
         "autonomous_execution"
     ]["mode"]
+    autonomous_execution = merged.setdefault("autonomous_execution", {})
+    autonomous_execution.pop("host_interactive_fallback_allowed", None)
+    autonomous_execution.pop("owner_or_observer_approval_fallback_allowed", None)
+    autonomous_execution.setdefault("interactive_fallback_enabled", False)
+    autonomous_execution.setdefault("interactive_mutation_fallback_enabled", False)
     for section in ("regional_intelligence", "content_research", "analytics_contract", "runtime_repair"):
         merged[section] = defaults[section]
     merged.setdefault("publishing_optimization", {}).setdefault(
@@ -337,9 +345,9 @@ def main() -> int:
         state = load_object(state_path)
         state["schema_version"] = "2.0"
         runtime_instructions = state.setdefault("runtime_instructions", {})
-        runtime_instructions["active_version"] = "6.0.0-rc.7"
-        runtime_instructions["detected_version"] = "6.0.0-rc.7"
-        runtime_instructions["session_version"] = "6.0.0-rc.7"
+        runtime_instructions["active_version"] = "6.0.0-rc.8"
+        runtime_instructions["detected_version"] = "6.0.0-rc.8"
+        runtime_instructions["session_version"] = "6.0.0-rc.8"
         old_scaling = state.get("engagement_scaling", {})
         if not isinstance(old_scaling, dict):
             old_scaling = {}
@@ -442,17 +450,31 @@ def main() -> int:
         continuation = state.setdefault("dispatcher", {}).setdefault("continuation", {})
         continuation.pop("expires_at", None)
         continuation.pop("fixed_expiry_at", None)
+        continuation.pop("owner_input_required", None)
+        continuation.pop("campaign_completion_or_owner_stop_required_to_end", None)
         continuation.update(
             {
                 "mode": "automatic",
-                "owner_input_required": False,
+                "setup_input_required": False,
                 "dedupe_key": f"linkedin-campaign-continuation:{campaign_id}",
-                "expiry_policy": "renew-before-host-limit-until-target-or-owner-stop",
+                "expiry_policy": "renew-before-host-limit-until-target-or-stop-signal",
                 "renew_existing_automation": True,
                 "renewal_due_before_expiry": True,
-                "campaign_completion_or_owner_stop_required_to_end": True,
+                "campaign_completion_or_stop_signal_required_to_end": True,
             }
         )
+        browser_binding = state.setdefault("dispatcher", {}).setdefault("browser_binding", {})
+        browser_binding["selection_policy"] = "reuse-pinned-device-directly"
+        execution_state = state.setdefault("autonomous_execution", {})
+        legacy_ready = execution_state.pop("zero_human_ready", None)
+        if "unattended_ready" not in execution_state and isinstance(legacy_ready, bool):
+            execution_state["unattended_ready"] = legacy_ready
+        execution_state.pop("observer_input_required", None)
+        execution_state.pop("owner_input_required", None)
+        if "automation_readiness" in state and "executor_readiness" not in state:
+            state["executor_readiness"] = state.pop("automation_readiness")
+        else:
+            state.pop("automation_readiness", None)
         merged_state, state_updated = merge_missing(state, state_defaults)
         state_updated = state_updated or merged_state != load_object(state_path)
         if state_updated:
@@ -463,6 +485,31 @@ def main() -> int:
     consent_updated = False
     if consent_path.is_file():
         consent = load_object(consent_path)
+        legacy_receipt = consent.pop("authorization_receipt", None)
+        if "operating_receipt" not in consent and isinstance(legacy_receipt, dict):
+            consent["operating_receipt"] = legacy_receipt
+        legacy_classes = consent.pop("approved_action_classes", None)
+        configured_classes = consent.get("configured_action_classes", [])
+        if not isinstance(configured_classes, list):
+            configured_classes = []
+        if isinstance(legacy_classes, list):
+            configured_classes = list(dict.fromkeys([*configured_classes, *legacy_classes]))
+        legacy_renewal = consent.pop("reconfirmation_policy", None)
+        if "renewal_policy" not in consent and isinstance(legacy_renewal, dict):
+            consent["renewal_policy"] = legacy_renewal
+        renewal_policy = consent.setdefault("renewal_policy", {})
+        if not isinstance(renewal_policy, dict):
+            renewal_policy = {}
+            consent["renewal_policy"] = renewal_policy
+        legacy_routine = renewal_policy.pop("routine_reconfirmation_required", None)
+        if "routine_renewal_required" not in renewal_policy and isinstance(legacy_routine, bool):
+            renewal_policy["routine_renewal_required"] = legacy_routine
+        legacy_triggers = renewal_policy.pop("reask_only_when", None)
+        if "renew_only_when" not in renewal_policy and isinstance(legacy_triggers, list):
+            renewal_policy["renew_only_when"] = legacy_triggers
+        legacy_stop_signals = consent.pop("owner_stop_signals", None)
+        if "campaign_stop_signals" not in consent and isinstance(legacy_stop_signals, list):
+            consent["campaign_stop_signals"] = legacy_stop_signals
         required_settings = [
             "automated-mode",
             "rolling-160-action-target-200-cap",
@@ -471,9 +518,9 @@ def main() -> int:
             "fully-dynamic-publishing",
             "automatic-profile-watermark",
             "permanent-dominant-gif-learning-deletion",
-            "one-time-high-value-consent",
-            "campaign-lifetime-consent-reload",
-            "automatic-recovery-without-routine-questions",
+            "campaign-start-operating-receipt",
+            "campaign-lifetime-receipt-reload",
+            "automatic-recovery-and-continuation",
             "opportunity-recovery-controller",
             "six-to-eight-rolling-publications",
             "regional-diversification",
@@ -487,10 +534,13 @@ def main() -> int:
             "adaptive-80-action-ceiling",
             "adaptive-100-base-action-ceiling",
             "adaptive-two-to-six-publications",
+            "one-time-high-value-consent",
+            "campaign-lifetime-consent-reload",
+            "automatic-recovery-without-routine-questions",
         }
         current_settings = [value for value in current_settings if value not in obsolete_settings]
         merged_settings = list(dict.fromkeys([*current_settings, *required_settings]))
-        receipt = consent.get("authorization_receipt", {})
+        receipt = consent.get("operating_receipt", {})
         receipt_missing = not isinstance(receipt, dict) or not receipt.get("receipt_id")
         owner = consent.get("owner", {})
         owner_name = owner.get("display_name") if isinstance(owner, dict) else None
@@ -498,6 +548,13 @@ def main() -> int:
             consent.get("consent_version") != "2.0"
             or consent.get("schema_version") != "2.0"
             or merged_settings != current_settings
+            or configured_classes != consent.get("configured_action_classes")
+            or legacy_receipt is not None
+            or legacy_classes is not None
+            or legacy_renewal is not None
+            or legacy_routine is not None
+            or legacy_triggers is not None
+            or legacy_stop_signals is not None
             or (consent.get("status") == "active" and receipt_missing)
         )
         if needs_update:
@@ -505,12 +562,9 @@ def main() -> int:
             consent["consent_version"] = "2.0"
             consent["scope"] = "campaign-lifetime"
             consent["persistent_settings"] = merged_settings
-            approved = consent.get("approved_action_classes", [])
-            if not isinstance(approved, list):
-                approved = []
-            consent["approved_action_classes"] = list(
+            consent["configured_action_classes"] = list(
                 dict.fromkeys([
-                    *approved,
+                    *configured_classes,
                     "adaptive-scheduling",
                     "signal-reciprocity",
                     "opportunity-recovery",
@@ -523,7 +577,7 @@ def main() -> int:
                 else:
                     granted_at = consent.get("activated_at") or datetime.now(timezone.utc).isoformat()
                     consent["activated_at"] = granted_at
-                    consent["authorization_receipt"] = {
+                    consent["operating_receipt"] = {
                         "receipt_id": f"consent-{campaign_id}-migrated",
                         "granted_at": granted_at,
                         "granted_by": owner_name,
@@ -531,10 +585,10 @@ def main() -> int:
                         "automation_mode": "fully-automated",
                         "portable_across_model_sessions": True,
                     }
-            consent["reconfirmation_policy"] = {
-                "routine_reconfirmation_required": False,
+            consent["renewal_policy"] = {
+                "routine_renewal_required": False,
                 "reload_on_every_session_start": True,
-                "reask_only_when": [
+                "renew_only_when": [
                     "owner-revoked",
                     "consent-record-missing-or-invalid",
                     "verified-account-identity-changed",
@@ -552,6 +606,15 @@ def main() -> int:
         created.append(executor_path.name)
     else:
         executor = load_object(executor_path)
+        legacy_unattended = executor.pop("zero_human", None)
+        if "unattended" not in executor and isinstance(legacy_unattended, bool):
+            executor["unattended"] = legacy_unattended
+        legacy_interactive = executor.pop("host_interactive_fallback_allowed", None)
+        if "interactive_fallback_enabled" not in executor and isinstance(legacy_interactive, bool):
+            executor["interactive_fallback_enabled"] = legacy_interactive
+        executor.pop("owner_or_observer_approval_fallback_allowed", None)
+        executor.pop("observer_input_required", None)
+        executor.pop("owner_input_required", None)
         for key, value in executor_template.items():
             executor.setdefault(key, value)
         source = executor.setdefault("credential_source", {})
@@ -686,6 +749,19 @@ def main() -> int:
         if not path.exists():
             atomic_write_json(path, initial)
             created.append(name)
+    queue_path = state_dir / "work-queue.json"
+    queue = load_object(queue_path)
+    queue_changed = False
+    for item in queue.get("items", []):
+        if not isinstance(item, dict):
+            continue
+        legacy_contract = item.pop("execution_authorization", None)
+        if "dispatch_contract" not in item and isinstance(legacy_contract, dict):
+            item["dispatch_contract"] = legacy_contract
+        if legacy_contract is not None:
+            queue_changed = True
+    if queue_changed:
+        atomic_write_json(queue_path, queue)
     regional_path = state_dir / "regional-performance.json"
     regional = load_object(regional_path)
     merged_regional, _ = merge_missing(regional, artifacts["regional-performance.json"])
@@ -731,7 +807,7 @@ def main() -> int:
     algorithm_defaults = {
         "schema_version": "2.0",
         "campaign_id": campaign_id,
-        "version": "6.0.0-rc.7",
+        "version": "6.0.0-rc.8",
         "strategy_weights": {"proven": 70, "promising": 20, "exploration": 10},
         "scheduling_models": {
             "publication_timing": {"mode": "evidence-adaptive", "observations": []},
@@ -755,7 +831,7 @@ def main() -> int:
         algorithm = load_object(algorithm_path)
         merged_algorithm, algorithm_updated = merge_missing(algorithm, algorithm_defaults)
         merged_algorithm["schema_version"] = "2.0"
-        merged_algorithm["version"] = "6.0.0-rc.7"
+        merged_algorithm["version"] = "6.0.0-rc.8"
         if algorithm_updated or merged_algorithm != algorithm:
             atomic_write_json(algorithm_path, merged_algorithm)
     else:
@@ -876,7 +952,7 @@ def main() -> int:
             {
                 "migrated": str(state_dir),
                 "schema_version": "2.0",
-                "plugin_version": "6.0.0-rc.7",
+                "plugin_version": "6.0.0-rc.8",
                 "config_updated": changed,
                 "state_updated": state_updated,
                 "consent_updated": consent_updated,

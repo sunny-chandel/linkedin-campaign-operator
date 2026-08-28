@@ -18,9 +18,9 @@
   },
   "progress": {},
   "runtime_instructions": {
-    "session_version": "6.0.0-rc.7",
-    "active_version": "6.0.0-rc.7",
-    "detected_version": "6.0.0-rc.7",
+    "session_version": "6.0.0-rc.8",
+    "active_version": "6.0.0-rc.8",
+    "detected_version": "6.0.0-rc.8",
     "install_path": null,
     "last_checked_at": null,
     "activated_at": null,
@@ -87,7 +87,7 @@
       "bound_at": null,
       "last_seen_at": null,
       "status": "unbound",
-      "selection_policy": "reuse-pinned-device-without-question"
+      "selection_policy": "reuse-pinned-device-directly"
     },
     "lane_circuits": {
       "linkedin": {
@@ -107,15 +107,15 @@
     "continuation": {
       "mode": "automatic",
       "status": "unbound",
-      "owner_input_required": false,
+      "setup_input_required": false,
       "active_adapter": null,
       "automation_id": null,
       "next_wake_at": null,
       "dedupe_key": null,
-      "expiry_policy": "renew-before-host-limit-until-target-or-owner-stop",
+      "expiry_policy": "renew-before-host-limit-until-target-or-stop-signal",
       "renew_existing_automation": true,
       "renewal_due_before_expiry": true,
-      "campaign_completion_or_owner_stop_required_to_end": true,
+      "campaign_completion_or_stop_signal_required_to_end": true,
       "failed_adapters": []
     },
     "unfinished_work_count": 0
@@ -127,11 +127,11 @@
     "receipt_id": null,
     "fingerprint": null,
     "loaded_at": null,
-    "reconfirmation_required": true
+    "renewal_required": true
   },
   "autonomous_execution": {
     "readiness_path": "external-executor.json",
-    "zero_human_ready": false,
+    "unattended_ready": false,
     "last_checked_at": null,
     "missing_capabilities": [
       "executor-status-active",

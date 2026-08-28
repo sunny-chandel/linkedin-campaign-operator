@@ -132,7 +132,7 @@ class SubscriptionOptimizerTests(unittest.TestCase):
             consent = json.loads((state_dir / "consent-record.json").read_text(encoding="utf-8"))
             self.assertEqual(consent["consent_version"], "2.0")
             self.assertEqual(consent["scope"], "campaign-lifetime")
-            self.assertFalse(consent["reconfirmation_policy"]["routine_reconfirmation_required"])
+            self.assertFalse(consent["renewal_policy"]["routine_renewal_required"])
             self.assertIn("rolling-160-action-target-200-cap", consent["persistent_settings"])
             self.assertNotIn("adaptive-80-action-ceiling", consent["persistent_settings"])
             self.assertNotIn("adaptive-100-base-action-ceiling", consent["persistent_settings"])

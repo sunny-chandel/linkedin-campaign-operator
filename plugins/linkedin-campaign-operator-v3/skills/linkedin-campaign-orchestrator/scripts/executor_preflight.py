@@ -14,7 +14,7 @@ from typing import Any, Callable, Mapping
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from automation_readiness import READ_SCOPES, WRITE_SCOPES, normalize_action_class
+from executor_readiness import READ_SCOPES, WRITE_SCOPES, normalize_action_class
 from credential_manager import credential_availability, resolve_credentials
 
 
@@ -205,7 +205,7 @@ def evaluate_preflight(
     executor["last_preflight_at"] = checked_at
     return {
         "valid": passed,
-        "zero_human_ready": passed,
+        "unattended_ready": passed,
         "status": executor["status"],
         "supported_action_classes": classes,
         "declared_scopes": sorted(scopes),

@@ -50,7 +50,7 @@ Run hard gates before drafting any action text. A failed hard gate or score belo
 - For a soft signal, inspect the person's newest visible relevant posts and retain at most one qualifying opportunity.
 - Apply the active tier's new-target follower gate, cooldown, relevance, and score threshold.
 - If no post qualifies, retain the relationship signal without forcing an action.
-- A response to a reciprocal action updates relationship strength but does not reset or bypass cooldown.
+- A response to a reciprocal action updates relationship strength while preserving cooldown.
 
 ## Budget and burst controls
 

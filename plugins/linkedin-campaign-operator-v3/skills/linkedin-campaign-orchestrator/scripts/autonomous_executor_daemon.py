@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
-from automation_readiness import readiness_report
+from executor_readiness import readiness_report
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -279,7 +279,7 @@ def one_cycle(state_dir: Path) -> dict[str, Any]:
     )
     required = {str(value) for value in required_values if isinstance(value, str)}
     readiness = readiness_report(executor, required)
-    if not readiness["zero_human_ready"]:
+    if not readiness["unattended_ready"]:
         result = {"valid": False, "decision": "readiness-blocked", "readiness": readiness}
         runtime_report(state_dir, status="blocked", last_result=result)
         return result

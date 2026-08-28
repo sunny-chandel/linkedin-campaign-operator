@@ -67,8 +67,8 @@ def initialize(state_dir: Path, now: datetime = NOW) -> None:
         "mode": "test-fixture",
         "test_fixture": True,
         "status": "active",
-        "zero_human": True,
-        "host_interactive_fallback_allowed": False,
+        "unattended": True,
+        "interactive_fallback_enabled": False,
         "declared_scopes": ["w_member_social", "r_member_social"],
         "supported_action_classes": ["publication", "comment", "reply", "reaction"],
         "verification": {
@@ -150,6 +150,31 @@ class V6RuntimeTests(unittest.TestCase):
     def test_initialization_and_migration_contract_validate(self) -> None:
         temporary, state_dir = self.make_campaign()
         self.addCleanup(temporary.cleanup)
+        config = read_json(state_dir / "campaign-config.json")
+        config["runtime_repair"].update({"codex_fallback": True, "codex_scope": "legacy"})
+        config["automation_reliability"]["browser_binding"]["routine_device_questions_allowed"] = False
+        write_json(state_dir / "campaign-config.json", config)
+        state = read_json(state_dir / "campaign-state.json")
+        state["autonomous_execution"]["zero_human_ready"] = False
+        state["autonomous_execution"]["observer_input_required"] = False
+        state["dispatcher"]["continuation"]["owner_input_required"] = False
+        write_json(state_dir / "campaign-state.json", state)
+        consent = read_json(state_dir / "consent-record.json")
+        consent["approved_action_classes"] = consent.pop("configured_action_classes")
+        consent["authorization_receipt"] = consent.pop("operating_receipt")
+        write_json(state_dir / "consent-record.json", consent)
+        executor = read_json(state_dir / "external-executor.json")
+        executor["zero_human"] = executor.pop("unattended")
+        executor["observer_input_required"] = False
+        write_json(state_dir / "external-executor.json", executor)
+        queue = read_json(state_dir / "work-queue.json")
+        queue["items"] = [{
+            "task_id": "legacy-contract",
+            "task_type": "analytics-and-investigation",
+            "status": "pending",
+            "execution_authorization": {"decision": "execute"},
+        }]
+        write_json(state_dir / "work-queue.json", queue)
         _, migration = run_json(
             "python3", ORCHESTRATOR / "migrate_campaign.py", state_dir, "--now", NOW.isoformat()
         )
@@ -160,6 +185,24 @@ class V6RuntimeTests(unittest.TestCase):
             read_json(state_dir / "campaign-config.json")["autonomous_execution"]["mode"],
             "unattended-official-api",
         )
+        migrated_config = read_json(state_dir / "campaign-config.json")
+        self.assertNotIn("codex_fallback", migrated_config["runtime_repair"])
+        self.assertTrue(
+            migrated_config["automation_reliability"]["browser_binding"]["direct_pinned_device_selection"]
+        )
+        migrated_state = read_json(state_dir / "campaign-state.json")
+        self.assertNotIn("zero_human_ready", migrated_state["autonomous_execution"])
+        self.assertNotIn("observer_input_required", migrated_state["autonomous_execution"])
+        migrated_consent = read_json(state_dir / "consent-record.json")
+        self.assertIn("configured_action_classes", migrated_consent)
+        self.assertNotIn("approved_action_classes", migrated_consent)
+        self.assertIn("operating_receipt", migrated_consent)
+        migrated_executor = read_json(state_dir / "external-executor.json")
+        self.assertIn("unattended", migrated_executor)
+        self.assertNotIn("zero_human", migrated_executor)
+        migrated_queue = read_json(state_dir / "work-queue.json")
+        self.assertIn("dispatch_contract", migrated_queue["items"][0])
+        self.assertNotIn("execution_authorization", migrated_queue["items"][0])
         for name in (
             "operational-output.json", "content-pipeline.json", "regional-performance.json",
             "repair-state.json", "repair-events.jsonl",
@@ -614,7 +657,7 @@ class V6RuntimeTests(unittest.TestCase):
             read_json(state_dir / "operational-output.json")["actions"]["rolling_24h_actions"], 1
         )
 
-    def test_dispatch_embeds_automatic_routine_action_authorization(self) -> None:
+    def test_dispatch_embeds_automatic_routine_dispatch_contract(self) -> None:
         temporary, state_dir = self.make_campaign()
         self.addCleanup(temporary.cleanup)
         queue = read_json(state_dir / "work-queue.json")
@@ -633,41 +676,40 @@ class V6RuntimeTests(unittest.TestCase):
             "python3", ORCHESTRATOR / "dispatch_next_work.py", state_dir,
             "--now", NOW.isoformat(), "--record",
         )
-        authorization = decision["task"]["execution_authorization"]
-        self.assertEqual(authorization["decision"], "execute")
-        self.assertEqual(authorization["mode"], "unattended-executor")
-        self.assertTrue(authorization["executor_route_configured"])
-        self.assertTrue(authorization["routine_transition_is_deterministic"])
-        self.assertFalse(authorization["status_response_terminal"])
-        self.assertIsNotNone(authorization["receipt_id"])
+        contract = decision["task"]["dispatch_contract"]
+        self.assertEqual(contract["decision"], "execute")
+        self.assertEqual(contract["mode"], "unattended-executor")
+        self.assertTrue(contract["executor_route_configured"])
+        self.assertTrue(contract["routine_transition_is_deterministic"])
+        self.assertFalse(contract["status_response_terminal"])
+        self.assertIsNotNone(contract["receipt_id"])
         stored = next(
             item for item in read_json(state_dir / "work-queue.json")["items"]
             if item["task_id"] == "reply-to-qualified-inbound"
         )
-        self.assertEqual(stored["execution_authorization"], authorization)
+        self.assertEqual(stored["dispatch_contract"], contract)
 
-    def test_routine_authorization_requires_active_consent(self) -> None:
+    def test_routine_dispatch_requires_active_operating_receipt(self) -> None:
         temporary, state_dir = self.make_campaign()
         self.addCleanup(temporary.cleanup)
         consent = read_json(state_dir / "consent-record.json")
         consent["status"] = "revoked"
         write_json(state_dir / "consent-record.json", consent)
         _, result = run_json(
-            "python3", ORCHESTRATOR / "action_authorization.py", state_dir,
+            "python3", ORCHESTRATOR / "dispatch_contract.py", state_dir,
             "--task-json", json.dumps({
                 "task_type": "engagement-burst-execution", "lane": "linkedin",
             }),
         )
-        paused = result["authorization"]
+        paused = result["dispatch_contract"]
         self.assertEqual(paused["decision"], "pause")
         self.assertTrue(paused["setup_input_required"])
-        self.assertTrue(paused["owner_input_required"])
 
-    def test_approval_prompt_is_rejected_under_active_authorization(self) -> None:
+    def test_workflow_choice_prompt_is_rejected_during_automatic_dispatch(self) -> None:
         temporary, state_dir = self.make_campaign()
         self.addCleanup(temporary.cleanup)
         completed, rejected_result = run_json(
-            "python3", ORCHESTRATOR / "action_authorization.py", state_dir,
+            "python3", ORCHESTRATOR / "dispatch_contract.py", state_dir,
             "--task-json", json.dumps({
                 "task_type": "engagement-burst-execution", "lane": "linkedin",
             }),
@@ -681,7 +723,7 @@ class V6RuntimeTests(unittest.TestCase):
             rejected["required_action"], "enqueue-and-return-to-dispatcher"
         )
         _, accepted_result = run_json(
-            "python3", ORCHESTRATOR / "action_authorization.py", state_dir,
+            "python3", ORCHESTRATOR / "dispatch_contract.py", state_dir,
             "--task-json", json.dumps({
                 "task_type": "engagement-burst-execution", "lane": "linkedin",
             }),
@@ -690,32 +732,32 @@ class V6RuntimeTests(unittest.TestCase):
         accepted = accepted_result["output_guard"]
         self.assertTrue(accepted["valid"])
 
-    def test_ambiguous_external_outcome_pauses_for_reconciliation_not_approval(self) -> None:
+    def test_ambiguous_external_outcome_pauses_for_reconciliation(self) -> None:
         temporary, state_dir = self.make_campaign()
         self.addCleanup(temporary.cleanup)
         _, result = run_json(
-            "python3", ORCHESTRATOR / "action_authorization.py", state_dir,
+            "python3", ORCHESTRATOR / "dispatch_contract.py", state_dir,
             "--task-json", json.dumps({
                 "task_type": "publication-execution",
                 "external_outcome": "ambiguous",
             }),
         )
-        contract = result["authorization"]
+        contract = result["dispatch_contract"]
         self.assertEqual(contract["decision"], "pause")
         self.assertEqual(contract["mode"], "reconcile-before-retry")
         self.assertFalse(contract["setup_input_required"])
         self.assertTrue(contract["routine_transition_is_deterministic"])
 
-    def test_parent_skill_requires_zero_human_executor_without_person_fallback(self) -> None:
+    def test_parent_skill_requires_verified_unattended_executor(self) -> None:
         parent = (PLUGIN / "skills" / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
         execution = (PLUGIN / "skills" / "linkedin-engagement-execution" / "SKILL.md").read_text()
         self.assertIn("Unattended operation is a verified capability state", parent)
-        self.assertIn("autonomous-executor-unavailable", parent)
-        self.assertIn("autonomous-executor-unavailable", execution)
+        self.assertIn("executor-setup-pending", parent)
+        self.assertIn("executor-setup-pending", execution)
         self.assertNotIn("ACTION_APPROVAL_PACKET", parent)
         self.assertNotIn("supervising observer", execution)
 
-    def test_unconfigured_executor_blocks_external_action_without_person_input(self) -> None:
+    def test_unconfigured_executor_parks_external_action_and_continues_local_work(self) -> None:
         temporary, state_dir = self.make_campaign()
         self.addCleanup(temporary.cleanup)
         executor = read_json(state_dir / "external-executor.json")
@@ -734,20 +776,19 @@ class V6RuntimeTests(unittest.TestCase):
         executor.pop("test_fixture", None)
         write_json(state_dir / "external-executor.json", executor)
         _, result = run_json(
-            "python3", ORCHESTRATOR / "action_authorization.py", state_dir,
+            "python3", ORCHESTRATOR / "dispatch_contract.py", state_dir,
             "--task-json", json.dumps({"task_type": "comment", "action_type": "comment"}),
         )
-        contract = result["authorization"]
+        contract = result["dispatch_contract"]
         self.assertEqual(contract["decision"], "pause")
-        self.assertEqual(contract["mode"], "executor-readiness-required")
+        self.assertEqual(contract["mode"], "executor-setup-pending")
         self.assertFalse(contract["setup_input_required"])
-        self.assertFalse(contract["owner_input_required"])
         self.assertEqual(
-            contract["automation_readiness"]["blocker"],
-            "autonomous-executor-unavailable",
+            contract["executor_readiness"]["executor_state"],
+            "setup-pending",
         )
 
-    def test_dispatcher_persists_zero_human_blocker_without_leasing_external_task(self) -> None:
+    def test_dispatcher_persists_unattended_state_without_leasing_external_task(self) -> None:
         temporary, state_dir = self.make_campaign()
         self.addCleanup(temporary.cleanup)
         executor = read_json(state_dir / "external-executor.json")
@@ -784,7 +825,7 @@ class V6RuntimeTests(unittest.TestCase):
         stored_task = read_json(state_dir / "work-queue.json")["items"][0]
         self.assertEqual(stored_task["status"], "pending")
         runtime = read_json(state_dir / "campaign-state.json")["autonomous_execution"]
-        self.assertFalse(runtime["zero_human_ready"])
+        self.assertFalse(runtime["unattended_ready"])
         self.assertIn("executor-status-active", runtime["missing_capabilities"])
 
     def test_public_adapter_never_covers_messages_connections_or_follows(self) -> None:
@@ -792,13 +833,12 @@ class V6RuntimeTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         for action_type in ("direct-message", "connection-invitation", "follow"):
             _, result = run_json(
-                "python3", ORCHESTRATOR / "automation_readiness.py", state_dir,
+                "python3", ORCHESTRATOR / "executor_readiness.py", state_dir,
                 "--task-json", json.dumps({"action_type": action_type}),
             )
             readiness = result["readiness"]
-            self.assertFalse(readiness["zero_human_ready"])
-            self.assertFalse(readiness["owner_input_required"])
-            self.assertFalse(readiness["observer_input_required"])
+            self.assertFalse(readiness["unattended_ready"])
+            self.assertFalse(readiness["setup_input_required"])
             self.assertIn(
                 f"unsupported-action-class:{action_type}",
                 readiness["missing_capabilities"],
@@ -899,8 +939,8 @@ class V6RuntimeTests(unittest.TestCase):
         executor = {
             "mode": "official-linkedin-api",
             "status": "unconfigured",
-            "zero_human": True,
-            "host_interactive_fallback_allowed": False,
+            "unattended": True,
+            "interactive_fallback_enabled": False,
             "credential_source": {
                 "type": "environment",
                 "access_token_env": "LI_ACCESS",
@@ -941,7 +981,7 @@ class V6RuntimeTests(unittest.TestCase):
             },
             now=NOW,
         )
-        self.assertTrue(report["zero_human_ready"])
+        self.assertTrue(report["unattended_ready"])
         self.assertEqual(
             executor["supported_action_classes"],
             ["comment", "publication", "reaction", "reply"],
@@ -1034,10 +1074,8 @@ class V6RuntimeTests(unittest.TestCase):
             "--checkpoint", checkpoint, "--now", NOW.isoformat(),
         )
         request = repair["repair_state"]["active_repair"]
-        self.assertIn("publish-linkedin-content", request["codex_scope"]["forbidden"])
-        self.assertIn(
-            "reinstall-currently-approved-plugin-version", request["codex_scope"]["allowed"]
-        )
+        self.assertEqual(request["repair_scope"]["external_execution_route"], "official-api-executor")
+        self.assertIn("reload-current-plugin-runtime", request["repair_scope"]["operations"])
         state = read_json(state_dir / "campaign-state.json")
         state["dispatcher"]["linkedin_lane"] = "recovering"
         write_json(state_dir / "campaign-state.json", state)

@@ -3,7 +3,7 @@ name: linkedin-brand-system
 description: Build and maintain a profile-derived LinkedIn watermark kit in Claude Design, validate its transparent PNG exports, and route the correct variant into every GIF. Use during pre-flight and GIF production.
 metadata:
   author: sunny
-  version: "6.0.0-rc.7"
+  version: "6.0.0-rc.8"
 ---
 
 # LinkedIn brand system

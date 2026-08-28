@@ -14,7 +14,7 @@ Store mutable artifacts outside the plugin.
 - `operational-output.json`: rolling 24-hour action and post counts, targets, caps, debts, checkpoints, and evidence availability.
 - `content-pipeline.json`: 12 topic candidates, six briefs, six-package inventory, freshness, portfolio roles, stage lifecycle, replacements, and four analytics checkpoints per post.
 - `regional-performance.json`: observations, current allocation, timing performance, audience demographics, spillover, and exploration state.
-- `repair-state.json`: failure, checkpoint, recovery attempts, Codex handoff, result, verification, retry trigger, and task resumption.
+- `repair-state.json`: failure, checkpoint, recovery attempts, result, verification, retry trigger, and task resumption.
 - `campaign-state.json`: lifecycle, consent snapshot, rolling mirrors, browser binding, lane circuits, continuity, and current controller links.
 - `work-queue.json`: leased and idempotent tasks.
 - `stage-ledger.json`: artifact-backed completion claims.

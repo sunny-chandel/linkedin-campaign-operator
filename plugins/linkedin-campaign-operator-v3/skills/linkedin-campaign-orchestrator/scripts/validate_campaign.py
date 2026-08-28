@@ -65,11 +65,11 @@ def main() -> int:
             errors.append(f"missing file: {name}")
     executor = load_json(state_dir / "external-executor.json", errors)
     if executor:
-        if executor.get("zero_human") is not True:
-            errors.append("external-executor.json zero_human must equal true")
-        if executor.get("host_interactive_fallback_allowed") is not False:
+        if executor.get("unattended") is not True:
+            errors.append("external-executor.json unattended must equal true")
+        if executor.get("interactive_fallback_enabled") is not False:
             errors.append(
-                "external-executor.json host_interactive_fallback_allowed must equal false"
+                "external-executor.json interactive_fallback_enabled must equal false"
             )
         if executor.get("status") not in {"unconfigured", "active", "blocked", "disabled"}:
             errors.append("external-executor.json status is invalid")
@@ -120,17 +120,17 @@ def main() -> int:
         errors.append("consent-record.json scope must equal campaign-lifetime")
     if not consent.get("activated_at") and not args.allow_draft:
         errors.append("consent-record.json activated_at must be set")
-    receipt = consent.get("authorization_receipt", {})
+    receipt = consent.get("operating_receipt", {})
     if not args.allow_draft and (
         not isinstance(receipt, dict)
         or not receipt.get("receipt_id")
         or not receipt.get("granted_at")
         or receipt.get("portable_across_model_sessions") is not True
     ):
-        errors.append("consent-record.json must contain a persistent authorization receipt")
-    reconfirmation = consent.get("reconfirmation_policy", {})
-    if reconfirmation.get("routine_reconfirmation_required") is not False:
-        errors.append("consent-record.json routine reconfirmation must be disabled")
+        errors.append("consent-record.json must contain a persistent operating receipt")
+    renewal = consent.get("renewal_policy", {})
+    if renewal.get("routine_renewal_required") is not False:
+        errors.append("consent-record.json routine renewal must be disabled")
     accounts = consent.get("accounts", [])
     linkedin_accounts = [
         account
@@ -143,8 +143,8 @@ def main() -> int:
         errors.append("consent-record.json LinkedIn account must use a full profile URL")
     elif linkedin_accounts[0].get("owner") != display_name:
         errors.append("consent-record.json LinkedIn account owner must match owner.display_name")
-    if not consent.get("approved_action_classes"):
-        errors.append("consent-record.json approved_action_classes must be set")
+    if not consent.get("configured_action_classes"):
+        errors.append("consent-record.json configured_action_classes must be set")
     if not consent.get("data_directory"):
         errors.append("consent-record.json data_directory must be set")
     configured_timezone = config.get("timezone")
@@ -163,9 +163,9 @@ def main() -> int:
         "fully-dynamic-publishing",
         "automatic-profile-watermark",
         "permanent-dominant-gif-learning-deletion",
-        "one-time-high-value-consent",
-        "campaign-lifetime-consent-reload",
-        "automatic-recovery-without-routine-questions",
+        "campaign-start-operating-receipt",
+        "campaign-lifetime-receipt-reload",
+        "automatic-recovery-and-continuation",
         "opportunity-recovery-controller",
         "six-to-eight-rolling-publications",
         "regional-diversification",
@@ -293,8 +293,8 @@ def main() -> int:
     browser_rules = reliability.get("browser_binding", {})
     if browser_rules.get("reuse_pinned_device") is not True:
         errors.append("automation_reliability.browser_binding.reuse_pinned_device must equal true")
-    if browser_rules.get("routine_device_questions_allowed") is not False:
-        errors.append("automation_reliability.browser_binding.routine_device_questions_allowed must equal false")
+    if browser_rules.get("direct_pinned_device_selection") is not True:
+        errors.append("automation_reliability.browser_binding.direct_pinned_device_selection must equal true")
     circuit_rules = reliability.get("circuit_breaker", {})
     if circuit_rules.get("max_safe_retries") != 2 or circuit_rules.get("continue_offline_lane") is not True:
         errors.append("automation_reliability.circuit_breaker is invalid")
@@ -384,17 +384,17 @@ def main() -> int:
         if dispatcher.get(lane) not in {"ready", "recovering", "blocked"}:
             errors.append(f"campaign-state.json dispatcher.{lane} is invalid")
     browser_binding = dispatcher.get("browser_binding", {})
-    if browser_binding.get("selection_policy") != "reuse-pinned-device-without-question":
+    if browser_binding.get("selection_policy") != "reuse-pinned-device-directly":
         errors.append("campaign-state.json browser binding selection policy is invalid")
     continuation = dispatcher.get("continuation", {})
-    if continuation.get("expiry_policy") != "renew-before-host-limit-until-target-or-owner-stop":
+    if continuation.get("expiry_policy") != "renew-before-host-limit-until-target-or-stop-signal":
         errors.append("campaign-state.json continuation must automatically renew before host expiry")
     if continuation.get("renew_existing_automation") is not True:
         errors.append("campaign-state.json continuation must reuse one deduplicated automation")
     automation_consent = state.get("automation_consent", {})
     if not args.allow_draft and (
         automation_consent.get("status") != "active"
-        or automation_consent.get("reconfirmation_required") is not False
+        or automation_consent.get("renewal_required") is not False
         or not automation_consent.get("receipt_id")
     ):
         errors.append("campaign-state.json must contain a loaded active consent snapshot")

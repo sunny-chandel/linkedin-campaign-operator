@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "linkedin-campaign-operator-v3",
-      "version": "6.0.0-rc.7",
+      "version": "6.0.0-rc.8",
       "source": "./plugins/linkedin-campaign-operator-v3",
       "description": "Run a durable LinkedIn growth system with rolling 160–200 actions, six-to-eight-post publishing, regional intelligence, runtime repair, analytics, branding, and persistent learning.",
       "author": {
