@@ -248,7 +248,7 @@ class V6RuntimeTests(unittest.TestCase):
             NOW.isoformat(),
             "--activate-from-owner-start",
         )
-        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.23")
+        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.24")
         self.assertFalse(initialized["campaign_consent"]["renewal_required"])
         verification = initialized["profile_verification"]
         self.assertEqual(verification["device_id"], "browser-1-id")
@@ -378,7 +378,7 @@ class V6RuntimeTests(unittest.TestCase):
         for key in ("plugin_version", "lifecycle", "next_trigger", "profile_binding", "stage_history"):
             self.assertNotIn(key, migrated_state)
         self.assertEqual(
-            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.23"
+            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.24"
         )
         self.assertNotIn("tasks", read_json(state_dir / "work-queue.json"))
 
@@ -781,7 +781,19 @@ class V6RuntimeTests(unittest.TestCase):
             "linkedin-campaign-continuation:v6-test",
         )
         self.assertTrue(continuation["update_existing"])
+        self.assertEqual(
+            continuation["persistence_required"], "survives-current-session"
+        )
+        self.assertEqual(
+            continuation["accepted_adapter"], "host-native-scheduled-task"
+        )
+        self.assertEqual(
+            continuation["preferred_host_tool"],
+            "scheduled-tasks-create-or-update",
+        )
+        self.assertFalse(continuation["session_only_loop_satisfies_transition"])
         self.assertIn("continuation-event", continuation["on_success_command_template"])
+        self.assertIn("host-native-scheduled-task", continuation["on_success_command_template"])
 
     def test_ready_package_requires_scored_decision_before_live_execution(self) -> None:
         temporary, state_dir = self.make_campaign()

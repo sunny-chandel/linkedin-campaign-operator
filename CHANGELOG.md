@@ -1,5 +1,13 @@
 # Changelog
 
+## 6.0.0-rc.24 — Persistent Desktop Continuation
+
+- Require the campaign continuation to survive the current Claude session.
+- Select the persistent Claude Desktop Routine/scheduled-task adapter as the sole accepted continuation host.
+- Return the preferred host capability and persistence requirement directly in the wait transition.
+- Treat session cron and in-session loops as incomplete continuation attempts rather than durable success.
+- Migrate existing campaign configuration to the persistent-adapter contract and add regression coverage.
+
 ## 6.0.0-rc.23 — Explicit Local Campaign Scope
 
 - Define the owner start receipt and host continuation as automatic local-workspace operation only.

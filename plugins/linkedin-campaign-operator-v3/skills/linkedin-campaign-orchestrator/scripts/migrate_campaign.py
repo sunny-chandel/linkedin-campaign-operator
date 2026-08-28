@@ -344,6 +344,10 @@ def main() -> int:
     browser_rules = merged["automation_reliability"].setdefault("browser_binding", {})
     browser_rules.pop("routine_device_questions_allowed", None)
     browser_rules["direct_pinned_device_selection"] = True
+    continuation_rules = merged["adaptive_dispatch"].setdefault("continuation", {})
+    continuation_rules["host_adapter_priority"] = ["host-native-scheduled-task"]
+    continuation_rules["persistence_required"] = "survives-current-session"
+    continuation_rules["session_only_loop_accepted"] = False
     merged["publishing_optimization"].update(defaults["publishing_optimization"])
     merged.setdefault("autonomous_execution", {})["mode"] = defaults[
         "autonomous_execution"

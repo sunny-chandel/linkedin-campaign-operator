@@ -219,6 +219,10 @@ def main() -> int:
                     "task_id": f"linkedin-campaign-continuation-{campaign_id}",
                     "schedule_at": next_wake_at,
                     "update_existing": True,
+                    "persistence_required": "survives-current-session",
+                    "accepted_adapter": "host-native-scheduled-task",
+                    "preferred_host_tool": "scheduled-tasks-create-or-update",
+                    "session_only_loop_satisfies_transition": False,
                     "prompt": (
                         f"Resume campaign {campaign_id} from durable state at {state_dir}. "
                         "Resolve the latest installed plugin, run campaign_cycle.py, follow its "
@@ -234,7 +238,7 @@ def main() -> int:
                             "--event",
                             "armed",
                             "--adapter",
-                            "host-native-scheduled-wake",
+                            "host-native-scheduled-task",
                             "--automation-id",
                             "ACTUAL_AUTOMATION_ID",
                             "--next-wake-at",
