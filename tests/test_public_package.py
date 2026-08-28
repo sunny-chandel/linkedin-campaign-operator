@@ -32,7 +32,7 @@ def test_parent_and_twelve_children_share_the_rc_version() -> None:
         metadata = frontmatter(skill_file)
         assert metadata["name"] == skill_file.parent.name
         assert metadata["description"]
-        assert metadata["metadata"]["version"] == "6.0.0-rc.8"
+        assert metadata["metadata"]["version"] == "6.0.0-rc.9"
         if metadata["name"] != "linkedin-campaign-orchestrator":
             assert f"`{metadata['name']}`" in parent_text
 
@@ -41,7 +41,7 @@ def test_claude_and_codex_manifests_are_aligned() -> None:
     claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
     codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
     assert claude["name"] == codex["name"] == PLUGIN.name
-    assert claude["version"] == codex["version"] == "6.0.0-rc.8"
+    assert claude["version"] == codex["version"] == "6.0.0-rc.9"
     assert claude["license"] == codex["license"] == "MIT"
     assert claude["homepage"] == codex["homepage"] == PUBLIC_SITE
     assert codex["skills"] == "./skills/"
@@ -59,6 +59,21 @@ def test_runtime_classification_is_host_neutral() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
     assert "Claude Desktop, and compatible agents" in text
     assert "canonical" in text
+
+
+def test_interactive_host_never_owns_linkedin_write_actions() -> None:
+    text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
+    reference = (
+        SKILLS
+        / "linkedin-campaign-orchestrator"
+        / "references"
+        / "autonomous-execution.md"
+    ).read_text()
+    assert "The interactive host performs local campaign work only" in text
+    assert "It does not click LinkedIn controls, call LinkedIn write APIs" in text
+    assert "The operating receipt configures local dispatcher eligibility" in text
+    assert "it is not a substitute for interactive-host confirmation" in reference
+    assert "Never fall back to browser clicks or direct interactive-host API calls" in reference
 
 
 def test_claude_runtime_has_no_codex_dependency() -> None:

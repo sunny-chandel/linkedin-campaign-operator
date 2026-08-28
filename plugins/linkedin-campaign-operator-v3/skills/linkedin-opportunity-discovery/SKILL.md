@@ -3,7 +3,7 @@ name: linkedin-opportunity-discovery
 description: Maintain the canonical LinkedIn engagement opportunity queue by rotating signal sources, validating evidence, applying expiry, atomically upserting candidates, and measuring source yield. Internal child of linkedin-campaign-orchestrator.
 metadata:
   author: sunny
-  version: "6.0.0-rc.8"
+  version: "6.0.0-rc.9"
 ---
 
 # LinkedIn opportunity discovery

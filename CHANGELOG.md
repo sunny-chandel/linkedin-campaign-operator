@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.0.0-rc.9 — Explicit Interactive-Host Boundary
+
+- Made the responsibility boundary explicit at the top of the public orchestrator: the interactive host performs local preparation and outbox writes only, while the separate official-API service owns every externally visible change.
+- Clarified that the operating receipt configures dispatcher eligibility and does not replace host action-confirmation rules.
+- Added release-contract coverage that prohibits browser or direct interactive-host write fallbacks.
+
 ## 6.0.0-rc.8 — Calm Unattended Runtime
 
 - Replaced legacy interactive-control fields with neutral operating receipts, deterministic dispatch contracts, and executor readiness states.

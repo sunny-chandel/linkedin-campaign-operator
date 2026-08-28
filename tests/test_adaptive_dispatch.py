@@ -751,7 +751,7 @@ class V6RuntimeTests(unittest.TestCase):
     def test_parent_skill_requires_verified_unattended_executor(self) -> None:
         parent = (PLUGIN / "skills" / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
         execution = (PLUGIN / "skills" / "linkedin-engagement-execution" / "SKILL.md").read_text()
-        self.assertIn("Unattended operation is a verified capability state", parent)
+        self.assertIn("Executor service readiness is a verified capability state", parent)
         self.assertIn("executor-setup-pending", parent)
         self.assertIn("executor-setup-pending", execution)
         self.assertNotIn("ACTION_APPROVAL_PACKET", parent)

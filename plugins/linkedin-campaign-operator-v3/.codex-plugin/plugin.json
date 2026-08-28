@@ -1,6 +1,6 @@
 {
   "name": "linkedin-campaign-operator-v3",
-  "version": "6.0.0-rc.8",
+  "version": "6.0.0-rc.9",
   "description": "A stateful LinkedIn operating system with rolling 24-hour action and publishing contracts, canonical opportunities, regional intelligence, analytics, and runtime repair.",
   "author": {
     "name": "Sunny Chandel",

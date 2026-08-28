@@ -3,12 +3,20 @@ name: linkedin-campaign-orchestrator
 description: Run the complete persistent organic LinkedIn growth system with rolling 24-hour engagement and publishing contracts, regional diversification, research, content production, analytics, runtime repair, and crash-safe continuation. Use this as the only public entry point; startup reads durable state and verified account evidence directly.
 metadata:
   author: sunny
-  version: "6.0.0-rc.8"
+  version: "6.0.0-rc.9"
 ---
 
 # LinkedIn campaign orchestrator
 
 Run the campaign as a durable pipeline. This parent is the only campaign entry point. Route all child work automatically and return control here after each child result.
+
+## Interactive host boundary
+
+The interactive host performs local campaign work only. It may read verified account evidence, research, validate, create artifacts, update durable state, and write canonical requests to the local outbox. It does not click LinkedIn controls, call LinkedIn write APIs, publish, comment, react, reply, message, follow, or invite connections.
+
+All externally visible changes belong to the separately installed official-API executor service. `enqueue_external_action.py` only validates and writes a local outbox record; it is not an external action. The executor independently checks its own OAuth identity, scopes, coverage, rolling limits, idempotency, and verification evidence before making an API request. Never substitute browser interaction or an interactive-host API call for the executor.
+
+The operating receipt configures local dispatcher eligibility. It does not waive, replace, or reinterpret host action-confirmation rules because this skill assigns no external action to the interactive host. If the executor is not ready, keep producing eligible local and read-only work, record the exact capability state, and leave external requests unqueued until readiness is proven.
 
 ## Startup contract
 
@@ -24,19 +32,19 @@ When state exists, run in order:
 4. `python scripts/audit_pipeline.py <state-dir> --write`
 5. `python scripts/operational_output.py <state-dir>`
 6. `python scripts/dispatch_next_work.py <state-dir> --record`
-7. Execute internal work directly. For a leased external task, enqueue it with `python scripts/enqueue_external_action.py <state-dir> --task-id <task-id>` and return immediately to dispatch; the separate daemon performs and verifies the mutation.
+7. Execute local work directly. For a leased executor-covered task, write its canonical local outbox request with `python scripts/enqueue_external_action.py <state-dir> --task-id <task-id>` and return immediately to dispatch; the separate service owns the API request and verification.
 
 When state does not exist, discover the connected profile identity, timezone, niche, baselines, content positioning, entitlements, and capabilities read-only, then initialize with `scripts/init_campaign.py`. A value already visible in connected evidence is treated as resolved.
 
 ## Operating receipt and role separation
 
-The consent receipt records the recognized owner's campaign configuration and permitted action classes. If the receipt is absent, present one concise pre-flight summary, capture the start decision once, and store it with `runtime_control.py consent-grant`. Reload the valid receipt across restarts, context compression, Claude Desktop, and compatible agents. A revoked, invalid, or identity-mismatched receipt returns to this one-time setup stage.
+The operating receipt records the recognized owner's campaign configuration and the action classes that the local dispatcher may prepare for the executor. If the receipt is absent, present one concise pre-flight summary, capture the start decision once, and store it with `runtime_control.py consent-grant`. A direct owner invocation that identifies the campaign and says to start is the start decision; record it during setup instead of asking the same question again. Reload the valid receipt across restarts, context compression, Claude Desktop, and compatible agents. A revoked, invalid, or identity-mismatched receipt returns to this one-time setup stage.
 
-Every dispatched task carries `dispatch_contract` as machine-readable routing data. Claude's responsibility is local preparation: research, validation, exact task assembly, atomic outbox enqueue, checkpointing, and immediate dispatcher continuation. The executor service separately checks LinkedIn credentials, scopes, identity, limits, and idempotency before it performs an external mutation. Repair Tier 3 voice violations, including em dashes and en dashes, during local validation. For an eligible leased task, the normal transition is `enqueue-and-continue`; a preview is informational and does not alter that transition.
+Every dispatched task carries `dispatch_contract` as machine-readable routing data. The interactive host's responsibility is local preparation: research, validation, exact task assembly, atomic outbox enqueue, checkpointing, and immediate dispatcher continuation. The executor service separately checks LinkedIn credentials, scopes, identity, limits, and idempotency before it performs an API request. Repair Tier 3 voice violations, including em dashes and en dashes, during local validation. For an eligible leased task, the normal local transition is `enqueue-and-continue`; a preview is informational and does not alter that transition.
 
-Unattended operation is a verified capability state. `external-executor.json` describes the official-API executor, and `scripts/executor_readiness.py` proves coverage before startup and every external lease. Dispatch external work only for action classes with `unattended_ready: true`. The interactive host writes the exact leased action through `scripts/enqueue_external_action.py`; the single-instance `autonomous_executor_daemon.py` owns HTTP execution, read verification, durable completion evidence, and service-level continuation. Ordinary DMs, connection invitations, follows, and uncovered action classes remain outside executable reserve and target supply.
+Executor service readiness is a verified capability state. `external-executor.json` describes the official-API executor, and `scripts/executor_readiness.py` proves coverage before startup and every executor-covered lease. Prepare outbox work only for action classes with `unattended_ready: true`. The interactive host writes the exact leased request through `scripts/enqueue_external_action.py`; the single-instance `autonomous_executor_daemon.py` owns HTTP execution, read verification, durable completion evidence, and service-level continuation. Ordinary DMs, connection invitations, follows, and uncovered action classes remain outside executable reserve and target supply.
 
-Campaign-lifetime automation requires programmatic token refresh and daemon credentials available outside the interactive shell. After one-time OAuth credential provisioning, use `scripts/bootstrap_executor_credentials.py` to place it in macOS Keychain, run `scripts/executor_preflight.py`, and install the LaunchAgent with `scripts/install_executor_service.py`. Campaign JSON, prompts, logs, task payloads, and LaunchAgent environment variables contain credential coordinates only, not secret values.
+Continuous executor service operation requires programmatic token refresh and service credentials available outside the interactive shell. After the account owner completes the platform's one-time OAuth setup, use `scripts/bootstrap_executor_credentials.py` to place it in macOS Keychain, run `scripts/executor_preflight.py`, and install the LaunchAgent with `scripts/install_executor_service.py`. Campaign JSON, prompts, logs, task payloads, and LaunchAgent environment variables contain credential coordinates only, not secret values.
 
 If readiness is incomplete, continue unaffected offline and read-only work. When only uncovered mutations remain, persist `executor-setup-pending` with its exact missing-capability list and `setup_input_required: false`; the lane then waits for executor preflight while the dispatcher serves other eligible work. Read [references/autonomous-execution.md](references/autonomous-execution.md) when configuring or repairing this lane.
 

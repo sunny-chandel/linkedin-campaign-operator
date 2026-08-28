@@ -1,20 +1,22 @@
-# Unattended official-API execution
+# Official-API executor service
 
 Use this reference when configuring or diagnosing the campaign's external executor service.
 
 ## Boundary
 
-The interactive host and the external executor have separate responsibilities. Claude Desktop prepares validated canonical work and atomically enqueues it. A separately configured official-API service owns external mutation, read verification, durable evidence, and retries. This architecture keeps social-action execution outside the interactive chat boundary.
+The interactive host and the external executor have separate responsibilities. Claude Desktop reads evidence, prepares validated canonical work, and atomically writes local outbox records. It performs no LinkedIn write action. A separately configured official-API service owns API submission, read verification, durable evidence, and retries. This architecture keeps externally visible activity outside the interactive chat boundary.
+
+The operating receipt configures the local dispatcher; it is not a substitute for interactive-host confirmation because the host is never assigned an external action. If a task cannot be represented as a validated local outbox request for the ready executor, keep it outside executable supply. Never fall back to browser clicks or direct interactive-host API calls.
 
 The supported executor mode is `official-linkedin-api`. `external-executor.json` stores environment-variable names and macOS Keychain coordinates; access tokens remain in the Keychain-backed credential layer. A LinkedIn developer application, one three-legged OAuth credential grant, and the matching LinkedIn scopes are platform setup prerequisites. Production readiness requires:
 
-- an active executor with `unattended: true`;
+- an active service with `unattended: true`;
 - `interactive_fallback_enabled: false`;
 - a verified actor identity matching the consented LinkedIn account;
 - a write scope (`w_member_social` or `w_member_social_feed`);
 - a read scope (`r_member_social` or `r_member_social_feed`) so external outcomes can be verified before durable accounting;
 - coverage for every dispatched action class;
-- programmatic refresh credentials, because a static access token does not provide campaign-lifetime autonomy;
+- programmatic refresh credentials, because a static access token cannot support continuous service operation;
 - a running single-instance outbox daemon backed by Keychain so it survives Claude task and Mac process restarts;
 - successful verification evidence in the executor artifact.
 
