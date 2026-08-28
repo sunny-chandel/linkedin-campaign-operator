@@ -209,6 +209,121 @@ class V6RuntimeTests(unittest.TestCase):
         ):
             self.assertTrue((state_dir / name).exists(), name)
 
+    def test_clean_start_records_growth_impressions_and_dispatches(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        state_dir = Path(temporary.name) / "clean-campaign"
+        _, initialized = run_json(
+            "python3",
+            ORCHESTRATOR / "init_campaign.py",
+            state_dir,
+            "--campaign-id",
+            "clean-v6-test",
+            "--owner-name",
+            "Sunny Chandel",
+            "--profile-url",
+            "https://www.linkedin.com/in/sunny-chandel-6a05bb401",
+            "--timezone",
+            "Asia/Kolkata",
+            "--followers-baseline",
+            31,
+            "--followers-growth-goal",
+            1000,
+            "--impressions-goal",
+            10000,
+            "--duration-days",
+            14,
+            "--now",
+            NOW.isoformat(),
+            "--activate-from-owner-start",
+        )
+        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.14")
+        self.assertFalse(initialized["campaign_consent"]["renewal_required"])
+        config = read_json(state_dir / "campaign-config.json")
+        self.assertEqual(config["target"]["metric_a"]["goal_mode"], "increase")
+        self.assertEqual(config["target"]["metric_a"]["goal"], 1000)
+        self.assertEqual(config["target"]["metric_b"]["name"], "impressions")
+        self.assertEqual(config["target"]["metric_b"]["goal"], 10000)
+        self.assertEqual(config["target"]["duration_days"], 14)
+        self.assertEqual(
+            config["target"]["deadline"],
+            (NOW.astimezone(ZoneInfo("UTC")) + timedelta(days=14)).isoformat(),
+        )
+        _, cycle = run_json(
+            "python3",
+            ORCHESTRATOR / "campaign_cycle.py",
+            state_dir,
+            "--session-start",
+            "--session-id",
+            "clean-start-test",
+            "--now",
+            NOW.isoformat(),
+        )
+        self.assertTrue(cycle["validation"]["valid"])
+        self.assertEqual(cycle["dispatch"]["decision"], "execute")
+        self.assertEqual(cycle["next_action"]["kind"], "execute-child-task")
+        self.assertFalse(cycle["dispatch"]["task"]["dispatch_contract"]["setup_input_required"])
+
+    def test_simplified_legacy_state_is_normalized_before_consent_transition(self) -> None:
+        temporary, state_dir = self.make_campaign()
+        self.addCleanup(temporary.cleanup)
+        config = read_json(state_dir / "campaign-config.json")
+        config.update(
+            {
+                "schema_version": "6.0.0",
+                "plugin_version": "6.0.0-rc.12",
+                "goals": {"primary": "Grow follower count from 31 to 10,000"},
+                "operating_mode": {"account_automation": "disabled"},
+                "limits": {"posts_per_week": "owner confirmation required"},
+                "next_trigger": "owner confirms setup",
+            }
+        )
+        write_json(state_dir / "campaign-config.json", config)
+        state = read_json(state_dir / "campaign-state.json")
+        state.update(
+            {
+                "schema_version": "6.0.0",
+                "plugin_version": "6.0.0-rc.12",
+                "lifecycle": "running",
+                "next_trigger": "owner confirms setup",
+                "profile_binding": {"verified": True},
+                "stage_history": [],
+            }
+        )
+        write_json(state_dir / "campaign-state.json", state)
+        (state_dir / "consent-record.json").unlink()
+        write_json(
+            state_dir / "brand" / "brand-profile.json",
+            {
+                "display_name": "Sunny Chandel",
+                "profile_url": "https://www.linkedin.com/in/sunny-chandel-6a05bb401",
+            },
+        )
+        _, cycle = run_json(
+            "python3",
+            ORCHESTRATOR / "campaign_cycle.py",
+            state_dir,
+            "--session-start",
+            "--session-id",
+            "legacy-normalization-test",
+            "--now",
+            NOW.isoformat(),
+        )
+        self.assertTrue(cycle["validation"]["valid"])
+        self.assertEqual(
+            cycle["next_action"]["kind"], "record-current-owner-start-consent"
+        )
+        migrated_config = read_json(state_dir / "campaign-config.json")
+        migrated_state = read_json(state_dir / "campaign-state.json")
+        for key in ("plugin_version", "operating_mode", "limits", "goals", "next_trigger"):
+            self.assertNotIn(key, migrated_config)
+        for key in ("plugin_version", "lifecycle", "next_trigger", "profile_binding", "stage_history"):
+            self.assertNotIn(key, migrated_state)
+        self.assertEqual(
+            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.14"
+        )
+        self.assertNotIn("tasks", read_json(state_dir / "work-queue.json"))
+
     def test_rolling_output_uses_canonical_evidence_across_rollover(self) -> None:
         temporary, state_dir = self.make_campaign()
         self.addCleanup(temporary.cleanup)

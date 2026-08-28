@@ -1,5 +1,12 @@
 # Changelog
 
+## 6.0.0-rc.14 — Deterministic Clean Start
+
+- Added one script-driven campaign cycle for migration, validation, recovery, audit, and next-task dispatch.
+- Added explicit clean-start support for follower-growth and impression-window goals with a campaign deadline.
+- Made a current owner start request record campaign scope once, while keeping service availability evidence-based.
+- Required every saved task transition to return immediately to the deterministic cycle instead of ending from conversational judgment.
+
 ## 6.0.0-rc.13 — Deterministic Routine Setup
 
 - Added evidence-driven startup rules for profile binding, campaign goals, optional settings, and connected-service availability.

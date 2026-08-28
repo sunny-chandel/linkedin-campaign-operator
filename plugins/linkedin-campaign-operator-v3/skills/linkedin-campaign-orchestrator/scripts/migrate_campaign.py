@@ -6,12 +6,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 from runtime_state import current_time, reconcile_runtime
+from package_version import CURRENT_VERSION
 
 
 def merge_missing(current: Any, defaults: Any) -> tuple[Any, bool]:
@@ -270,6 +272,29 @@ def main() -> int:
     if not isinstance(campaign_id, str) or not campaign_id:
         parser.error("campaign-config.json requires a campaign_id before migration")
 
+    legacy_workspace = config.get("schema_version") != "2.0" or any(
+        key in config for key in ("operating_mode", "limits", "goals", "plugin_version")
+    )
+    if legacy_workspace:
+        legacy_goals = config.get("goals", {})
+        primary_goal = legacy_goals.get("primary") if isinstance(legacy_goals, dict) else None
+        if isinstance(primary_goal, str):
+            match = re.search(r"from\s+([\d,]+)\s+to\s+([\d,]+)", primary_goal, re.IGNORECASE)
+            if match:
+                target = config.setdefault("target", json.loads(json.dumps(defaults["target"])))
+                target["metric_a"].update(
+                    {
+                        "baseline": int(match.group(1).replace(",", "")),
+                        "goal": int(match.group(2).replace(",", "")),
+                        "goal_mode": "absolute",
+                    }
+                )
+        legacy_focus = config.get("content_focus", {})
+        if isinstance(legacy_focus, dict):
+            niche = legacy_focus.get("niche")
+            if niche:
+                config.setdefault("audience", {})["niche"] = niche
+
     legacy_fixed_keys = {
         "windows_per_day",
         "max_actions_per_window",
@@ -330,6 +355,20 @@ def main() -> int:
     autonomous_execution.setdefault("interactive_mutation_fallback_enabled", False)
     for section in ("regional_intelligence", "content_research", "analytics_contract", "runtime_repair"):
         merged[section] = defaults[section]
+    for obsolete_key in (
+        "plugin_version",
+        "operating_mode",
+        "limits",
+        "goals",
+        "content_focus",
+        "owner",
+        "producer",
+        "created_at",
+        "lifecycle_state",
+        "next_trigger",
+        "validation_status",
+    ):
+        merged.pop(obsolete_key, None)
     merged.setdefault("publishing_optimization", {}).setdefault(
         "production_priority_window", {}
     )["timezone"] = merged.get("timezone", "UTC")
@@ -345,9 +384,9 @@ def main() -> int:
         state = load_object(state_path)
         state["schema_version"] = "2.0"
         runtime_instructions = state.setdefault("runtime_instructions", {})
-        runtime_instructions["active_version"] = "6.0.0-rc.13"
-        runtime_instructions["detected_version"] = "6.0.0-rc.13"
-        runtime_instructions["session_version"] = "6.0.0-rc.13"
+        runtime_instructions["active_version"] = CURRENT_VERSION
+        runtime_instructions["detected_version"] = CURRENT_VERSION
+        runtime_instructions["session_version"] = CURRENT_VERSION
         old_scaling = state.get("engagement_scaling", {})
         if not isinstance(old_scaling, dict):
             old_scaling = {}
@@ -476,12 +515,60 @@ def main() -> int:
         else:
             state.pop("automation_readiness", None)
         merged_state, state_updated = merge_missing(state, state_defaults)
+        for obsolete_key in (
+            "plugin_version",
+            "lifecycle",
+            "next_trigger",
+            "producer",
+            "profile_binding",
+            "controller_links",
+            "stage_history",
+            "created_at",
+            "last_updated",
+        ):
+            merged_state.pop(obsolete_key, None)
         state_updated = state_updated or merged_state != load_object(state_path)
         if state_updated:
             atomic_write_json(state_path, merged_state)
         state = merged_state
 
+    created: list[str] = []
     consent_path = state_dir / "consent-record.json"
+    if not consent_path.is_file():
+        consent = load_object(assets_dir / "consent-record.template.json")
+        identity: dict[str, Any] = {}
+        for identity_path in (
+            state_dir / "brand" / "brand-profile.json",
+            state_dir / "brand-profile.json",
+        ):
+            if identity_path.is_file():
+                try:
+                    identity = load_object(identity_path)
+                except (OSError, json.JSONDecodeError, ValueError):
+                    identity = {}
+                if identity.get("display_name") and identity.get("profile_url"):
+                    break
+        legacy_owner = original_config.get("owner", {})
+        if not isinstance(legacy_owner, dict):
+            legacy_owner = {}
+        display_name = identity.get("display_name") or legacy_owner.get("display_name")
+        profile_url = identity.get("profile_url") or legacy_owner.get("profile_url")
+        consent["campaign_id"] = campaign_id
+        consent["data_directory"] = str(state_dir)
+        if display_name and profile_url:
+            consent["owner"] = {
+                "display_name": display_name,
+                "expected_linkedin_identity": display_name,
+            }
+            consent["accounts"] = [
+                {
+                    "type": "linkedin-profile",
+                    "owner": display_name,
+                    "url": profile_url,
+                }
+            ]
+        atomic_write_json(consent_path, consent)
+        created.append(consent_path.name)
     consent_updated = False
     if consent_path.is_file():
         consent = load_object(consent_path)
@@ -597,7 +684,6 @@ def main() -> int:
             atomic_write_json(consent_path, consent)
             consent_updated = True
 
-    created: list[str] = []
     executor_path = state_dir / "external-executor.json"
     executor_template = load_object(assets_dir / "external-executor.template.json")
     if not executor_path.exists():
@@ -752,6 +838,30 @@ def main() -> int:
     queue_path = state_dir / "work-queue.json"
     queue = load_object(queue_path)
     queue_changed = False
+    legacy_task_count = 0
+    if legacy_workspace:
+        legacy_tasks = queue.pop("tasks", [])
+        if isinstance(legacy_tasks, list) and legacy_tasks:
+            legacy_task_count = len(legacy_tasks)
+            atomic_write_json(
+                state_dir / "legacy-task-index.json",
+                {
+                    "schema_version": "1.0",
+                    "campaign_id": campaign_id,
+                    "source_version": original_config.get("plugin_version"),
+                    "tasks": [
+                        {
+                            "task_id": item.get("task_id"),
+                            "status": item.get("status"),
+                            "evidence": item.get("evidence", []),
+                        }
+                        for item in legacy_tasks
+                        if isinstance(item, dict)
+                    ],
+                },
+            )
+            created.append("legacy-task-index.json")
+            queue_changed = True
     for item in queue.get("items", []):
         if not isinstance(item, dict):
             continue
@@ -807,7 +917,7 @@ def main() -> int:
     algorithm_defaults = {
         "schema_version": "2.0",
         "campaign_id": campaign_id,
-        "version": "6.0.0-rc.13",
+        "version": CURRENT_VERSION,
         "strategy_weights": {"proven": 70, "promising": 20, "exploration": 10},
         "scheduling_models": {
             "publication_timing": {"mode": "evidence-adaptive", "observations": []},
@@ -831,7 +941,7 @@ def main() -> int:
         algorithm = load_object(algorithm_path)
         merged_algorithm, algorithm_updated = merge_missing(algorithm, algorithm_defaults)
         merged_algorithm["schema_version"] = "2.0"
-        merged_algorithm["version"] = "6.0.0-rc.13"
+        merged_algorithm["version"] = CURRENT_VERSION
         if algorithm_updated or merged_algorithm != algorithm:
             atomic_write_json(algorithm_path, merged_algorithm)
     else:
@@ -952,13 +1062,14 @@ def main() -> int:
             {
                 "migrated": str(state_dir),
                 "schema_version": "2.0",
-                "plugin_version": "6.0.0-rc.13",
+                "plugin_version": CURRENT_VERSION,
                 "config_updated": changed,
                 "state_updated": state_updated,
                 "consent_updated": consent_updated,
                 "created": created,
                 "imported_opportunities": imported_opportunities,
                 "imported_packages": imported_packages,
+                "legacy_tasks_indexed": legacy_task_count,
                 "runtime_reconciliation": runtime_reconciliation,
             }
         )

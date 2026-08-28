@@ -5,8 +5,12 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, timezone
+import subprocess
+import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+from package_version import CURRENT_VERSION
 
 
 TEMPLATES = {
@@ -28,15 +32,44 @@ def main() -> int:
     parser.add_argument("--timezone", default="UTC", help="IANA timezone, for example Europe/London")
     parser.add_argument("--followers-baseline", type=int)
     parser.add_argument("--connections-baseline", type=int)
-    parser.add_argument("--followers-goal", type=int, default=10000)
-    parser.add_argument("--connections-goal", type=int, default=10000)
+    follower_goal = parser.add_mutually_exclusive_group()
+    follower_goal.add_argument("--followers-goal", type=int)
+    follower_goal.add_argument("--followers-growth-goal", type=int)
+    secondary_goal = parser.add_mutually_exclusive_group()
+    secondary_goal.add_argument("--connections-goal", type=int)
+    secondary_goal.add_argument("--impressions-goal", type=int)
+    parser.add_argument("--duration-days", type=int)
+    parser.add_argument("--now", help="ISO timestamp used in deterministic tests")
+    parser.add_argument(
+        "--activate-from-owner-start",
+        action="store_true",
+        help="record campaign consent when the current owner message explicitly starts this scope",
+    )
     parser.add_argument("--niche")
     args = parser.parse_args()
 
     if not args.profile_url.startswith("https://www.linkedin.com/in/"):
         parser.error("--profile-url must be a full https://www.linkedin.com/in/... URL")
-    if args.followers_goal <= 0 or args.connections_goal <= 0:
+    followers_goal = args.followers_goal
+    if followers_goal is None and args.followers_growth_goal is None:
+        followers_goal = 10000
+    connections_goal = args.connections_goal
+    if connections_goal is None and args.impressions_goal is None:
+        connections_goal = 10000
+    numeric_goals = [
+        value
+        for value in (
+            followers_goal,
+            args.followers_growth_goal,
+            connections_goal,
+            args.impressions_goal,
+        )
+        if value is not None
+    ]
+    if any(value <= 0 for value in numeric_goals):
         parser.error("growth goals must be positive")
+    if args.duration_days is not None and args.duration_days <= 0:
+        parser.error("--duration-days must be positive")
 
     state_dir = args.state_dir.expanduser().resolve()
     if state_dir.exists() and any(state_dir.iterdir()):
@@ -44,7 +77,14 @@ def main() -> int:
 
     assets_dir = Path(__file__).resolve().parent.parent / "assets"
     state_dir.mkdir(parents=True, exist_ok=True)
-    now = datetime.now(timezone.utc).isoformat()
+    if args.now:
+        now_dt = datetime.fromisoformat(args.now.replace("Z", "+00:00"))
+        if now_dt.tzinfo is None:
+            now_dt = now_dt.replace(tzinfo=timezone.utc)
+        now_dt = now_dt.astimezone(timezone.utc)
+    else:
+        now_dt = datetime.now(timezone.utc)
+    now = now_dt.isoformat()
 
     for template_name, output_name in TEMPLATES.items():
         source = assets_dir / template_name
@@ -52,14 +92,58 @@ def main() -> int:
         data["campaign_id"] = args.campaign_id
         if output_name == "campaign-config.json":
             data["timezone"] = args.timezone
-            data["target"]["metric_a"]["baseline"] = args.followers_baseline
-            data["target"]["metric_b"]["baseline"] = args.connections_baseline
-            data["target"]["metric_a"]["goal"] = args.followers_goal
-            data["target"]["metric_b"]["goal"] = args.connections_goal
-            data["target"]["name"] = f"{args.followers_goal}-followers-{args.connections_goal}-connections"
+            metric_a = data["target"]["metric_a"]
+            metric_a["baseline"] = args.followers_baseline
+            if args.followers_growth_goal is not None:
+                metric_a.update(
+                    {
+                        "goal": args.followers_growth_goal,
+                        "goal_mode": "increase",
+                    }
+                )
+                primary_name = f"{args.followers_growth_goal}-follower-growth"
+                primary_formula = f"metric_a_change >= {args.followers_growth_goal}"
+            else:
+                metric_a.update({"goal": followers_goal, "goal_mode": "absolute"})
+                primary_name = f"{followers_goal}-followers"
+                primary_formula = f"metric_a >= {followers_goal}"
+
+            metric_b = data["target"]["metric_b"]
+            if args.impressions_goal is not None:
+                metric_b.update(
+                    {
+                        "name": "impressions",
+                        "baseline": 0,
+                        "goal": args.impressions_goal,
+                        "goal_mode": "window-total",
+                    }
+                )
+                secondary_name = f"{args.impressions_goal}-impressions"
+                secondary_formula = f"metric_b_window >= {args.impressions_goal}"
+                data["target"]["required_evidence"] = [
+                    "verified LinkedIn follower count",
+                    "verified LinkedIn impression total for the campaign window",
+                ]
+            else:
+                metric_b.update(
+                    {
+                        "name": "connections",
+                        "baseline": args.connections_baseline,
+                        "goal": connections_goal,
+                        "goal_mode": "absolute",
+                    }
+                )
+                secondary_name = f"{connections_goal}-connections"
+                secondary_formula = f"metric_b >= {connections_goal}"
+            data["target"]["name"] = f"{primary_name}-{secondary_name}"
             data["target"]["completion_formula"] = (
-                f"metric_a >= {args.followers_goal} and metric_b >= {args.connections_goal}"
+                f"{primary_formula} and {secondary_formula}"
             )
+            if args.duration_days is not None:
+                data["target"]["duration_days"] = args.duration_days
+                data["target"]["deadline"] = (
+                    now_dt + timedelta(days=args.duration_days)
+                ).isoformat()
             data["publishing_optimization"]["production_priority_window"]["timezone"] = args.timezone
             if args.niche:
                 data["audience"]["niche"] = args.niche
@@ -149,7 +233,7 @@ def main() -> int:
         "working-algorithm-model.json": {
             "schema_version": "2.0",
             "campaign_id": args.campaign_id,
-            "version": "6.0.0-rc.13",
+            "version": CURRENT_VERSION,
             "strategy_weights": {"proven": 70, "promising": 20, "exploration": 10},
             "scheduling_models": {
                 "publication_timing": {"mode": "evidence-adaptive", "observations": []},
@@ -273,7 +357,40 @@ def main() -> int:
         (state_dir / "external-action-outbox" / status).mkdir(parents=True, exist_ok=True)
     (state_dir / "gif-reference-captures").mkdir()
 
-    print(json.dumps({"initialized": str(state_dir), "campaign_id": args.campaign_id}))
+    activation = None
+    if args.activate_from_owner_start:
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(Path(__file__).resolve().parent / "runtime_control.py"),
+                str(state_dir),
+                "--now",
+                now,
+                "consent-grant",
+                "--owner",
+                args.owner_name,
+                "--source",
+                "current-owner-start-request",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if completed.returncode:
+            print(completed.stderr or completed.stdout, file=sys.stderr)
+            return completed.returncode
+        activation = json.loads(completed.stdout)
+
+    print(
+        json.dumps(
+            {
+                "initialized": str(state_dir),
+                "campaign_id": args.campaign_id,
+                "plugin_version": CURRENT_VERSION,
+                "campaign_consent": activation,
+            }
+        )
+    )
     return 0
 
 

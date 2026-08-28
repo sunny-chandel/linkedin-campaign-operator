@@ -3,7 +3,7 @@ name: linkedin-campaign-orchestrator
 description: Run a durable LinkedIn campaign workspace for research, content, scheduling, measurement, and recovery, with a connected service for supported account activity. Use this as the only public entry point.
 metadata:
   author: sunny
-  version: "6.0.0-rc.13"
+  version: "6.0.0-rc.14"
 ---
 
 # LinkedIn campaign orchestrator
@@ -31,13 +31,18 @@ Keep filenames, queue mechanics, and recovery details internal unless the owner 
 At the start of every new session:
 
 1. Resolve the newest installed plugin with `scripts/resolve_latest_plugin.py`.
-2. Load the newest parent skill and each child skill needed for the selected task.
-3. Read the campaign configuration, profile evidence, current stage, work queue, completed evidence, content inventory, analytics, learning, and repair state.
+2. Use only the plugin root returned by that resolver. Load the newest parent skill and each child skill needed for the returned task.
+3. Select one campaign state directory. A new campaign must use an empty directory; do not import another campaign's state or reproduce old chat history.
 4. Verify the selected profile read-only before using account-specific evidence.
-5. If the campaign folder is new, create fresh state from the verified profile and the owner's stated goals. Do not import another campaign's state.
-6. Validate the current stage, repair incomplete local artifacts, and select the next eligible task.
+5. For a new campaign, run `scripts/init_campaign.py` with the verified owner, profile URL, timezone, and the owner's stated goals. Use `--activate-from-owner-start` only when the current owner message explicitly starts that campaign scope.
+6. Run `scripts/campaign_cycle.py STATE_DIR --session-start --session-id SESSION_ID`.
+7. Follow the returned `next_action` exactly. Do not replace the returned state, task, or wait trigger with a conversational choice.
+
+If the cycle returns `record-current-owner-start-consent` and the current owner message explicitly starts the same named campaign scope, run the returned command and rerun the cycle. Ask only when that current start instruction is absent or the verified profile identity differs.
 
 An owner message that names the campaign and says to start is enough to begin local campaign setup. This starts local workspace work only; Claude Code remains outside LinkedIn account changes. Store the campaign settings and reuse them until the owner changes or stops the campaign. Optional missing values should be discovered, derived from verified evidence, defaulted conservatively, or recorded as unknown.
+
+When the same current message also supplies the profile, goals, duration, and campaign access scope, save those values during initialization and continue without repeating those questions. Access remains limited to the campaign workspace, packaged plugin scripts, the verified signed-in profile, available creative tools, and the configured connected service.
 
 ### Deterministic setup
 
@@ -57,15 +62,17 @@ Read [artifact contracts](references/artifact-contracts.md), [state and recovery
 
 Repeat this loop while eligible work remains:
 
-1. Audit saved state and identify incomplete or stale evidence.
-2. Choose the highest-value eligible task without repeating the same non-urgent task when another useful task is ready.
-3. Route the task to the matching child skill.
-4. Save the child result and validation evidence.
-5. For a ready service-supported item, create one checked local request and return immediately to local work.
-6. Verify any available service result before marking account activity complete.
-7. Recalculate content inventory, pending measurements, and the next useful task.
+1. Read the `next_action` returned by `campaign_cycle.py`.
+2. When it returns `execute-child-task`, load the named child skill and complete only the returned task and lease.
+3. Save the child result and validation evidence before changing task status.
+4. For a ready service-supported item, create one checked local request and return immediately to local work.
+5. Verify any available service result before marking account activity complete.
+6. Run `scripts/campaign_cycle.py STATE_DIR` again immediately after the saved transition.
+7. Continue from the new `next_action`; do not answer with a terminal status while it returns executable work.
 
-Wait only when no useful local or service-ready work remains. Save the reason, unfinished-work count, next evidence opportunity, and wake trigger. Maintain one campaign continuation schedule and update it rather than creating duplicates.
+Wait only when `campaign_cycle.py` returns `wait-for-recorded-trigger`. Confirm that its reason, unfinished-work count, next evidence opportunity, and wake trigger are saved. Maintain one campaign continuation schedule and update it rather than creating duplicates.
+
+If a capability is unavailable, save that observation and rerun the cycle. The dispatcher may route another local task or `linkedin-runtime-repair`; capability absence by itself is not a reason to invent a manual workflow or end the campaign.
 
 ## Task priority
 
@@ -107,3 +114,4 @@ Each child returns its saved result, evidence, and next trigger to this parent. 
 - Treat an unclear prior account result as unresolved until the connected service supplies verification.
 - Preserve confirmed history, content, analytics, experiments, learning, brand assets, and repair checkpoints across restarts.
 - Mark the campaign complete only when its configured goal formula passes with saved evidence or the owner stops it.
+- Never claim a capability, profile fact, result, prior agreement, or completed step without current or durable evidence.

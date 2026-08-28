@@ -92,18 +92,28 @@ def main() -> int:
     for key in ("name", "completion_formula", "required_evidence"):
         if target.get(key) in (None, "", []):
             errors.append(f"campaign-config.json target.{key} must be set")
-    expected_metrics = {"metric_a": "followers", "metric_b": "connections"}
-    for metric_key, expected_name in expected_metrics.items():
+    expected_metrics = {"metric_a": {"followers"}, "metric_b": {"connections", "impressions"}}
+    for metric_key, expected_names in expected_metrics.items():
         metric = target.get(metric_key, {})
-        if metric.get("name") != expected_name:
+        if metric.get("name") not in expected_names:
             errors.append(
-                f"campaign-config.json target.{metric_key}.name must equal {expected_name}"
+                f"campaign-config.json target.{metric_key}.name must be one of {sorted(expected_names)}"
             )
         if isinstance(metric.get("baseline"), (int, float)) and metric["baseline"] < 0:
             errors.append(f"campaign-config.json target.{metric_key}.baseline must not be negative")
         goal = metric.get("goal")
         if isinstance(goal, bool) or not isinstance(goal, (int, float)) or goal <= 0:
             errors.append(f"campaign-config.json target.{metric_key}.goal must be positive")
+    if target.get("metric_a", {}).get("goal_mode") not in {None, "absolute", "increase"}:
+        errors.append("campaign-config.json target.metric_a.goal_mode is invalid")
+    metric_b = target.get("metric_b", {})
+    if metric_b.get("name") == "impressions" and metric_b.get("goal_mode") != "window-total":
+        errors.append("campaign-config.json impressions target must use window-total goal mode")
+    duration_days = target.get("duration_days")
+    if duration_days is not None and (
+        isinstance(duration_days, bool) or not isinstance(duration_days, int) or duration_days <= 0
+    ):
+        errors.append("campaign-config.json target.duration_days must be a positive integer")
 
     owner = consent.get("owner", {})
     display_name = owner.get("display_name")

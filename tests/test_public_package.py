@@ -32,7 +32,7 @@ def test_parent_and_twelve_children_share_the_rc_version() -> None:
         metadata = frontmatter(skill_file)
         assert metadata["name"] == skill_file.parent.name
         assert metadata["description"]
-        assert metadata["metadata"]["version"] == "6.0.0-rc.13"
+        assert metadata["metadata"]["version"] == "6.0.0-rc.14"
         if metadata["name"] != "linkedin-campaign-orchestrator":
             assert f"`{metadata['name']}`" in parent_text
 
@@ -41,7 +41,7 @@ def test_claude_and_codex_manifests_are_aligned() -> None:
     claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
     codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
     assert claude["name"] == codex["name"] == PLUGIN.name
-    assert claude["version"] == codex["version"] == "6.0.0-rc.13"
+    assert claude["version"] == codex["version"] == "6.0.0-rc.14"
     assert claude["license"] == codex["license"] == "MIT"
     assert claude["homepage"] == codex["homepage"] == PUBLIC_SITE
     assert codex["skills"] == "./skills/"
@@ -148,6 +148,14 @@ def test_orchestrator_uses_deterministic_plugin_path_resolution() -> None:
     assert "Resolve the newest installed plugin" in text
     assert "scripts/resolve_latest_plugin.py" in text
     assert "Load the newest parent skill and each child skill needed" in text
+
+
+def test_orchestrator_uses_one_deterministic_campaign_cycle() -> None:
+    text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
+    assert "scripts/campaign_cycle.py STATE_DIR --session-start" in text
+    assert "Follow the returned `next_action` exactly" in text
+    assert "Run `scripts/campaign_cycle.py STATE_DIR` again immediately" in text
+    assert "do not answer with a terminal status while it returns executable work" in text
 
 
 def test_campaign_pacing_is_configured_and_routes_are_explicit() -> None:
