@@ -32,7 +32,7 @@ def test_parent_and_twelve_children_share_the_rc_version() -> None:
         metadata = frontmatter(skill_file)
         assert metadata["name"] == skill_file.parent.name
         assert metadata["description"]
-        assert metadata["metadata"]["version"] == "6.0.0-rc.15"
+        assert metadata["metadata"]["version"] == "6.0.0-rc.16"
         if metadata["name"] != "linkedin-campaign-orchestrator":
             assert f"`{metadata['name']}`" in parent_text
 
@@ -41,7 +41,7 @@ def test_claude_and_codex_manifests_are_aligned() -> None:
     claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
     codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
     assert claude["name"] == codex["name"] == PLUGIN.name
-    assert claude["version"] == codex["version"] == "6.0.0-rc.15"
+    assert claude["version"] == codex["version"] == "6.0.0-rc.16"
     assert claude["license"] == codex["license"] == "MIT"
     assert claude["homepage"] == codex["homepage"] == PUBLIC_SITE
     assert codex["skills"] == "./skills/"
@@ -86,6 +86,9 @@ def test_routine_user_updates_use_plain_language() -> None:
     assert "Use short, plain progress updates" in text
     assert "Keep filenames, queue mechanics, and recovery details internal" in text
     assert "the one next recovery step" in text
+    assert "service unavailable; prepared work saved; next check scheduled" in text
+    assert "Keep credential names and service implementation details internal" in text
+    assert "routine campaign progress does not require an owner reply" in text
 
 
 def test_public_descriptions_are_plain_language() -> None:
@@ -137,7 +140,10 @@ def test_continuation_never_becomes_an_owner_choice() -> None:
 def test_routine_setup_is_resolved_without_optional_owner_questions() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
     assert "Resolve routine setup choices directly" in text
-    assert "choose the device matching the current host platform" in text
+    assert "the only device matching the current host platform" in text
+    assert "the device marked local or current" in text
+    assert "Routine device IDs are resolved by this order" in text
+    assert "browser-bind --device-id DEVICE_ID" in text
     assert "use the packaged template defaults" in text
     assert "record `unavailable`" in text
     assert "Optional preferences stay at saved defaults" in text
@@ -147,15 +153,17 @@ def test_orchestrator_uses_deterministic_plugin_path_resolution() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
     assert "Resolve the newest installed plugin" in text
     assert "scripts/resolve_latest_plugin.py" in text
-    assert "Load the newest parent skill and each child skill needed" in text
+    assert "Load the returned parent skill and each child skill needed" in text
 
 
 def test_orchestrator_uses_one_deterministic_campaign_cycle() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
     assert "scripts/campaign_cycle.py STATE_DIR --session-start" in text
     assert "Follow the returned `next_action` exactly" in text
-    assert "Run `scripts/campaign_cycle.py STATE_DIR` again immediately" in text
+    assert "Run the exact command returned in `after_save` immediately" in text
     assert "do not answer with a terminal status while it returns executable work" in text
+    assert "completion_command_template" in text
+    assert "do not edit queue or stage status directly" in text
 
 
 def test_campaign_pacing_is_configured_and_routes_are_explicit() -> None:

@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.0.0-rc.16 — Deterministic Browser and Task Transitions
+
+- Added exact runtime commands to each dispatched task for checkpoints, durable completion, and immediate redispatch.
+- Made fresh local browser selection deterministic and required the verified device binding to be saved immediately after initialization.
+- Required preflight completion to be recorded through the runtime event command so a completed setup step cannot remain leased.
+
 ## 6.0.0-rc.15 — Portable Readiness Checks
 
 - Kept credential readiness evidence-based when the host does not provide the macOS Keychain command.

@@ -3,7 +3,7 @@ name: linkedin-runtime-repair
 description: Restore access to needed apps and tools while saving progress and continuing the same campaign task without repeats. Used automatically by the campaign orchestrator.
 metadata:
   author: sunny
-  version: "6.0.0-rc.15"
+  version: "6.0.0-rc.16"
 ---
 
 # LinkedIn runtime repair

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -72,6 +73,11 @@ def runtime_version(state_dir: Path) -> str | None:
     return str(version) if version else None
 
 
+def shell_command(parts: list[str]) -> str:
+    """Return a copy-ready command while preserving paths and JSON placeholders."""
+    return " ".join(shlex.quote(part) for part in parts)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("state_dir", type=Path)
@@ -128,12 +134,57 @@ def main() -> int:
         task = decision.get("task")
         if decision.get("decision") == "execute" and isinstance(task, dict):
             task_type = str(task.get("task_type") or "")
+            task_id = str(task.get("task_id") or "")
+            control_script = str(script_dir / "runtime_control.py")
+            cycle_script = str(script_dir / "campaign_cycle.py")
+            completion_payload = (
+                {"preflight_passed": True, "evidence": "ACTUAL_PREFLIGHT_EVIDENCE"}
+                if task_type == "preflight"
+                else {"saved_artifacts": ["ACTUAL_PATHS"], "validation": "passed"}
+            )
             report["next_action"] = {
                 "kind": "execute-child-task",
-                "task_id": task.get("task_id"),
+                "task_id": task_id,
                 "task_type": task_type,
                 "skill": SKILL_BY_TASK_TYPE.get(task_type, "linkedin-campaign-orchestrator"),
-                "after_save": "run campaign_cycle.py again without --session-start",
+                "lease_id": task.get("lease_id"),
+                "lease_expires_at": task.get("lease_expires_at"),
+                "checkpoint_command": shell_command(
+                    [
+                        sys.executable,
+                        control_script,
+                        str(state_dir),
+                        "task-event",
+                        "--task-id",
+                        task_id,
+                        "--event",
+                        "checkpoint",
+                        "--payload",
+                        '{"status":"in-progress"}',
+                    ]
+                ),
+                "completion_payload_example": completion_payload,
+                "completion_command_template": shell_command(
+                    [
+                        sys.executable,
+                        control_script,
+                        str(state_dir),
+                        "task-event",
+                        "--task-id",
+                        task_id,
+                        "--event",
+                        "complete",
+                        "--payload",
+                        "ACTUAL_TASK_RESULT_JSON",
+                    ]
+                ),
+                "transition_rule": (
+                    "save and validate real task evidence, replace the example values with that evidence, "
+                    "then run the completion command; do not edit queue status directly"
+                ),
+                "after_save": shell_command(
+                    [sys.executable, cycle_script, str(state_dir)]
+                ),
             }
         elif decision.get("decision") == "wait":
             report["next_action"] = {

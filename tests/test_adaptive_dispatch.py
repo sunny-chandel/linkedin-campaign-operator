@@ -237,7 +237,7 @@ class V6RuntimeTests(unittest.TestCase):
             NOW.isoformat(),
             "--activate-from-owner-start",
         )
-        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.15")
+        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.16")
         self.assertFalse(initialized["campaign_consent"]["renewal_required"])
         config = read_json(state_dir / "campaign-config.json")
         self.assertEqual(config["target"]["metric_a"]["goal_mode"], "increase")
@@ -263,6 +263,34 @@ class V6RuntimeTests(unittest.TestCase):
         self.assertEqual(cycle["dispatch"]["decision"], "execute")
         self.assertEqual(cycle["next_action"]["kind"], "execute-child-task")
         self.assertFalse(cycle["dispatch"]["task"]["dispatch_contract"]["setup_input_required"])
+        self.assertIn("runtime_control.py", cycle["next_action"]["checkpoint_command"])
+        self.assertIn("runtime_control.py", cycle["next_action"]["completion_command_template"])
+        self.assertIn("campaign_cycle.py", cycle["next_action"]["after_save"])
+        self.assertEqual(cycle["next_action"]["task_id"], "preflight-2026-08-25")
+        self.assertTrue(
+            cycle["next_action"]["completion_payload_example"]["preflight_passed"]
+        )
+        run_json(
+            "python3",
+            ORCHESTRATOR / "runtime_control.py",
+            state_dir,
+            "--now",
+            NOW.isoformat(),
+            "task-event",
+            "--task-id",
+            cycle["next_action"]["task_id"],
+            "--event",
+            "complete",
+            "--payload",
+            json.dumps({"preflight_passed": True, "evidence": "fixture"}),
+        )
+        queue = read_json(state_dir / "work-queue.json")
+        preflight = next(
+            item for item in queue["items"] if item["task_id"] == "preflight-2026-08-25"
+        )
+        self.assertEqual(preflight["status"], "completed")
+        self.assertIsNotNone(preflight["completed_at"])
+        self.assertTrue((state_dir / "task-events.jsonl").read_text(encoding="utf-8").strip())
 
     def test_simplified_legacy_state_is_normalized_before_consent_transition(self) -> None:
         temporary, state_dir = self.make_campaign()
@@ -320,7 +348,7 @@ class V6RuntimeTests(unittest.TestCase):
         for key in ("plugin_version", "lifecycle", "next_trigger", "profile_binding", "stage_history"):
             self.assertNotIn(key, migrated_state)
         self.assertEqual(
-            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.15"
+            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.16"
         )
         self.assertNotIn("tasks", read_json(state_dir / "work-queue.json"))
 
