@@ -22,7 +22,7 @@ Claude LinkedIn is the public interface for LinkedIn Campaign Operator: a free, 
 
 **Website:** [linkedin-campaign-operator.sunnychandel73.chatgpt.site](https://linkedin-campaign-operator.sunnychandel73.chatgpt.site)
 
-Version 6.0.0-rc.11 makes the marketplace card, skill summaries, and routine Claude Code updates short and human-readable. Technical details remain available only when a diagnosis is requested.
+Version 6.0.0-rc.12 also simplifies the internal skill instructions loaded by Claude Code. Campaign work now uses a clear local-workspace and connected-service boundary, configurable pacing, one checked service request at a time, and concise recovery states.
 
 It supports Claude Code and Codex as independent hosts, keeps mutable campaign data outside the plugin, and resumes from verified state instead of starting over every day. The Claude runtime does not depend on Codex.
 

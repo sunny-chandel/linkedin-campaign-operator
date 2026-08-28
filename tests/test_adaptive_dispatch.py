@@ -748,12 +748,12 @@ class V6RuntimeTests(unittest.TestCase):
         self.assertFalse(contract["setup_input_required"])
         self.assertTrue(contract["routine_transition_is_deterministic"])
 
-    def test_parent_skill_requires_verified_unattended_executor(self) -> None:
+    def test_parent_skill_requires_verified_connected_service(self) -> None:
         parent = (PLUGIN / "skills" / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
         execution = (PLUGIN / "skills" / "linkedin-engagement-execution" / "SKILL.md").read_text()
-        self.assertIn("Executor service readiness is a verified capability state", parent)
-        self.assertIn("executor-setup-pending", parent)
-        self.assertIn("executor-setup-pending", execution)
+        self.assertIn("when the service is available", parent)
+        self.assertIn("The connected service owns submission and result verification", parent)
+        self.assertIn("The connected service owns submission and result verification", execution)
         self.assertNotIn("ACTION_APPROVAL_PACKET", parent)
         self.assertNotIn("supervising observer", execution)
 

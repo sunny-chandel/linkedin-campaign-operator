@@ -3,17 +3,15 @@ name: linkedin-publishing-operations
 description: Keep a ready collection of LinkedIn posts, maintain variety and spacing, confirm published results, schedule reviews, and catch up delayed work. Used automatically by the campaign orchestrator.
 metadata:
   author: sunny
-  version: "6.0.0-rc.11"
+  version: "6.0.0-rc.12"
 ---
 
 # LinkedIn publishing operations
 
-Use `content-pipeline.json` and `publication-evidence.jsonl` as the publishing ledger. Maintain six validated unpublished normal packages, six verified posts as the rolling target, and eight as the rolling cap.
+Use `content-pipeline.json` and `publication-evidence.jsonl` as the publishing ledger. Maintain the ready-package inventory and pacing configured by the campaign.
 
-Before publication verify research brief, claims, caption, asset, watermark, package validation, freshness, portfolio role, timing score, and the absolute 120-minute spacing floor. The six normal portfolio slots must include India and US, at least four pillars, at least three format treatments, and no consecutive topic, angle, or format repeat. Keep at most one unpublished recovery package.
+Before a package becomes service-ready, verify its research brief, claims, caption, asset, watermark, freshness, portfolio role, timing evidence, spacing, and duplicate result. Keep regional, pillar, and format variety aligned with current campaign settings.
 
-Before live execution, complete the leased `rolling-output-evaluation` task with either a scored `publish-now` decision of at least 65 or `continue-investigation` plus an exact future `next_evaluation_at`. Live state begins only after external verification, not when an asset becomes ready.
+When the connected service reports publishing capability as available, return one checked local publication request to the parent. The connected service owns upload, publication, and result verification. If it is unavailable, keep the package ready and continue other local work.
 
-When the dispatcher leases the resulting `publication-execution` task, call the parent `enqueue_external_action.py`. It derives the exact validated caption and media path from the canonical package. The interactive host's stage ends after the atomic enqueue; the outbox daemon uploads the image, publishes through the official API, read-verifies the post URN, and records completion evidence. Missing daemon readiness is the technical state `executor-setup-pending` with an exact capability list.
-
-Run `scripts/publishing_ledger.py` to audit inventory or record verified publication evidence. After publication, mark the package published, create the replenishment requirement, and schedule snapshots at 30, 120, 360, and 1,440 minutes. Revalidate packages after an outage and regenerate stale ones. Ambiguous publications remain quarantined until their original outcome is reconciled.
+Run `scripts/publishing_ledger.py` to audit inventory or record a verified publication. After a verified result, mark the package published, add the configured replenishment requirement, and schedule the campaign's measurement checkpoints. Revalidate packages after an outage and replace stale ones. An unclear publication result remains unresolved until the original request can be verified.

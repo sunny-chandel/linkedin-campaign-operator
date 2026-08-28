@@ -3,46 +3,35 @@ name: linkedin-analytics-learning
 description: Review LinkedIn campaign results, compare experiments, and save useful lessons for future work. Use for daily and weekly reviews.
 metadata:
   author: sunny
-  version: "6.0.0-rc.11"
+  version: "6.0.0-rc.12"
 ---
 
 # LinkedIn analytics and learning
 
-Maintain runtime learning separately from immutable system and skill instructions. Read [learning system](references/learning-system.md) before promoting or rolling back a finding.
+Turn verified campaign results into durable, bounded learning. Read [learning system](references/learning-system.md) before promoting or rolling back a finding.
 
-Inherit the parent's campaign configuration and leased task. Checkpoint every saved snapshot, learning, experiment decision, and measurement trigger through the parent runtime before returning control.
-
-## Automated execution
-
-In automated mode, collect every available metric, compute valid comparisons, update the ledger, and return control to the parent. The active experiment plan supplies metrics and bounded adjustments. Record unavailable metrics as `unknown`; keep the daily cycle moving with truthful available evidence. If a script fails, preserve its inputs, retry safely, then compute the same documented result through an available fallback. Apply allowed learning changes automatically within the fixed bounds and log every change and trigger. Fixed campaign invariants and skill instructions remain unchanged.
-
-Raw analytics alone never complete the analytics stage. Every snapshot must produce a provisional or validated learning record, an experiment registration or explicit `no-change` decision, and a next measurement trigger. Write those completion fields to the mandatory stage ledger before the parent auditor can mark the stage complete.
+Inherit the campaign configuration and current measurement task. Save every snapshot, comparison, learning decision, experiment decision, and next measurement trigger before returning to the parent.
 
 ## Measurement
 
-1. Capture individual-post and combined analytics using consistent metric definitions.
-2. Capture and compare every verified post at equal ages of 30 minutes, 2 hours, 6 hours, and 24 hours.
-3. Match content pillar, format, region, and audience conditions when possible.
+1. Capture available post and campaign metrics using consistent definitions.
+2. Compare posts at equal ages when possible.
+3. Match content pillar, format, region, audience, and timing conditions.
 4. Label unmatched comparisons as directional.
-5. Track impressions, engagement rate, profile views, follower and connection growth, audience location and seniority, topic, format, timing, regional spillover, members reached, distribution, reactions, comments, saves, sends, reposts, clicks when available, substantive conversation depth, action lane and burst source, response latency, concentration, staleness, GIF pattern, and campaign conversions.
+5. Record unavailable metrics as `unknown` rather than estimating them.
 6. Run `python scripts/compute_metrics.py` for structured records.
+
+Every snapshot produces a provisional or validated learning record, an experiment registration or explicit `no-change` decision, and a next measurement trigger.
 
 ## Learning loop
 
-1. Collect authoritative current research, campaign observations, and controlled test results.
-2. Record each claim in the learning ledger with source, date, confidence, scope, test, and expiry.
-3. Use a 70/20/10 allocation: proven, promising, exploration.
-4. Prefer at least four matched comparisons or two consistent weekly cycles before validating a non-official claim.
-5. Change a strategy category by no more than ten percentage points in one weekly review.
+1. Combine authoritative current research, campaign observations, and controlled tests.
+2. Record each claim with source, date, confidence, scope, test, and expiry.
+3. Prefer validated approaches while preserving a smaller share for promising and exploratory ideas.
+4. Validate changes with comparable evidence over time.
+5. Change one strategy category gradually and log the reason.
 6. Promote, retain, downgrade, expire, or roll back each active learning.
-7. Run `python scripts/update_learning.py` to append a normalized ledger entry.
-8. Update publication-time, response-latency, regional-opportunity, concentration, candidate-staleness, source-yield, gate-tier, action-type, recovery-post, action-to-profile-view, follower-conversion, format, topic, and regional-spillover observations in `working-algorithm-model.json`.
-9. After every recovery publication, write its equal-age result, update `opportunity-health.jsonl`, and return control before another recovery package can be prepared.
-9. Append every adaptive timing choice and its measured result to `schedule-decisions.jsonl`.
-10. Use `python scripts/update_scheduling_model.py <working-algorithm-model.json> <model-name> <observation.json>` for deterministic model updates.
+7. Run `python scripts/update_learning.py` for normalized ledger entries.
+8. Update scheduling and performance models with `python scripts/update_scheduling_model.py`.
 
-## Adjustable variables
-
-Runtime learning may change topic weighting, content-pillar weighting, hook style, GIF information density, post length within voice rules, question style, target type, regional priority, queue ordering, action-score inputs, Tier 3 tone within bounds, configured premium-feature priority, research-source priority, publication opportunity scoring, response-latency priority, adaptive reserve size, and concentration-penalty decay.
-
-It may not change consent, identities, the six-to-eight rolling publication contract, the 160-action target, the 200-action cap, the 10-action burst cap, direct-inbound outside-cap behavior, active recovery gates, cooldowns, runtime repair scope, or skill instructions.
+Learning may adjust topic, format, timing, region, research priority, queue order, response style within the voice guide, and subscription-feature priority. It may not alter the selected account, owner goals, configured limits, cooldowns, duplicate rules, or skill instructions.

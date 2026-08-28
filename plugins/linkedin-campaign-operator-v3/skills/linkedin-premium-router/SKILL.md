@@ -3,50 +3,24 @@ name: linkedin-premium-router
 description: Review active LinkedIn subscription features and plan how to use included benefits within the campaign. Use for setup and weekly feature reviews.
 metadata:
   author: sunny
-  version: "6.0.0-rc.11"
+  version: "6.0.0-rc.12"
 ---
 
 # LinkedIn subscription optimizer
 
-The base campaign must work without a paid service. Premium features enhance only the stages they genuinely support.
+Use verified features that are already active and included for the selected account. The base campaign must continue when an optional feature is unavailable.
 
-Inherit the parent's campaign configuration and leased task. Inspection and reversible configuration apply only to verified, already-included features. Checkpoint inventory, setup, capacity, routing, and measured results so restart recovery does not repeat completed configuration.
+Inherit the campaign configuration and current review task. Save entitlement evidence, reversible setup, capacity, routing, and measured results so a restart does not repeat completed work.
 
-## Automated execution
+1. Inspect visible product and feature access read-only.
+2. Confirm current feature details from official documentation.
+3. Record unknown values as unknown rather than inferring access or limits.
+4. Normalize verified features into `subscription-inventory.json`.
+5. Run `python scripts/score_subscription_features.py subscription-inventory.json --output subscription-utilization-plan.json`.
+6. Use eligible, reversible, already-included features only where they support an existing campaign stage.
+7. Log the setup, reversal path, usage, capacity, and measurable result.
+8. Recalculate when access changes or during the weekly review.
 
-In automated mode, inspect visible entitlements, calculate the best current use of every relevant included feature, configure eligible reversible settings, route them into the parent pipeline, and measure the result. The utilization score selects features. If a plan, limit, or feature cannot be verified, record it as unknown or unavailable and continue through the base campaign flow.
+Purchases, paid trials, plan changes, billing changes, and contracts remain outside this skill.
 
-Here, optimize means improve the setup and utilization of services that are already active and included. Purchases, paid trials, plan changes, billing changes, unverified credits, and contracts are outside this skill's action set.
-
-## Automated optimization loop
-
-1. Identify every active individual subscription, Company Page subscription, product seat, trial, and plan tier visible to the user.
-2. Record the account or Page, user role, status, expiry or renewal information, feature limits, credits, and regional availability.
-3. Confirm the current feature set from official LinkedIn documentation; do not infer access from a generic product name.
-4. Normalize each verified feature into `subscription-inventory.json`. Preserve unknown values as `null`; never invent access, limits, or remaining credits.
-5. Run `python scripts/score_subscription_features.py subscription-inventory.json --output subscription-utilization-plan.json` using the campaign's configured weights and thresholds.
-6. For every `activate-now` item, perform any reversible setup required to use the already-entitled feature, then inject its usage into the mapped pipeline stage. Queue lower-priority eligible items without creating extra campaign actions or overriding adaptive scheduling.
-7. Log setup changes, reversal steps, usage, capacity consumed, and measurable outcomes in `subscription-results.jsonl`.
-8. Recalculate the plan when entitlement information changes, before a pipeline stage that depends on a paid feature, and during the weekly retrospective. Use measured results to adjust feature priority within the configured bounds.
-
-The optimizer returns control to `linkedin-campaign-orchestrator` after every run. It must not pause the full pipeline for a routine choice or optional unavailable feature.
-
-Read [subscription optimization](references/subscription-optimization.md) for the data contract, scoring model, stage hooks, and result loop. Read [entitlement routing](references/entitlement-routing.md) for product-specific examples.
-
-## Pipeline integration
-
-- Pre-flight: refresh inventory, compute the plan, and complete eligible setup.
-- Research and content: use included insights or learning only when relevant and independently verify public factual claims.
-- Investigation and reserve building: use eligible searches, saved entities, alerts, recommendations, and insights to improve candidate discovery and ranking.
-- Adaptive bursts: execute selected premium-assisted actions inside the shared base budget and burst cap.
-- Analytics: attribute usage and outcomes to the feature that supported them.
-- Weekly retrospective: compare utilization, outcomes, remaining capacity, renewal timing, and fallback performance; then recompute priorities.
-
-## Fixed rules
-
-- Premium actions count toward existing action totals.
-- Premium access does not override qualification, cooldown, or content rules.
-- Only active, verified, already-included entitlements are eligible for automatic setup or use.
-- No purchase, paid-plan upgrade, billing change, contract acceptance, or paid-trial start is authorized.
-- If a premium feature is optional and unavailable, continue through the base flow.
-- If entitlement or capacity cannot be verified, do not consume it and do not fabricate a utilization value.
+Read [subscription optimization](references/subscription-optimization.md) for data contracts and scoring. Read [entitlement routing](references/entitlement-routing.md) for product examples.

@@ -54,4 +54,4 @@ Move no category by more than ten percentage points per weekly review.
 
 Rollback a learning after repeated comparable underperformance, material negative feedback, stronger contradictory evidence, source retraction, feature change, or loss of effect after normalization.
 
-GIF creative patterns use the separate mutable `creative-pattern-library.json`. A dominant contradictory GIF reference follows the immediate permanent-deletion rule in `linkedin-gif-creative-intelligence`; do not duplicate that deleted pattern into this append-only ledger.
+GIF creative patterns use the separate mutable `creative-pattern-library.json`. When stronger evidence replaces an active GIF pattern, archive the earlier pattern and preserve its supporting reference.

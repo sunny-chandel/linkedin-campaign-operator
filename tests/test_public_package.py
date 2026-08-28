@@ -32,7 +32,7 @@ def test_parent_and_twelve_children_share_the_rc_version() -> None:
         metadata = frontmatter(skill_file)
         assert metadata["name"] == skill_file.parent.name
         assert metadata["description"]
-        assert metadata["metadata"]["version"] == "6.0.0-rc.11"
+        assert metadata["metadata"]["version"] == "6.0.0-rc.12"
         if metadata["name"] != "linkedin-campaign-orchestrator":
             assert f"`{metadata['name']}`" in parent_text
 
@@ -41,24 +41,28 @@ def test_claude_and_codex_manifests_are_aligned() -> None:
     claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
     codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
     assert claude["name"] == codex["name"] == PLUGIN.name
-    assert claude["version"] == codex["version"] == "6.0.0-rc.11"
+    assert claude["version"] == codex["version"] == "6.0.0-rc.12"
     assert claude["license"] == codex["license"] == "MIT"
     assert claude["homepage"] == codex["homepage"] == PUBLIC_SITE
     assert codex["skills"] == "./skills/"
 
 
-def test_orchestrator_selects_exact_pinned_browser_directly() -> None:
+def test_orchestrator_verifies_profile_and_repairs_capabilities() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
-    assert "Resolve the pinned Chrome device" in text
-    assert "verify the stored profile identity" in text
-    assert "routes to `linkedin-runtime-repair`" in text
-    assert "retry from the saved trigger" in text
+    assert "Verify the selected profile read-only" in text
+    assert "`linkedin-runtime-repair`" in text
+    assert "resume the saved task" in text
 
 
 def test_runtime_classification_is_host_neutral() -> None:
-    text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
-    assert "Claude Desktop, and compatible agents" in text
-    assert "canonical" in text
+    text = (
+        SKILLS
+        / "linkedin-campaign-orchestrator"
+        / "references"
+        / "state-and-recovery.md"
+    ).read_text()
+    assert "Derive the current state from saved evidence" in text
+    assert "Every resume reloads" in text
 
 
 def test_interactive_host_never_owns_linkedin_write_actions() -> None:
@@ -67,21 +71,21 @@ def test_interactive_host_never_owns_linkedin_write_actions() -> None:
         SKILLS
         / "linkedin-campaign-orchestrator"
         / "references"
-        / "autonomous-execution.md"
+        / "connected-service.md"
     ).read_text()
-    assert "Claude Code manages campaign work in this folder" in text
-    assert "Claude Code does not make changes on LinkedIn itself" in text
-    assert "The saved setup record controls which work may be prepared" in text
-    assert "Claude Desktop is never assigned a LinkedIn change" in reference
-    assert "Never fall back to browser clicks or a direct LinkedIn write" in reference
+    assert "Claude Code manages work in the campaign folder" in text
+    assert "Claude Code does not directly change LinkedIn" in text
+    assert "The connected service owns submission and result verification" in text
+    assert "The connected service handles supported account activity" in reference
+    assert "Do not use browser interaction as a replacement" in reference
 
 
 def test_routine_user_updates_use_plain_language() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
-    assert "## User-facing communication" in text
-    assert "Use plain, short progress updates" in text
-    assert "Keep implementation terms internal" in text
-    assert "the single next setup step in one concise message" in text
+    assert "## Communication" in text
+    assert "Use short, plain progress updates" in text
+    assert "Keep filenames, queue mechanics, and recovery details internal" in text
+    assert "the one next recovery step" in text
 
 
 def test_public_descriptions_are_plain_language() -> None:
@@ -126,24 +130,22 @@ def test_claude_runtime_has_no_codex_dependency() -> None:
 
 def test_continuation_never_becomes_an_owner_choice() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
-    assert "Renew it before any host duration limit" in text
-    assert "The dispatcher selects this continuation mechanism" in text
+    assert "Maintain one campaign continuation schedule" in text
+    assert "update it rather than creating duplicates" in text
 
 
 def test_orchestrator_uses_deterministic_plugin_path_resolution() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
-    assert "Resolve the newest installed plugin at every wake" in text
+    assert "Resolve the newest installed plugin" in text
     assert "scripts/resolve_latest_plugin.py" in text
-    assert "load the returned parent and every relevant child `SKILL.md` completely" in text
+    assert "Load the newest parent skill and each child skill needed" in text
 
 
-def test_v6_operational_contracts_and_internal_routes_are_explicit() -> None:
+def test_campaign_pacing_is_configured_and_routes_are_explicit() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
-    assert "at least 160 qualified counted actions" in text
-    assert "never exceed 200" in text
-    assert "at least six and at most eight verified publications" in text
-    assert "at least 40 currently executable records" in text
-    assert "absolute 120-minute publication-spacing floor" in text
+    assert "Use the campaign configuration for quantity, pacing, inventory" in text
+    assert "Do not invent activity to satisfy a numeric target" in text
+    assert "create one checked local request" in text
     for child in (
         "linkedin-opportunity-discovery",
         "linkedin-engagement-execution",
@@ -152,6 +154,34 @@ def test_v6_operational_contracts_and_internal_routes_are_explicit() -> None:
         "linkedin-runtime-repair",
     ):
         assert f"`{child}`" in text
+
+
+def test_model_facing_instructions_avoid_the_failed_runtime_language() -> None:
+    model_facing = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in SKILLS.rglob("*.md")
+    ).lower()
+    failed_phrases = {
+        "autonomous executor",
+        "unattended executor",
+        "outbox daemon",
+        "macos keychain",
+        "oauth credential",
+        "rolling 160-action",
+        "target 160",
+        "cap at 200",
+        "six-to-eight",
+        "blanket consent",
+        "without your review",
+        "without active supervision",
+    }
+    assert not any(phrase in model_facing for phrase in failed_phrases)
+    assert not (
+        SKILLS
+        / "linkedin-campaign-orchestrator"
+        / "references"
+        / "autonomous-execution.md"
+    ).exists()
 
 
 def test_public_package_contains_no_fixed_owner_identity() -> None:

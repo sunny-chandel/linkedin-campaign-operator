@@ -53,7 +53,7 @@ Default routing:
 - score below 45: `monitor`;
 - not entitled: `unavailable`.
 
-Campaign configuration may change these weights and thresholds only if all values remain valid and the fixed campaign rules remain unchanged.
+Campaign configuration may change these weights and thresholds only when the values remain valid and saved campaign limits remain unchanged.
 
 ### `subscription-results.jsonl`
 
@@ -75,6 +75,6 @@ Append one record per setup, use, or measurement event. Include timestamp, featu
 - Pre-flight creates or refreshes the inventory and plan.
 - Identification passes consume search, alert, recommendation, viewer, lead, account, or Page insights when those exact capabilities are verified.
 - Content stages can use included learning or market insight as background, but public factual claims still require independent verification.
-- Engagement actions assisted by a paid feature still count under the original action classification.
+- Campaign activity assisted by a paid feature still follows its original classification and limits.
 - End-of-day analytics append outcomes and remaining capacity.
-- Weekly learning may change feature priority and score inputs, but not action totals, timing, the new-target gate, cooldowns, or content rules.
+- Weekly learning may change feature priority and score inputs, but not configured limits, timing, qualification, cooldowns, or content rules.

@@ -3,14 +3,14 @@ name: linkedin-gif-creative-intelligence
 description: Study effective LinkedIn GIFs, identify useful visual and motion patterns, choose a strong reference for each post, and improve the campaign's GIF guidance.
 metadata:
   author: sunny
-  version: "6.0.0-rc.11"
+  version: "6.0.0-rc.12"
 ---
 
 # LinkedIn GIF creative intelligence
 
 Learn professional GIF construction from current high-information, high-interaction LinkedIn references and convert it into exact build specifications for Claude Design.
 
-Inherit the parent's campaign configuration and leased task. Checkpoint every captured reference, measurement, promoted pattern, deletion result, and creative specification so a restarted session continues from the last durable result.
+Inherit the parent's campaign configuration and current task. Checkpoint every captured reference, measurement, promoted pattern, archived pattern, and creative specification so a restarted session continues from the last durable result.
 
 ## Creator observation
 
@@ -25,16 +25,15 @@ Inherit the parent's campaign configuration and leased task. Checkpoint every ca
 
 Normalize public engagement within the same follower tier and post-age cohort. Score every eligible reference with `python scripts/score_gif_references.py <index>` using 30 percent information quality, 25 percent normalized engagement, 20 percent visual execution, 15 percent recency, and 10 percent audience fit.
 
-For every GIF post, promote the highest-ranked applicable pattern immediately and produce `gif-creative-spec.json`. The spec contains exact canvas, typography, color, spacing, layout, density, motion, loop, safe-area, and watermark requirements.
+For every GIF post, promote the highest-ranked applicable pattern and produce `gif-creative-spec.json`. The spec contains exact canvas, typography, color, spacing, layout, density, motion, loop, safe-area, and watermark requirements.
 
-Read [GIF pattern system](references/gif-pattern-system.md) for schemas, scoring, deletion, and Claude Design handoff.
+Read [GIF pattern system](references/gif-pattern-system.md) for schemas, scoring, archival, and Claude Design handoff.
 
 ## Self-growing rules
 
 - Add and update runtime patterns as evidence changes.
-- A single new reference may permanently delete a contradictory older learning when its score is at least 85 and at least 15 points above the old pattern.
-- Run `python scripts/promote_gif_pattern.py <library> <candidate> --capture-root <dir>` for deterministic promotion and deletion.
-- Deletion removes the old runtime pattern and its supporting capture without retaining a rollback copy.
+- A stronger contradictory reference may archive an older runtime pattern while preserving its evidence for review.
+- Promote only patterns supported by current evidence and record the reason for replacing an active pattern.
 - Use only positive production standards: refined typography, balanced density, compact layouts, coordinated multi-element scenes, clear hierarchy, smooth pacing, consistent color tokens, and seamless looping.
 
 ## Format boundary

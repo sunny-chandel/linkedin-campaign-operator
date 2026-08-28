@@ -24,9 +24,9 @@ Age cohorts are 0-24 hours, 1-3 days, 4-7 days, and 8-30 days. Follower tiers ar
 
 Select the highest score that matches the current post's content requirements and passes validation. Record unavailable public metrics as unknown and exclude them from unsupported claims.
 
-## Permanent deletion
+## Pattern replacement
 
-If a selected reference identifies `contradicts_pattern_id`, the promotion helper deletes the old pattern only when the new score is at least 85 and at least 15 points greater than the old score. It deletes only capture paths resolved inside the declared capture root. This deletion is irreversible and intentionally has no rollback record.
+When a selected reference contradicts an active pattern and has materially stronger evidence, archive the earlier pattern, keep its supporting capture, and record the replacement reason. Only the current supported pattern should guide new production.
 
 ## Creative specification
 

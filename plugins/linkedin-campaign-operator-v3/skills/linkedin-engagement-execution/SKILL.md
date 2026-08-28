@@ -1,21 +1,17 @@
 ---
 name: linkedin-engagement-execution
-description: Prepare a checked batch of relevant LinkedIn engagement work that follows campaign limits and avoids repeats. Used automatically by the campaign orchestrator.
+description: Prepare checked, relevant LinkedIn engagement work that follows campaign limits and avoids repeats. Used automatically by the campaign orchestrator.
 metadata:
   author: sunny
-  version: "6.0.0-rc.11"
+  version: "6.0.0-rc.12"
 ---
 
 # LinkedIn engagement execution
 
-Inherit the campaign configuration and prepare the burst leased by the parent. Calculate output from canonical evidence with `scripts/rolling_output.py`.
+Prepare one currently eligible engagement item selected by `linkedin-engagement-planning`.
 
-The parent task's `dispatch_contract` supplies the local routing contract. Draft privately, repair Tier 3 voice violations, and build only items covered by the verified unattended executor. After the task is leased, call the parent `enqueue_external_action.py` once. The separate daemon claims, executes, verifies, logs, completes the burst, and returns capacity to the dispatcher. Unsupported action classes stay outside the burst. Missing coverage returns `executor-setup-pending` plus exact capability evidence. An expired lease routes through duplicate and outcome reconciliation before exact-task reacquisition. A status response is followed by the next dispatcher transition.
+Inherit the campaign configuration, candidate evidence, and current task. Draft the item privately, apply the voice guide, and verify relevance, timing, cooldown, previous-contact, and duplicate checks.
 
-- Target 160 counted actions and cap at 200 in the preceding 24 hours.
-- Genuine direct inbound replies are outside the cap.
-- A burst contains one to ten currently eligible canonical actions.
-- The public executor covers publications, comments, replies, and reactions; ordinary DMs, invitations, and follows stay outside executable supply.
-- Record only externally verified results. Ambiguous mutations stay quarantined for outcome reconciliation.
+When the connected service reports the required capability as available, return one checked local service request to the parent. The connected service owns submission and result verification. If the capability is unavailable, save the item as ready and continue other local work.
 
-Use `scripts/build_burst.py` to construct a task. After execution, record each confirmed action in `interaction-log.jsonl`, transition the candidate lifecycle, update source yield and relationship evidence, then recalculate `operational-output.json`. Return rolling count, debt, capacity, inbound count, and candidate outcomes.
+Record only verified results in `interaction-log.jsonl`. An unclear result remains unresolved until the original request can be checked. After a verified result, update candidate lifecycle, source yield, relationship evidence, and current campaign capacity, then return control to the parent.

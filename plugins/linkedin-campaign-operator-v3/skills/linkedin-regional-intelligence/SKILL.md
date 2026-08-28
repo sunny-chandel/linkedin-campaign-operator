@@ -3,13 +3,13 @@ name: linkedin-regional-intelligence
 description: Balance LinkedIn posts across regions using audience fit, time zones, and past results. Used automatically by the campaign orchestrator.
 metadata:
   author: sunny
-  version: "6.0.0-rc.11"
+  version: "6.0.0-rc.12"
 ---
 
 # LinkedIn regional intelligence
 
-Read `regional-performance.json`, equal-age analytics, qualified-target activity, audience location and seniority, and timing history. Store observations with evidence and confidence.
+Read `regional-performance.json`, comparable analytics, qualified-audience activity, audience location, seniority, and timing history. Save observations with evidence and confidence.
 
-Until sufficient evidence exists, allocate two India, two US, one UK/EU, and one APAC slot. Thereafter allocate four core and two exploratory slots using 70/20/10 learning while retaining at least one India and one US slot.
+Use the campaign's configured inventory size and required regions. When evidence is sparse, distribute ready packages across the owner's primary regions and one measured exploration opportunity. With sufficient evidence, favor regions producing qualified results while retaining deliberate exploration.
 
-Run `python scripts/allocate_regions.py <state-dir> --record`. Return the six slots, mode, supporting evidence, time-zone opportunity scores, and next exploration measurement to the parent. Do not publish or produce content directly.
+Run `python scripts/allocate_regions.py <state-dir> --record`. Return the configured slots, supporting evidence, time-zone opportunity scores, and next exploration measurement to the parent. Do not publish or produce content directly.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 6.0.0-rc.12 — Clear Internal Campaign Instructions
+
+- Reworked the orchestrator and child skill bodies around a simple local-workspace and connected-service boundary.
+- Removed fixed high-volume activity language and service implementation setup from model-facing instructions.
+- Replaced fixed batch assumptions with campaign-configured pacing, inventory, cooldown, and quality rules.
+- Simplified recovery, work selection, engagement planning, publishing, and analytics guidance.
+- Added regression coverage for every model-facing Markdown surface.
+
 ## 6.0.0-rc.11 — Plain-Language Public Plugin Surfaces
 
 - Rewrote the marketplace card, plugin summaries, and every skill summary in short, calm language.

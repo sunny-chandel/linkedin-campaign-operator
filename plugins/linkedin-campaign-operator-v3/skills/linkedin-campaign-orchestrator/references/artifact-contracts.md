@@ -11,20 +11,20 @@ Store mutable artifacts outside the plugin.
 
 ## Controllers
 
-- `operational-output.json`: rolling 24-hour action and post counts, targets, caps, debts, checkpoints, and evidence availability.
-- `content-pipeline.json`: 12 topic candidates, six briefs, six-package inventory, freshness, portfolio roles, stage lifecycle, replacements, and four analytics checkpoints per post.
+- `operational-output.json`: current activity and publication counts, configured limits, pending work, checkpoints, and evidence availability.
+- `content-pipeline.json`: topic candidates, research briefs, ready-package inventory, freshness, portfolio roles, stage lifecycle, replacements, and measurement checkpoints.
 - `regional-performance.json`: observations, current allocation, timing performance, audience demographics, spillover, and exploration state.
 - `repair-state.json`: failure, checkpoint, recovery attempts, result, verification, retry trigger, and task resumption.
-- `campaign-state.json`: lifecycle, consent snapshot, rolling mirrors, browser binding, lane circuits, continuity, and current controller links.
+- `campaign-state.json`: lifecycle, campaign-settings snapshot, current mirrors, profile binding, continuity, and current controller links.
 - `work-queue.json`: leased and idempotent tasks.
 - `stage-ledger.json`: artifact-backed completion claims.
 
 ## Supporting state
 
-Preserve configuration, consent, brand and watermark assets, creator and GIF learning, premium inventory and utilization, analytics, learning ledger, experiments, and the Working Algorithm Model.
+Preserve configuration, profile identity, brand and watermark assets, creator and GIF learning, subscription inventory and utilization, analytics, learning ledger, experiments, and the Working Algorithm Model.
 
 The pipeline is:
 
-`regional allocation` → `12 candidate topics` → `six briefs` → `six validated packages` → `publication decision` → `live evidence` → `30m/2h/6h/24h analytics` → `learning and experiment decision` → `replenishment`
+`regional allocation` → `candidate topics` → `verified briefs` → `validated packages` → `publication decision` → `verified result` → `scheduled analytics` → `learning and experiment decision` → `replenishment`
 
 Every artifact records schema version, campaign ID, timestamps, producer, active plugin version, validation status, evidence references, uncertainty, and next trigger. The auditor rejects claimed completion when required files or stage evidence are absent.

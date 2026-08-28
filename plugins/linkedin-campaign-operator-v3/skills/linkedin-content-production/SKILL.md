@@ -3,56 +3,35 @@ name: linkedin-content-production
 description: Turn verified research into ready-to-use LinkedIn captions, response drafts, and Claude Design assets that match the campaign voice and visual style.
 metadata:
   author: sunny
-  version: "6.0.0-rc.11"
+  version: "6.0.0-rc.12"
 ---
 
 # LinkedIn content production
 
-Create publication-ready packages from completed, verified research briefs. Read [voice and design](references/voice-and-design.md) before drafting. In automated mode, a valid brief is the complete input contract for production.
+Create publication-ready packages from completed research briefs. Read [voice and design](references/voice-and-design.md) before drafting.
 
-Inherit the parent's campaign configuration and leased task. A restart or model change resumes the same stage. Checkpoint the caption, design source, export, watermark validation, and final package separately so self-revival resumes from the last verified artifact without rebuilding completed work.
+Inherit the campaign configuration and current production task. Save the caption, design source, export, watermark validation, and final package separately so a restart resumes from the last verified artifact.
 
-Maintain six validated unpublished normal packages in the rolling inventory and replenish one after every publication. Build from the six selected briefs and regional allocation. When the dispatcher issues recovery content, produce exactly one fresh, distinct package and store no second unpublished recovery package.
+Maintain the ready-package inventory configured by the parent. Replenish only the missing inventory and avoid stockpiling stale work. If a brief fails validation, return to `linkedin-content-research`, repair the missing fields, and resume this package.
 
-If a brief is missing or fails validation, return automatically to `linkedin-content-research`, repair only the missing fields, and resume production. If an asset build or export fails, save the last valid artifact, retry safely, then rebuild with another supported format or workflow while preserving the content and design requirements. Campaign state and the portfolio model select routine design options, wording, format, and export settings. Escalate only when the parent orchestrator classifies the required design or upload capability as a hard blocker.
-
-## Flagship post workflow
+## Package workflow
 
 1. Confirm the brief contains verified claims, source URLs, region, audience, and a distinct angle.
-2. Draft in Tier 2 voice.
+2. Draft in the configured voice.
 3. Use no em dash or en dash. Ordinary hyphens in compound words are allowed.
-4. Keep grammar correct without making the copy sound synthetic or over-polished.
-5. Cite a real source when the post depends on a factual claim.
-6. End with one direct question and use zero to three relevant hashtags.
-7. Validate the six-post portfolio: at least one India and one US package, four or more pillars, three or more format treatments, and no consecutive topic, angle, or format repeat.
-8. Create an asset brief with hierarchy, copy limits, dimensions, accessibility requirements, and source attribution.
-9. When the asset is a GIF, run `linkedin-gif-creative-intelligence` and require a valid `gif-creative-spec.json` before build.
-10. Load the current `watermark-manifest.json` and route the correct validated watermark variant.
-11. Build and iterate in Claude Design using the current supported workflow.
-12. Export, verify legibility, content accuracy, GIF specification conformance, and watermark presence on every frame, then produce a publication package.
-13. Pass each completed package to the parent's dynamic publication selector. Do not assign a fixed window or fixed separation.
+4. Keep grammar natural and accurate.
+5. Cite a real source when a factual claim depends on it.
+6. End with one direct question and use zero to three relevant hashtags when suitable.
+7. Check portfolio variety against the configured regions, pillars, and formats.
+8. Create an asset brief with hierarchy, copy limits, dimensions, accessibility, and attribution.
+9. For a GIF, run `linkedin-gif-creative-intelligence` before building the asset.
+10. Apply the current validated watermark.
+11. Build and refine the asset in Claude Design.
+12. Verify legibility, factual accuracy, specification conformance, and export integrity.
+13. Return the completed package to `linkedin-publishing-operations`.
 
-## Publication package contract
+## Package contents
 
-Include:
+Include the final caption, asset path, alt text, sources, claim notes, target region, freshness, timing evidence, experiment ID when present, duplicate result, watermark identity, format details, and validation evidence for each completed stage.
 
-- final caption;
-- final asset path or export reference;
-- alt text;
-- source list;
-- claim-verification notes;
-- target region and dynamic opportunity evidence;
-- publication-time score components, cannibalization state, and latest allowed opportunity;
-- experiment ID, if applicable;
-- duplicate check result;
-- final validation status.
-- watermark variant and manifest identity hash;
-- GIF reference, pattern, metrics, and creative-spec validation when applicable.
-- region, demographic hypothesis, freshness expiry, portfolio role, competing angle, intended growth outcome, content pillar, and format treatment;
-- stage evidence for research, claims, caption, asset, watermark, validation, and publication decision.
-
-## Tier 3 responses
-
-Comments and replies are one to four short lines and can be one word. Use deliberately imperfect loose grammar and varied capitalization. Add value by constructively challenging a view or a common assumption. Use no em dash or en dash. Fact-check every claim regardless of length.
-
-In automated mode, a chat preview is an informational progress artifact. Continue through production and return the validated package to publishing operations. Maintain six verified normal publications in the rolling 24-hour window. Recovery publications may raise the total to eight, with eight as the cap.
+Short response drafts should be specific to the conversation, useful, factually checked, and concise. Avoid canned phrasing, forced disagreement, or deliberate grammar mistakes.

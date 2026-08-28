@@ -25,11 +25,11 @@ Before export, verify:
 - End with one direct question.
 - Zero to three relevant hashtags.
 
-## Tier 3: comments, DMs, and replies
+## Short responses
 
-- One to four short lines; a one-word response is allowed.
-- Deliberately imperfect loose grammar and inconsistent capitalization.
-- Always adversarial: challenge the other person's view or a common assumption.
+- One to four short lines; a one-word response is allowed when it is genuinely useful.
+- Natural wording and capitalization.
+- Add a specific observation, useful question, or constructive counterpoint.
 - No em dash or en dash.
 - Fact-check every claim regardless of length.
 
