@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping
@@ -30,12 +31,18 @@ def _name(source: Mapping[str, Any], field: str, default: str) -> str:
 
 
 def _keychain_value(service: str, account: str) -> str | None:
-    completed = subprocess.run(
-        ["security", "find-generic-password", "-s", service, "-a", account, "-w"],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    security_cli = shutil.which("security")
+    if not security_cli:
+        return None
+    try:
+        completed = subprocess.run(
+            [security_cli, "find-generic-password", "-s", service, "-a", account, "-w"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return None
     if completed.returncode:
         return None
     return completed.stdout.strip() or None

@@ -237,7 +237,7 @@ class V6RuntimeTests(unittest.TestCase):
             NOW.isoformat(),
             "--activate-from-owner-start",
         )
-        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.14")
+        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.15")
         self.assertFalse(initialized["campaign_consent"]["renewal_required"])
         config = read_json(state_dir / "campaign-config.json")
         self.assertEqual(config["target"]["metric_a"]["goal_mode"], "increase")
@@ -320,7 +320,7 @@ class V6RuntimeTests(unittest.TestCase):
         for key in ("plugin_version", "lifecycle", "next_trigger", "profile_binding", "stage_history"):
             self.assertNotIn(key, migrated_state)
         self.assertEqual(
-            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.14"
+            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.15"
         )
         self.assertNotIn("tasks", read_json(state_dir / "work-queue.json"))
 
@@ -1038,6 +1038,33 @@ class V6RuntimeTests(unittest.TestCase):
         )
         self.assertTrue(availability["access_token_resolvable"])
         self.assertTrue(availability["programmatic_refresh_ready"])
+
+    def test_missing_keychain_cli_is_an_unavailable_credential_source(self) -> None:
+        spec = importlib.util.spec_from_file_location(
+            "credential_manager", ORCHESTRATOR / "credential_manager.py"
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        try:
+            spec.loader.exec_module(module)
+            module.shutil.which = lambda _: None
+            value, origin = module.secret_value(
+                {
+                    "type": "environment-or-macos-keychain",
+                    "keychain": {
+                        "service": "linkedin-campaign-operator",
+                        "accounts": {"access_token": "campaign:access-token"},
+                    },
+                },
+                "access_token",
+                {},
+            )
+        finally:
+            sys.modules.pop(spec.name, None)
+        self.assertIsNone(value)
+        self.assertIsNone(origin)
 
     def test_executor_preflight_derives_scope_coverage_without_persisting_secrets(self) -> None:
         spec = importlib.util.spec_from_file_location(

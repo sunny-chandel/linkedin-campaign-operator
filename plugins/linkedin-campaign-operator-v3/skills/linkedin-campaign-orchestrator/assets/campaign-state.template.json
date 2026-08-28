@@ -18,9 +18,9 @@
   },
   "progress": {},
   "runtime_instructions": {
-    "session_version": "6.0.0-rc.14",
-    "active_version": "6.0.0-rc.14",
-    "detected_version": "6.0.0-rc.14",
+    "session_version": "6.0.0-rc.15",
+    "active_version": "6.0.0-rc.15",
+    "detected_version": "6.0.0-rc.15",
     "install_path": null,
     "last_checked_at": null,
     "activated_at": null,

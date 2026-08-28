@@ -1,5 +1,10 @@
 # Changelog
 
+## 6.0.0-rc.15 — Portable Readiness Checks
+
+- Kept credential readiness evidence-based when the host does not provide the macOS Keychain command.
+- Preserved the rc.14 deterministic clean-start cycle while making its validation portable across Claude and CI hosts.
+
 ## 6.0.0-rc.14 — Deterministic Clean Start
 
 - Added one script-driven campaign cycle for migration, validation, recovery, audit, and next-task dispatch.
