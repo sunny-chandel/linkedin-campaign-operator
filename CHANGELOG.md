@@ -1,5 +1,12 @@
 # Changelog
 
+## 6.0.0-rc.26 — Create-Once Recurring Continuation
+
+- Replaces per-wait one-time schedule updates with one recurring Claude Desktop Routine.
+- Adds a read-only due gate so early recurring checks finish without changing campaign state.
+- Prevents concurrent work by deferring while a live task lease exists and recovers expired leases when due.
+- Keeps the recurring schedule unchanged at later waits, avoiding the host's always-confirm scheduled-task update control.
+
 ## 6.0.0-rc.25 — Compact Model Context
 
 - Projects campaign-cycle output down to the current task, transition, and essential evidence instead of exposing nested runtime diagnostics.

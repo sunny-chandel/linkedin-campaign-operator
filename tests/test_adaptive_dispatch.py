@@ -248,7 +248,7 @@ class V6RuntimeTests(unittest.TestCase):
             NOW.isoformat(),
             "--activate-from-owner-start",
         )
-        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.25")
+        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.26")
         self.assertFalse(initialized["campaign_consent"]["renewal_required"])
         verification = initialized["profile_verification"]
         self.assertEqual(verification["device_id"], "browser-1-id")
@@ -389,7 +389,7 @@ class V6RuntimeTests(unittest.TestCase):
         for key in ("plugin_version", "lifecycle", "next_trigger", "profile_binding", "stage_history"):
             self.assertNotIn(key, migrated_state)
         self.assertEqual(
-            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.25"
+            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.26"
         )
         self.assertNotIn("tasks", read_json(state_dir / "work-queue.json"))
 
@@ -774,7 +774,7 @@ class V6RuntimeTests(unittest.TestCase):
         self.assertEqual(next_action["kind"], "wait-for-recorded-trigger")
         self.assertEqual(
             next_action["required_transition"],
-            "create-or-update-single-host-continuation",
+            "ensure-single-recurring-host-continuation",
         )
         self.assertEqual(next_action["transition_status"], "execute-now")
         self.assertFalse(next_action["setup_input_required"])
@@ -791,20 +791,90 @@ class V6RuntimeTests(unittest.TestCase):
             continuation["dedupe_key"],
             "linkedin-campaign-continuation:v6-test",
         )
-        self.assertTrue(continuation["update_existing"])
+        self.assertTrue(continuation["create_if_missing"])
+        self.assertTrue(continuation["convert_if_not_recurring"])
+        self.assertFalse(continuation["update_existing_recurring_task"])
+        self.assertFalse(continuation["update_schedule_for_next_wake"])
+        self.assertEqual(continuation["recurrence_cron"], "*/15 * * * *")
+        self.assertIn("continuation_due.py", continuation["due_gate_command"])
+        self.assertTrue(continuation["existing_recurring_task_satisfies_transition"])
+        self.assertFalse(continuation["scheduled_task_update_on_wait_required"])
         self.assertEqual(
             continuation["persistence_required"], "survives-current-session"
         )
         self.assertEqual(
-            continuation["accepted_adapter"], "host-native-scheduled-task"
+            continuation["accepted_adapter"], "host-native-recurring-task"
         )
         self.assertEqual(
-            continuation["preferred_host_tool"],
-            "scheduled-tasks-create-or-update",
+            continuation["preferred_host_surface"],
+            "Claude Desktop Routines",
         )
         self.assertFalse(continuation["session_only_loop_satisfies_transition"])
         self.assertIn("continuation-event", continuation["on_success_command_template"])
-        self.assertIn("host-native-scheduled-task", continuation["on_success_command_template"])
+        self.assertIn("host-native-recurring-task", continuation["on_success_command_template"])
+        self.assertIn("recurring-cron", continuation["on_success_command_template"])
+
+        run_json(
+            "python3", ORCHESTRATOR / "runtime_control.py", state_dir,
+            "--now", (NOW + timedelta(minutes=1)).isoformat(),
+            "continuation-event", "--event", "armed",
+            "--adapter", "host-native-recurring-task",
+            "--automation-id", "linkedin-campaign-continuation-v6-test",
+            "--next-wake-at", wake_at.isoformat(),
+            "--schedule-kind", "recurring-cron",
+            "--recurrence-cron", "*/15 * * * *",
+        )
+        stored_continuation = read_json(state_dir / "campaign-state.json")[
+            "dispatcher"
+        ]["continuation"]
+        self.assertEqual(stored_continuation["schedule_kind"], "recurring-cron")
+        self.assertEqual(stored_continuation["recurrence_cron"], "*/15 * * * *")
+        self.assertEqual(
+            stored_continuation["expiry_policy"],
+            "stable-recurring-until-target-or-stop-signal",
+        )
+        self.assertFalse(stored_continuation["renew_existing_automation"])
+        self.assertFalse(stored_continuation["renewal_due_before_expiry"])
+        self.assertFalse(stored_continuation["update_schedule_for_next_wake"])
+
+    def test_recurring_continuation_due_gate_is_time_and_lease_aware(self) -> None:
+        temporary, state_dir = self.make_campaign()
+        self.addCleanup(temporary.cleanup)
+        state = read_json(state_dir / "campaign-state.json")
+        state["dispatcher"]["next_wake_at"] = (NOW + timedelta(hours=2)).isoformat()
+        write_json(state_dir / "campaign-state.json", state)
+
+        _, early = run_json(
+            "python3", ORCHESTRATOR / "continuation_due.py", state_dir,
+            "--now", NOW.isoformat(),
+        )
+        self.assertFalse(early["due"])
+        self.assertEqual(early["action"], "finish-no-change")
+        self.assertEqual(early["reason"], "before-next-wake")
+
+        queue = read_json(state_dir / "work-queue.json")
+        queue["items"].append({
+            "task_id": "live-task",
+            "task_type": "runtime-repair",
+            "status": "leased",
+            "lease_expires_at": (NOW + timedelta(minutes=10)).isoformat(),
+        })
+        write_json(state_dir / "work-queue.json", queue)
+        _, active = run_json(
+            "python3", ORCHESTRATOR / "continuation_due.py", state_dir,
+            "--now", NOW.isoformat(),
+        )
+        self.assertFalse(active["due"])
+        self.assertEqual(active["reason"], "active-lease")
+
+        queue["items"][-1]["lease_expires_at"] = (NOW - timedelta(minutes=1)).isoformat()
+        write_json(state_dir / "work-queue.json", queue)
+        _, expired = run_json(
+            "python3", ORCHESTRATOR / "continuation_due.py", state_dir,
+            "--now", NOW.isoformat(),
+        )
+        self.assertTrue(expired["due"])
+        self.assertEqual(expired["reason"], "expired-lease-recovery")
 
     def test_ready_package_requires_scored_decision_before_live_execution(self) -> None:
         temporary, state_dir = self.make_campaign()

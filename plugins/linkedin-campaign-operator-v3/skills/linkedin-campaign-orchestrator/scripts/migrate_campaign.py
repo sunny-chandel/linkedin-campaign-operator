@@ -345,9 +345,15 @@ def main() -> int:
     browser_rules.pop("routine_device_questions_allowed", None)
     browser_rules["direct_pinned_device_selection"] = True
     continuation_rules = merged["adaptive_dispatch"].setdefault("continuation", {})
-    continuation_rules["host_adapter_priority"] = ["host-native-scheduled-task"]
+    continuation_rules["host_adapter_priority"] = ["host-native-recurring-task"]
+    continuation_rules["schedule_kind"] = "recurring-cron"
+    continuation_rules["recurrence_cron"] = "*/15 * * * *"
+    continuation_rules["create_if_missing"] = True
+    continuation_rules["update_schedule_for_next_wake"] = False
+    continuation_rules["due_gate_script"] = "continuation_due.py"
     continuation_rules["persistence_required"] = "survives-current-session"
     continuation_rules["session_only_loop_accepted"] = False
+    continuation_rules["maximum_wake_lateness_minutes"] = 20
     merged["publishing_optimization"].update(defaults["publishing_optimization"])
     merged.setdefault("autonomous_execution", {})["mode"] = defaults[
         "autonomous_execution"
@@ -500,9 +506,12 @@ def main() -> int:
                 "mode": "automatic",
                 "setup_input_required": False,
                 "dedupe_key": f"linkedin-campaign-continuation:{campaign_id}",
-                "expiry_policy": "renew-before-host-limit-until-target-or-stop-signal",
-                "renew_existing_automation": True,
-                "renewal_due_before_expiry": True,
+                "schedule_kind": "recurring-cron",
+                "recurrence_cron": "*/15 * * * *",
+                "expiry_policy": "stable-recurring-until-target-or-stop-signal",
+                "renew_existing_automation": False,
+                "renewal_due_before_expiry": False,
+                "update_schedule_for_next_wake": False,
                 "campaign_completion_or_stop_signal_required_to_end": True,
             }
         )

@@ -394,10 +394,18 @@ def main() -> int:
     if browser_binding.get("selection_policy") != "reuse-pinned-device-directly":
         errors.append("campaign-state.json browser binding selection policy is invalid")
     continuation = dispatcher.get("continuation", {})
-    if continuation.get("expiry_policy") != "renew-before-host-limit-until-target-or-stop-signal":
-        errors.append("campaign-state.json continuation must automatically renew before host expiry")
-    if continuation.get("renew_existing_automation") is not True:
-        errors.append("campaign-state.json continuation must reuse one deduplicated automation")
+    if continuation.get("schedule_kind") != "recurring-cron":
+        errors.append("campaign-state.json continuation must use a recurring cron schedule")
+    if continuation.get("recurrence_cron") != "*/15 * * * *":
+        errors.append("campaign-state.json continuation recurring cron must run every 15 minutes")
+    if continuation.get("expiry_policy") != "stable-recurring-until-target-or-stop-signal":
+        errors.append("campaign-state.json continuation must remain recurring until completion or stop")
+    if continuation.get("renew_existing_automation") is not False:
+        errors.append("campaign-state.json continuation must not renew the recurring routine per wait")
+    if continuation.get("renewal_due_before_expiry") is not False:
+        errors.append("campaign-state.json recurring continuation must not require expiry renewal")
+    if continuation.get("update_schedule_for_next_wake") is not False:
+        errors.append("campaign-state.json recurring continuation must keep its schedule unchanged")
     automation_consent = state.get("automation_consent", {})
     if not args.allow_draft and (
         automation_consent.get("status") != "active"

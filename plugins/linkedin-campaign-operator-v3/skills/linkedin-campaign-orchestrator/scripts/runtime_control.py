@@ -348,6 +348,7 @@ def continuation_event(args, state_dir: Path, state: dict[str, Any], now) -> dic
     continuation = dispatcher.setdefault("continuation", {})
     timestamp = iso_time(now)
     if args.event == "armed":
+        recurring = args.schedule_kind == "recurring-cron" or args.adapter == "host-native-recurring-task"
         continuation.update(
             {
                 "mode": "automatic",
@@ -358,9 +359,16 @@ def continuation_event(args, state_dir: Path, state: dict[str, Any], now) -> dic
                 "next_wake_at": args.next_wake_at or dispatcher.get("next_wake_at"),
                 "dedupe_key": f"linkedin-campaign-continuation:{state.get('campaign_id') or state_dir.name}",
                 "armed_at": timestamp,
-                "expiry_policy": "renew-before-host-limit-until-target-or-stop-signal",
-                "renew_existing_automation": True,
-                "renewal_due_before_expiry": True,
+                "schedule_kind": args.schedule_kind or ("recurring-cron" if recurring else "one-time"),
+                "recurrence_cron": args.recurrence_cron if recurring else None,
+                "expiry_policy": (
+                    "stable-recurring-until-target-or-stop-signal"
+                    if recurring
+                    else "renew-before-host-limit-until-target-or-stop-signal"
+                ),
+                "renew_existing_automation": not recurring,
+                "renewal_due_before_expiry": not recurring,
+                "update_schedule_for_next_wake": False if recurring else True,
                 "campaign_completion_or_stop_signal_required_to_end": True,
                 "last_error": None,
             }
@@ -1123,6 +1131,8 @@ def main() -> int:
     continuation.add_argument("--adapter")
     continuation.add_argument("--automation-id")
     continuation.add_argument("--next-wake-at")
+    continuation.add_argument("--schedule-kind", choices=("one-time", "recurring-cron"))
+    continuation.add_argument("--recurrence-cron")
     continuation.add_argument("--reason")
 
     event = subparsers.add_parser("task-event")

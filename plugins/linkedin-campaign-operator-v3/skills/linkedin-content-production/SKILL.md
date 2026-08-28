@@ -3,7 +3,7 @@ name: linkedin-content-production
 description: Turn verified research into ready-to-use LinkedIn captions, response drafts, and Claude Design assets that match the campaign voice and visual style.
 metadata:
   author: sunny
-  version: "6.0.0-rc.25"
+  version: "6.0.0-rc.26"
 ---
 
 # LinkedIn content production

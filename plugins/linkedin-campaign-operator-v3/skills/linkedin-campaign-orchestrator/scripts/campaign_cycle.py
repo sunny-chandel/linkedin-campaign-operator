@@ -315,11 +315,13 @@ def main() -> int:
             campaign_id, dedupe_key = continuation_identity(state_dir)
             next_wake_at = decision.get("predicted_next_opportunity")
             control_script = str(script_dir / "runtime_control.py")
+            due_script = str(script_dir / "continuation_due.py")
+            recurrence_cron = "*/15 * * * *"
             report["next_action"] = {
                 "kind": "wait-for-recorded-trigger",
                 "next_wake_at": next_wake_at,
                 "wake_trigger": decision.get("wake_trigger"),
-                "required_transition": "create-or-update-single-host-continuation",
+                "required_transition": "ensure-single-recurring-host-continuation",
                 "transition_status": "execute-now",
                 "setup_input_required": False,
                 "owner_reply_required": False,
@@ -328,17 +330,31 @@ def main() -> int:
                     "campaign_id": campaign_id,
                     "dedupe_key": dedupe_key,
                     "task_id": f"linkedin-campaign-continuation-{campaign_id}",
-                    "schedule_at": next_wake_at,
-                    "update_existing": True,
+                    "schedule_kind": "recurring-cron",
+                    "recurrence_cron": recurrence_cron,
+                    "create_if_missing": True,
+                    "convert_if_not_recurring": True,
+                    "update_existing_recurring_task": False,
+                    "update_schedule_for_next_wake": False,
+                    "next_wake_at": next_wake_at,
                     "persistence_required": "survives-current-session",
-                    "accepted_adapter": "host-native-scheduled-task",
-                    "preferred_host_tool": "scheduled-tasks-create-or-update",
+                    "accepted_adapter": "host-native-recurring-task",
+                    "preferred_host_surface": "Claude Desktop Routines",
+                    "due_gate_command": shell_command(
+                        [sys.executable, due_script, str(state_dir)]
+                    ),
+                    "early_run_action": "finish-no-change",
+                    "scheduled_task_update_on_wait_required": False,
+                    "existing_recurring_task_satisfies_transition": True,
                     "session_only_loop_satisfies_transition": False,
                     "prompt": (
-                        f"Resume campaign {campaign_id} from durable state at {state_dir}. "
-                        "Resolve the latest installed plugin, run campaign_cycle.py, follow its "
-                        "next_action through saved task transitions, and update this same "
-                        "deduplicated continuation when the next durable wait is reached."
+                        f"Check campaign {campaign_id} at durable state {state_dir}. Resolve the "
+                        "latest installed plugin and run continuation_due.py first. If due is "
+                        "false, finish this routine without changing campaign state or schedule. "
+                        "If due is true, load the orchestrator, run campaign_cycle.py, and follow "
+                        "its next_action through saved task transitions. When the next durable "
+                        "wait is reached, keep this recurring routine unchanged and record it "
+                        "armed with the returned next_wake_at; do not call scheduled-task update."
                     ),
                     "on_success_command_template": shell_command(
                         [
@@ -349,11 +365,15 @@ def main() -> int:
                             "--event",
                             "armed",
                             "--adapter",
-                            "host-native-scheduled-task",
+                            "host-native-recurring-task",
                             "--automation-id",
                             "ACTUAL_AUTOMATION_ID",
                             "--next-wake-at",
                             str(next_wake_at or "ACTUAL_NEXT_WAKE_AT"),
+                            "--schedule-kind",
+                            "recurring-cron",
+                            "--recurrence-cron",
+                            recurrence_cron,
                         ]
                     ),
                 },

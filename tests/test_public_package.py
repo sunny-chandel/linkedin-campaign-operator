@@ -32,7 +32,7 @@ def test_parent_and_twelve_children_share_the_rc_version() -> None:
         metadata = frontmatter(skill_file)
         assert metadata["name"] == skill_file.parent.name
         assert metadata["description"]
-        assert metadata["metadata"]["version"] == "6.0.0-rc.25"
+        assert metadata["metadata"]["version"] == "6.0.0-rc.26"
         if metadata["name"] != "linkedin-campaign-orchestrator":
             assert f"`{metadata['name']}`" in parent_text
 
@@ -41,7 +41,7 @@ def test_claude_and_codex_manifests_are_aligned() -> None:
     claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
     codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
     assert claude["name"] == codex["name"] == PLUGIN.name
-    assert claude["version"] == codex["version"] == "6.0.0-rc.25"
+    assert claude["version"] == codex["version"] == "6.0.0-rc.26"
     assert claude["license"] == codex["license"] == "MIT"
     assert claude["homepage"] == codex["homepage"] == PUBLIC_SITE
     assert codex["skills"] == "./skills/"
@@ -142,13 +142,15 @@ def test_claude_runtime_has_no_codex_dependency() -> None:
 
 def test_continuation_never_becomes_an_owner_choice() -> None:
     text = (SKILLS / "linkedin-campaign-orchestrator" / "SKILL.md").read_text()
-    assert "Maintain one campaign continuation schedule" in text
-    assert "update it rather than creating duplicates" in text
+    assert "Maintain exactly one recurring campaign continuation" in text
+    assert "never create a duplicate" in text
     assert "owner_reply_required: false" in text
-    assert "create or update the persistent claude desktop routine" in text.lower()
-    assert "host-native-scheduled-task" in text
+    assert "create one persistent claude desktop routine" in text.lower()
+    assert "host-native-recurring-task" in text
     assert "must survive the current Claude session" in text
-    assert "A session cron or in-session loop" in text
+    assert "A session cron or in-session loop does not satisfy this contract" in text
+    assert "Do not call scheduled-task create or update" in text
+    assert "run `continuation_due.py` first" in text
 
 
 def test_routine_setup_is_resolved_without_optional_owner_questions() -> None:
