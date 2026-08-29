@@ -3,7 +3,7 @@ name: linkedin-regional-intelligence
 description: Balance LinkedIn posts across regions using audience fit, time zones, and past results. Used automatically by the campaign orchestrator.
 metadata:
   author: sunny
-  version: "6.0.0-rc.28"
+  version: "6.0.0-rc.29"
 ---
 
 # LinkedIn regional intelligence

@@ -8,7 +8,7 @@ Prefer required recovery, genuine inbound evidence, due publication work, schedu
 
 Use campaign settings for pacing, inventory, regional coverage, cooldowns, and quality thresholds. A target is a planning guide, not permission to lower quality, repeat activity, or exceed a configured limit.
 
-One ready item is enough to proceed. Do not wait for a large batch when the current item is complete and eligible. Do not create filler work when no quality candidate exists.
+One ready item is enough to proceed. Do not wait for a large batch when the current item is complete and eligible. A time gate blocks only its named item; select another eligible local task before waiting. Do not create filler work when no quality candidate exists.
 
 ## Continuation
 
@@ -20,7 +20,7 @@ When useful work remains, save the current result and choose the next task. When
 - the next evaluation time or event;
 - the saved task to resume.
 
-Maintain one continuation schedule for the campaign. Update the existing schedule rather than creating another one.
+Maintain one hourly continuation schedule across every hour of every day. Keep the existing schedule rather than creating another one. When the earliest real task trigger is farther away, align an intervening heartbeat to the next hourly boundary for a lightweight dispatcher, capability, and freshness check without making the gated task eligible early.
 
 ## Recovery
 

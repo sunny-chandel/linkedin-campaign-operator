@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.0.0-rc.29 — Round-the-Clock Campaign Supervision
+
+- Keeps the single persistent Claude Desktop continuation active every hour across all hours.
+- Bounds long task-specific waits at the next supported hourly boundary while preserving the original timing gate.
+- Keeps unrelated eligible local work moving before any wait and notices restored capability promptly.
+
 ## 6.0.0-rc.28 — Clean Recurring State
 
 - Removes legacy one-time scheduling keys when a recurring continuation is migrated or armed.

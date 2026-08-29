@@ -22,7 +22,7 @@ Claude LinkedIn is the public interface for LinkedIn Campaign Operator: a free, 
 
 **Website:** [linkedin-campaign-operator.sunnychandel73.chatgpt.site](https://linkedin-campaign-operator.sunnychandel73.chatgpt.site)
 
-Version 6.0.0-rc.28 makes clean startup and continuation script-driven while keeping model context compact. The initializer returns explicit local campaign and profile-verification contracts, the owner start receipt never expands into future LinkedIn account activity, every task transition is recorded through one runtime command, and one deduplicated recurring Claude Desktop Routine is created once. A read-only due gate makes early routine checks exit without changing state, and later waits never update the recurring schedule. Child prompts receive only the current task and verified evidence, not raw runtime diagnostics or unrelated chat history.
+Version 6.0.0-rc.29 keeps one persistent Claude Desktop Routine supervising the campaign every hour across all hours. Task-specific timing gates remain intact, while the dispatcher continues any other eligible local work and aligns long waits to the next hourly boundary so new evidence or restored capability is noticed promptly. Clean startup, compact task context, durable transitions, and duplicate-safe continuation remain script-driven.
 
 It supports Claude Code and Codex as independent hosts, keeps mutable campaign data outside the plugin, and resumes from verified state instead of starting over every day. The Claude runtime does not depend on Codex.
 

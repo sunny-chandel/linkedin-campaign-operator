@@ -248,7 +248,7 @@ class V6RuntimeTests(unittest.TestCase):
             NOW.isoformat(),
             "--activate-from-owner-start",
         )
-        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.28")
+        self.assertEqual(initialized["plugin_version"], "6.0.0-rc.29")
         self.assertFalse(initialized["campaign_consent"]["renewal_required"])
         verification = initialized["profile_verification"]
         self.assertEqual(verification["device_id"], "browser-1-id")
@@ -399,7 +399,7 @@ class V6RuntimeTests(unittest.TestCase):
         for key in ("plugin_version", "lifecycle", "next_trigger", "profile_binding", "stage_history"):
             self.assertNotIn(key, migrated_state)
         self.assertEqual(
-            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.28"
+            migrated_state["runtime_instructions"]["active_version"], "6.0.0-rc.29"
         )
         migrated_continuation = migrated_state["dispatcher"]["continuation"]
         self.assertEqual(migrated_continuation["failed_adapters"], [])
@@ -778,8 +778,15 @@ class V6RuntimeTests(unittest.TestCase):
             self.assertEqual(decision["decision"], "wait")
             self.assertEqual(
                 datetime.fromisoformat(decision["predicted_next_opportunity"]),
-                wake_at,
+                NOW.astimezone(ZoneInfo("UTC")).replace(minute=0, second=0, microsecond=0)
+                + timedelta(hours=1),
             )
+            self.assertEqual(decision["wake_trigger"], "campaign-supervision-heartbeat")
+            if offset == 0:
+                self.assertEqual(
+                    datetime.fromisoformat(decision["deferred_task_wake"]["task_wake_at"]),
+                    wake_at,
+                )
             self.assertNotIn("task", decision)
         stored_health = next(
             item for item in read_json(state_dir / "work-queue.json")["items"]

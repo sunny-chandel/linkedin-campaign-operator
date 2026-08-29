@@ -229,6 +229,35 @@ def automatic_continuation(
     }
 
 
+def supervised_wake(
+    config: dict[str, Any],
+    now_dt: datetime,
+    wake_at: datetime,
+    wake_trigger: str,
+) -> tuple[datetime, str, dict[str, str] | None]:
+    """Keep the campaign supervised while preserving a task's real time gate.
+
+    A publication or cooldown may legitimately be hours away. The campaign still
+    needs a short recurring health check so newly available local work or service
+    capability is noticed promptly. This does not make the gated task executable
+    early; it only bounds the next dispatcher review.
+    """
+    # Claude Desktop Routines currently support hourly as their fastest durable
+    # cadence. Align the supervision gate to the next hourly boundary so the
+    # next routine invocation is productive instead of exiting early.
+    heartbeat_at = now_dt.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+    if wake_at <= heartbeat_at:
+        return wake_at, wake_trigger, None
+    return (
+        heartbeat_at,
+        "campaign-supervision-heartbeat",
+        {
+            "task_wake_at": iso_time(wake_at),
+            "task_wake_trigger": wake_trigger,
+        },
+    )
+
+
 def future_wake_candidates(
     items: list[dict[str, Any]],
     dispatcher: dict[str, Any],
@@ -910,8 +939,13 @@ def main() -> int:
             }
         elif pending_count and reconcilable_count == 0 and future_wakes:
             wake = future_wakes[0]
-            wake_at = iso_time(wake["at"])
-            wake_trigger = str(wake["trigger"])
+            selected_wake, wake_trigger, deferred_wake = supervised_wake(
+                config,
+                now_dt,
+                wake["at"],
+                str(wake["trigger"]),
+            )
+            wake_at = iso_time(selected_wake)
             result = {
                 "valid": True,
                 "decision": "wait",
@@ -928,6 +962,8 @@ def main() -> int:
                     wake_trigger,
                 ),
             }
+            if deferred_wake is not None:
+                result["deferred_task_wake"] = deferred_wake
         elif blocked_external:
             result = {
                 "valid": True,
@@ -965,11 +1001,16 @@ def main() -> int:
                     ):
                         completed_recovery.pop(lease_key, None)
                     if future_wakes:
-                        wake_at = iso_time(future_wakes[0]["at"])
-                        wake_trigger = str(future_wakes[0]["trigger"])
+                        selected_wake, wake_trigger, deferred_wake = supervised_wake(
+                            config,
+                            now_dt,
+                            future_wakes[0]["at"],
+                            str(future_wakes[0]["trigger"]),
+                        )
+                        wake_at = iso_time(selected_wake)
                         evidence = (
                             "the daily health refresh is complete and the remaining work is "
-                            "time-gated; reuse the earliest durable wake"
+                            "time-gated; keep the campaign supervised until that gate opens"
                         )
                     else:
                         continuation_config = config.get("adaptive_dispatch", {}).get(
@@ -1003,6 +1044,8 @@ def main() -> int:
                             wake_trigger,
                         ),
                     }
+                    if future_wakes and deferred_wake is not None:
+                        result["deferred_task_wake"] = deferred_wake
                 else:
                     recovery_task = {
                         "task_id": recovery_task_id,
@@ -1036,6 +1079,16 @@ def main() -> int:
             next_wake_at = dispatcher.get("next_wake_at")
             next_wake_reason = dispatcher.get("next_wake_reason")
             if next_wake_at and next_wake_reason:
+                recorded_wake = parse_time(next_wake_at)
+                deferred_wake = None
+                if recorded_wake is not None and recorded_wake > now_dt:
+                    selected_wake, next_wake_reason, deferred_wake = supervised_wake(
+                        config,
+                        now_dt,
+                        recorded_wake,
+                        str(next_wake_reason),
+                    )
+                    next_wake_at = iso_time(selected_wake)
                 continuation = automatic_continuation(
                     state_dir,
                     config,
@@ -1052,6 +1105,8 @@ def main() -> int:
                     "wake_trigger": next_wake_reason,
                     "continuation": continuation,
                 }
+                if deferred_wake is not None:
+                    result["deferred_task_wake"] = deferred_wake
             else:
                 investigation_task = {
                     "task_id": "investigate-next-opportunity",

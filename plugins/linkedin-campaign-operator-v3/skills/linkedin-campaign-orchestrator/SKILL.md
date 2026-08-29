@@ -3,12 +3,14 @@ name: linkedin-campaign-orchestrator
 description: Run a durable LinkedIn campaign workspace for research, content, scheduling, measurement, and recovery. Use this as the only public entry point.
 metadata:
   author: sunny
-  version: "6.0.0-rc.28"
+  version: "6.0.0-rc.29"
 ---
 
 # LinkedIn campaign orchestrator
 
 Run one durable campaign workspace and route its work through the supporting skills. Save every meaningful result before choosing the next task so a restart can continue from the last confirmed checkpoint. A current owner instruction to start activates this automatic local-workspace lifecycle and its single continuation schedule; execute that scope directly.
+
+The campaign is supervised every hour across all hours of every day. A timing gate applies only to its named task. Before waiting, complete every other eligible research, production, validation, measurement, or repair task. When every remaining task is genuinely time-gated, align the next dispatcher check to the next hourly routine and keep it armed so new evidence or restored capability is noticed promptly; the owner does not need to restart the campaign.
 
 ## Role and boundary
 
